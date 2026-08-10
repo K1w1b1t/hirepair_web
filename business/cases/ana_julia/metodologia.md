@@ -20,17 +20,27 @@
 | Premissa da 1ª versão | Realidade |
 |---|---|
 | "Não tem experiência prática na área veterinária" | **Falso.** Tem estágio em laboratório clínico veterinário (Provet) e mais de um ano de voluntariado em ONG animal. |
-| "Trabalhou como caixa de supermercado por alguns anos" | **Impreciso.** Foi atendente no Atacadão por 1 ano, com escopo administrativo/comercial (CRM, faturamento, NF), não operação de caixa. |
+| "Trabalhou como caixa de supermercado por alguns anos" | **Correto quanto à função, impreciso quanto à duração.** Foi operadora de caixa no Atacadão por 1 ano (abr/2023–abr/2024). O currículo é que descreve a função de forma inflada (CRM, faturamento, NF) — a premissa do briefing estava certa, o documento é que não reflete a realidade. |
 | "Gap recente de vários anos por mudança de cidade" | **Impreciso.** O gap visível é 2020–2022, anterior ao Atacadão. Desde 2023 ela está continuamente ativa (emprego → curso → voluntariado → estágio). |
 | "Falta de experiência é o risco principal" | **Falso.** O perfil é mais forte do que o briefing sugeria; o problema é de posicionamento, não de qualificação. |
 
 ## Diagnóstico revisado
 
-**1. Currículo dirigido a uma vaga específica sendo usado como currículo geral — causa provável mais grave.**
-O objetivo no topo diz literalmente: *"Auxiliar Veterinária — Gatil da CasAdote (AMPARA Animal)"*. Se este mesmo arquivo está sendo enviado para outras clínicas e pet shops, o recrutador lê, na primeira linha, o nome de **outra organização**. Isso é descarte quase automático. Um currículo dirigido a uma vaga é ótimo — para aquela vaga. Precisa existir uma versão neutra para as demais.
+> **Importante — o documento analisado não é o que ela usa no dia a dia.** O PDF em mãos foi feito sob medida para **uma** candidatura: a vaga de **atendente bilíngue** do Gatil da CasAdote (AMPARA), e foi enviado só para ela. Ela tem uma **versão genérica**, que é a que roda no funil — e que **ainda não foi analisada**. As conclusões abaixo valem para o documento visto e para os padrões que provavelmente se repetem na versão genérica, mas **obter a versão genérica é a próxima ação mais importante**.
 
-**2. Incoerência de posicionamento entre o perfil e a vaga pretendida — segunda causa provável.**
-O resumo abre com *"profissional da área de atendimento e suporte ao cliente, com sólida experiência em comunicação corporativa"*, e a seção de habilidades destaca Salesforce, HubSpot, Power BI e LinkedIn Sales Navigator. Uma clínica veterinária de bairro pagando faixa de entrada lê isso e conclui: essa pessoa está superqualificada, é cara, e vai embora em dois meses. O ferramental corporativo, que seria um ativo em outra trilha, aqui trabalha **contra** a candidatura.
+**Hipótese descartada:** "currículo dirigido à CasAdote sendo enviado para todas as vagas". Falsa — o direcionamento estava correto para aquela candidatura específica. Da mesma forma, a ênfase bilíngue/corporativa **não era incoerente naquele contexto**: a vaga era de atendente bilíngue, e o enquadramento fazia sentido. Ela chegou a concorrer e perdeu para uma candidata com experiência em **hotelaria** — o que indica que a organização priorizou profundidade em hospitalidade/atendimento, não conhecimento veterinário. É uma derrota competitiva legítima, não falha de currículo.
+
+**1. Descrição inflada da experiência do Atacadão — causa provável mais grave (credibilidade).**
+Ela foi **operadora de caixa** de supermercado. O currículo descreve a função como *"organização de cadastros, controle de qualidade e gestão de dados operacionais"* e *"operação de sistemas internos para faturamento, emissão de notas fiscais e conciliação de fechamentos"*. Isso é inflação de escopo, e cria dois problemas:
+- **Risco em entrevista:** se perguntarem "como era a conciliação de fechamentos?", ela não sustenta. Recrutador experiente sonda exatamente esse tipo de afirmação.
+- **É a raiz da incoerência percebida:** a inflação constrói uma identidade corporativa/comercial em cima de um cargo operacional, e é isso que faz o currículo "não fechar" com a vaga de auxiliar veterinária.
+
+**2. Ferramental corporativo que ela não domina — mesma raiz.**
+Salesforce, HubSpot, Power BI e LinkedIn Sales Navigator na seção de habilidades, sem uso recente (ou real). Ferramenta que não se sustenta em entrevista é passivo, não ativo. Numa candidatura veterinária, ainda soma o efeito de "superqualificada, vai embora em dois meses".
+
+**Encaminhamento (responde à pergunta de cortar ou não):** **não cortar o Atacadão** — cortar a descrição inflada. Remover a experiência inteira custaria caro: é o **único vínculo formal** dela (sinal de confiabilidade para dono de clínica pequena) e abriria o gap de ~3 anos (2020–2022) para ~6 anos (2019→2025), transformando um problema explicável no problema principal. Manter em 2–3 linhas honestas — atendimento ao público em alto fluxo, operação de caixa/sistema, organização e rotina de loja — que é experiência genuinamente transferível para recepção de clínica e pet shop. **Cortar sim** todo o ferramental corporativo (Power BI, Salesforce, HubSpot, Sales Navigator) da versão veterinária.
+
+**Idiomas ficam.** Inglês e espanhol fluentes são reais (há intercâmbio no histórico) e em Pinheiros há clientela estrangeira em clínicas e hotéis para pets. Só não devem liderar a versão veterinária.
 
 **3. Localização — resolvida, e a favor dela.**
 Ela mora em Pinheiros, a mesma região de alta densidade de clínicas e pet shops onde busca vaga. Proximidade deixa de ser risco e vira **ativo**: a estratégia de visitas presenciais é totalmente viável, e o currículo deve deixar o bairro/região explícito, porque para vaga de entrada morar perto é ponto positivo na triagem. Vale garantir que o currículo diga "Pinheiros, São Paulo" (ou a região), não só "São Paulo, SP" genérico.
@@ -56,7 +66,8 @@ Não sabemos quantas candidaturas ela fez, em que canais, para quais vagas, nem 
 O perfil comporta duas trilhas com valor de mercado bem diferente:
 
 - **Trilha veterinária** (auxiliar veterinária, recepção de clínica, atendimento em pet shop): coerente com a formação recente, o voluntariado e o estágio — e claramente é a escolha vocacional dela. Faixa salarial de entrada.
-- **Trilha atendimento/comercial bilíngue** (customer success, inside sales, suporte, backoffice): inglês e espanhol fluentes + CRM + Power BI é um perfil que remunera substancialmente melhor, e ela já tem experiência direta disso no Atacadão.
+- **Trilha atendimento bilíngue** (recepção, hospitalidade, atendimento ao cliente, suporte): inglês e espanhol fluentes são diferencial genuíno e costumam remunerar melhor que auxiliar veterinário. **Ela já está explorando essa trilha** — a candidatura à AMPARA era exatamente isso. Atenção ao aprendizado daquele processo: perdeu para alguém de **hotelaria**, ou seja, quem contrata atendente bilíngue valoriza profundidade em hospitalidade/atendimento. Como a experiência dela aqui é caixa de supermercado (mais rasa nesse quesito), a forma de competir é enquadrar bem o atendimento em alto fluxo do Atacadão + o acolhimento ao público nas feiras de adoção da AMPARA, que é experiência real de hospitalidade.
+- **Ponto de convergência ideal** (melhor dos dois mundos, e o alvo mais promissor): **recepção/atendimento bilíngue em clínicas veterinárias, pet hotels e daycares premium de Pinheiros e região** — onde a formação veterinária, o atendimento e os idiomas somam ao mesmo tempo, em vez de competirem. Pinheiros/Vila Madalena tem clientela estrangeira e estabelecimentos desse perfil.
 
 Não cabe decidir por ela. Mas cabe deixar explícito que a trilha veterinária tende a exigir aceitar faixa de entrada, e que existe a opção de seguir a trilha comercial para renda enquanto mantém o voluntariado na causa animal. **Se ela confirmar a trilha veterinária, o currículo precisa parar de vender o perfil corporativo** — que é justamente o que hoje gera a leitura de "superqualificada".
 
@@ -105,14 +116,18 @@ Duas frentes rodando em paralelo, cada uma com um papel:
 
 ## Dados que ainda faltam levantar com ela
 
-1. Histórico de candidaturas: quantas, desde quando, em que canais, para quais cargos, e quantos retornos (mesmo negativos).
-2. Qual currículo exatamente ela está enviando — se é este, dirigido à CasAdote.
-3. Disponibilidade de horário e pretensão salarial mínima viável.
-4. Se a trilha veterinária é decisão firme mesmo com faixa salarial de entrada.
-5. Se o curso técnico teve carga de estágio adicional além da Provet.
+1. **A versão genérica do currículo — prioridade máxima.** É o documento que realmente roda no funil e ainda não foi analisado. Tudo o que está aqui foi inferido de uma versão sob medida para uma única vaga.
+2. Histórico de candidaturas: quantas, desde quando, em que canais, para quais cargos, e quantos retornos (mesmo negativos).
+3. No processo da AMPARA, ela chegou a ser **entrevistada** ou foi eliminada na triagem? Se foi entrevistada, o funil não está travado no currículo e o diagnóstico muda de novo — o gargalo seria a etapa de entrevista, não a triagem.
+4. Quais ferramentas ela realmente domina hoje (Excel? algum sistema?) — para não repetir a inflação na versão nova.
+5. Disponibilidade de horário e pretensão salarial mínima viável.
+6. Se a trilha veterinária é decisão firme mesmo com faixa salarial de entrada, ou se aceita a convergência (recepção bilíngue em clínica/pet hotel).
+7. Se o curso técnico teve carga de estágio adicional além da Provet.
 
 ## Métrica de sucesso
 
 Registrar o **baseline** (candidaturas e retornos dos últimos 30 dias, com o currículo atual) antes de mudar qualquer coisa. Depois, semanalmente: candidaturas por canal, retornos recebidos, entrevistas agendadas.
 
-Com a localização já resolvida (ela mora na região-alvo), as duas causas prováveis a atacar primeiro são **o objetivo dirigido à CasAdote** e o **posicionamento "superqualificada"**. Se após 3–4 semanas com o currículo corrigido e as visitas presenciais o retorno continuar zero, a hipótese seguinte é **pretensão salarial vs. faixa da vaga** ou saturação real do mercado local — não mais currículo nem logística.
+Com a localização resolvida (mora na região-alvo) e a hipótese do "currículo errado enviado a todos" descartada, a causa provável a atacar primeiro é a **descrição inflada do Atacadão e o ferramental corporativo** — que gera a incoerência e o risco de credibilidade. Mas a análise só fecha de verdade quando a **versão genérica do currículo** for revisada.
+
+Se após 3–4 semanas com o currículo corrigido e as duas frentes rodando o retorno continuar zero, as hipóteses seguintes são **pretensão salarial vs. faixa da vaga** ou saturação real do mercado local — não mais currículo nem logística.
