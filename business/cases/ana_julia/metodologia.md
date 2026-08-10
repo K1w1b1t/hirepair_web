@@ -6,7 +6,8 @@
 
 - Ana Julia Goulart. **Reside em Pinheiros, São Paulo (SP) — confirmado**, mesma região onde busca vaga (logística de deslocamento resolvida). Telefone com DDD 12 e ensino médio em São José dos Campos indicam origem no Vale do Paraíba, mas ela já mudou para São Paulo.
 - Ensino Médio (Joseense, SJC) 2017–2019. Intercâmbio no Canadá (ILAC) em 2017.
-- **Gap 2020–2022** (~3 anos, anterior ao último emprego — não é um gap recente).
+- **Gap 1: 2020–2022** (~3 anos, anterior ao Atacadão). Neste período há duas experiências hoje **omitidas** do currículo: atendente de telemarketing na **Atento** (~3 meses, fichado) e ajudante de almoxarifado/embaladora no **negócio da família** (empresa que não foi adiante, informal).
+- **Gap 2: abr/2024 – mai/2025** (~13 meses, entre a saída do Atacadão e o início do voluntariado na AMPARA). **Não explicado e não notado antes** — é o gap que mais pesa, por ser o mais recente.
 - **Atacadão — Atendente**, abr/2023 – abr/2024 (1 ano): atendimento ao cliente, processamento de pedidos, organização de cadastros, operação de sistemas de faturamento, emissão de notas fiscais e conciliação de fechamentos.
 - **Técnico em Veterinária — FAMESP**, ago/2025 – jul/2026. Recém-formada (~1 mês).
 - **Voluntária na ONG AMPARA Animal**, mai/2025 – presente: feiras de adoção, orientação de adotantes, manejo e contenção de cães e gatos.
@@ -41,6 +42,13 @@ Salesforce, HubSpot, Power BI e LinkedIn Sales Navigator na seção de habilidad
 **Encaminhamento (responde à pergunta de cortar ou não):** **não cortar o Atacadão** — cortar a descrição inflada. Remover a experiência inteira custaria caro: é o **único vínculo formal** dela (sinal de confiabilidade para dono de clínica pequena) e abriria o gap de ~3 anos (2020–2022) para ~6 anos (2019→2025), transformando um problema explicável no problema principal. Manter em 2–3 linhas honestas — atendimento ao público em alto fluxo, operação de caixa/sistema, organização e rotina de loja — que é experiência genuinamente transferível para recepção de clínica e pet shop. **Cortar sim** todo o ferramental corporativo (Power BI, Salesforce, HubSpot, Sales Navigator) da versão veterinária.
 
 **Idiomas ficam.** Inglês e espanhol fluentes são reais (há intercâmbio no histórico) e em Pinheiros há clientela estrangeira em clínicas e hotéis para pets. Só não devem liderar a versão veterinária.
+
+**3. Experiências omitidas — reincluir a Atento, manter a familiar fora do papel.**
+
+- **Atento (telemarketing, ~3 meses, fichado): incluir.** Foi cortada por parecer desconexa, mas telemarketing → atendimento/recepção é linha direta — é atendimento profissional a cliente como atividade-fim, mais aderente à trilha de recepção/atendente bilíngue do que a operação de caixa. Some: é vínculo **formal e verificável** (segundo registro em carteira, reforçando confiabilidade) e preenche parte do Gap 1. Os 3 meses não pesam: rotatividade alta é a norma em contact center e o mercado brasileiro entende passagem curta pela Atento como normal.
+- **Negócio da família (ajudante de almoxarifado/embaladora): manter fora do currículo.** É informal, a empresa não foi adiante (sem CNPJ ativo, sem referência verificável) e a função tem baixa aderência tanto à área veterinária quanto a atendimento. Num currículo que precisa encolher para 1 página, não paga o espaço que ocupa.
+- **Regra sobre a empresa familiar:** não há obrigação de listar tudo que é verdade — currículo é seleção, não confissão. Mas **omitir não pode virar esconder**: se o período for questionado, a resposta é direta e honesta ("trabalhei no negócio da minha família como ajudante de almoxarifado e embaladora"), e caso a experiência entre no documento algum dia, "empresa familiar" é o termo correto e respeitável. Ser pega omitindo causa o mesmo dano de credibilidade que a inflação do Atacadão.
+- **Princípio:** a narrativa do gap pode viver na entrevista, não precisa estar toda no papel. O que ela precisa é de uma resposta pronta e verdadeira para "o que você fez nesse período?".
 
 **3. Localização — resolvida, e a favor dela.**
 Ela mora em Pinheiros, a mesma região de alta densidade de clínicas e pet shops onde busca vaga. Proximidade deixa de ser risco e vira **ativo**: a estratégia de visitas presenciais é totalmente viável, e o currículo deve deixar o bairro/região explícito, porque para vaga de entrada morar perto é ponto positivo na triagem. Vale garantir que o currículo diga "Pinheiros, São Paulo" (ou a região), não só "São Paulo, SP" genérico.
@@ -117,12 +125,13 @@ Duas frentes rodando em paralelo, cada uma com um papel:
 ## Dados que ainda faltam levantar com ela
 
 1. **A versão genérica do currículo — prioridade máxima.** É o documento que realmente roda no funil e ainda não foi analisado. Tudo o que está aqui foi inferido de uma versão sob medida para uma única vaga.
-2. Histórico de candidaturas: quantas, desde quando, em que canais, para quais cargos, e quantos retornos (mesmo negativos).
-3. No processo da AMPARA, ela chegou a ser **entrevistada** ou foi eliminada na triagem? Se foi entrevistada, o funil não está travado no currículo e o diagnóstico muda de novo — o gargalo seria a etapa de entrevista, não a triagem.
-4. Quais ferramentas ela realmente domina hoje (Excel? algum sistema?) — para não repetir a inflação na versão nova.
-5. Disponibilidade de horário e pretensão salarial mínima viável.
-6. Se a trilha veterinária é decisão firme mesmo com faixa salarial de entrada, ou se aceita a convergência (recepção bilíngue em clínica/pet hotel).
-7. Se o curso técnico teve carga de estágio adicional além da Provet.
+2. **O que ela fez entre abr/2024 e mai/2025 (Gap 2, ~13 meses).** É o gap mais recente e o que um recrutador mais provavelmente questiona. **Se a Atento ou o trabalho na empresa familiar caírem neste período** (e não em 2022, como assumido), a recomendação acima **inverte**: passa a valer incluir também a experiência familiar, porque tapa o buraco que de fato incomoda. Confirmar as datas exatas das duas experiências antes de decidir.
+3. Histórico de candidaturas: quantas, desde quando, em que canais, para quais cargos, e quantos retornos (mesmo negativos).
+4. No processo da AMPARA, ela chegou a ser **entrevistada** ou foi eliminada na triagem? Se foi entrevistada, o funil não está travado no currículo e o diagnóstico muda de novo — o gargalo seria a etapa de entrevista, não a triagem.
+5. Quais ferramentas ela realmente domina hoje (Excel? algum sistema?) — para não repetir a inflação na versão nova.
+6. Disponibilidade de horário e pretensão salarial mínima viável.
+7. Se a trilha veterinária é decisão firme mesmo com faixa salarial de entrada, ou se aceita a convergência (recepção bilíngue em clínica/pet hotel).
+8. Se o curso técnico teve carga de estágio adicional além da Provet.
 
 ## Métrica de sucesso
 
