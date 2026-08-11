@@ -1,0 +1,13 @@
+.env
+.env.local
+
+# Saída do protótipo: currículos e transcrições com dado pessoal real.
+demo/out/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+node_modules/
+dist/

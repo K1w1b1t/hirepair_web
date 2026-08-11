@@ -42,3 +42,91 @@ O plano de negócio e o planejamento do MVP estão em [`business/`](./business/)
 - [`business/proximos-passos-mvp.md`](./business/proximos-passos-mvp.md) — roteiro
   para definir o MVP: pesquisa de público, funcionalidades, marca/linguagem,
   gateway de pagamento, LGPD e demais regulações.
+- [`business/survey-validacao.md`](./business/survey-validacao.md) — survey curto de
+  validação das hipóteses de produto.
+
+## Metodologia
+
+Como o produto trata um currículo: o que é regra dura do sistema, o que o usuário
+escolhe e como a informação entra.
+
+- [`business/methodology/metodologia-do-sistema.md`](./business/methodology/metodologia-do-sistema.md)
+  — a metodologia do produto: três camadas, pipeline de 9 etapas, matriz de estrutura
+  por arquétipo, guardrails e decisões ainda abertas.
+- [`business/methodology/cases/`](./business/methodology/cases/) — casos reais que
+  originaram (e corrigiram) a metodologia, e o processo manual de análise.
+
+## Protótipo da metodologia (demo em Python)
+
+Script de terminal para **testar a metodologia com uma pessoa de verdade**: lê os
+currículos que ela já tem, diagnostica o documento, conduz a entrevista, analisa a vaga
+que ela quer e escreve um currículo estruturado em Markdown.
+
+É protótipo descartável para validação — **não** é o backend do produto. As regras duras
+da metodologia estão em [`demo/metodologia.py`](./demo/metodologia.py) (é o arquivo que se
+edita quando a metodologia muda); a condução das fases está em
+[`demo/demo.py`](./demo/demo.py). O Gemini é chamado só para extrair perfil, extrair fatos
+de um relato, classificar requisitos de vaga e redigir.
+
+### 1. Ambiente
+
+Requer Python 3.10 ou superior.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate && pip install -r demo/requirements.txt
+```
+
+### 2. Chave da API do Gemini
+
+1. Acesse **https://aistudio.google.com/apikey** e entre com uma conta Google.
+2. Clique em **Create API key** (pode ser preciso escolher/criar um projeto) e copie a chave.
+3. Crie o arquivo de configuração e cole a chave nele:
+
+```bash
+cp demo/.env.example demo/.env
+```
+
+O `demo/.env` fica assim — só a primeira linha é obrigatória:
+
+```
+GEMINI_API_KEY=sua-chave-aqui
+GEMINI_MODEL=gemini-3.6-flash
+```
+
+O Gemini tem camada gratuita com limite de requisições por minuto e por dia; uma sessão
+completa desta demo faz cerca de 6 a 12 chamadas. Se o modelo do exemplo deixar de existir,
+troque `GEMINI_MODEL` por outro da [lista de modelos](https://ai.google.dev/gemini-api/docs/models).
+
+> O `.env` e a pasta de saída estão no `.gitignore`. **Nunca commite nenhum dos dois** —
+> a chave é pessoal e a saída contém currículo de gente real.
+
+### 3. Rodar
+
+```bash
+python demo/demo.py business/methodology/cases/joao_pedro/curriculo.pdf
+```
+
+Aceita mais de um currículo (`demo.py um.pdf outro.pdf` — ele pergunta qual está em uso
+hoje) e também roda sem nenhum, coletando tudo pela conversa. Digite `/ajuda` em qualquer
+pergunta para ver os comandos; `/sair` salva a sessão e `--retomar demo/out/<nome>-sessao.json`
+continua de onde parou.
+
+### O que acontece na sessão
+
+| Fase | O que faz |
+|---|---|
+| 1 | Extrai o texto do PDF como um ATS extrairia e mostra os defeitos: palavras coladas, dado sensível, imagem embutida, gaps na linha do tempo |
+| 2 | Pergunta o objetivo pessoal — nada é escrito antes disso |
+| 3 | Deriva o arquétipo e mostra a estrutura pré-definida que ele impõe |
+| 4 | Tom de escrita e fórmula de impacto, com as travas aplicadas |
+| 5 | Pergunta sobre cada experiência, extrai os fatos, pede confirmação e redige |
+| 6 | Lê a vaga colada, classifica os requisitos e mostra o que falta (sem nota de aderência) |
+| 7 | Escreve o currículo em `demo/out/*.md` |
+
+### Limitações conhecidas
+
+- **Só texto.** A metodologia é áudio-first (a pessoa fala, o sistema escreve), mas esta
+  versão coleta digitando. É a próxima iteração.
+- Sem geração de PDF, sem preset visual, sem pesquisa de mercado.
+- O diagnóstico automático é heurístico: ele acha o que dá para achar no texto extraído,
+  não substitui a leitura humana do documento.
