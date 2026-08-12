@@ -6,20 +6,24 @@ seguindo o pipeline de `business/methodology/metodologia-do-sistema.md` e escrev
 currículo estruturado em Markdown.
 
     python demo/demo.py caminho/do/curriculo.pdf [outro.pdf ...]
-    python demo/demo.py --retomar demo/out/joao-sessao.json
+    python demo/demo.py --sessoes
+    python demo/demo.py --resume <id-da-sessao>
 
-Setup e chave da API: ver README.md.
+Setup e chaves da API: ver README.md.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import secrets
 import sys
+import time
 import unicodedata
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, fields, asdict
 from datetime import date, datetime
 from pathlib import Path
 
@@ -68,7 +72,7 @@ Comandos disponíveis em qualquer pergunta:
   /ajuda    mostra esta lista
   /estado   mostra o que a sessão já sabe
   /pular    deixa a pergunta em branco e segue
-  /sair     salva a sessão e encerra (retome com --retomar)
+  /sair     salva a sessão e encerra (retome com --resume <id>)
 """
 
 
@@ -161,6 +165,24 @@ def _quebrar(texto: str, largura: int) -> list[str]:
 # Gemini
 # ---------------------------------------------------------------------------
 
+# A cota da camada gratuita é por projeto/conta, então chave reserva só resolve se for
+# de OUTRA conta Google. Ordem de uso: principal primeiro, reservas conforme a cota acaba.
+CHAVES_ENV = [
+    ("GEMINI_API_KEY", "principal"),
+    ("GEMINI_API_KEY_2", "reserva 1"),
+    ("GEMINI_API_KEY_3", "reserva 2"),
+]
+
+
+def _erro_de_cota(erro: Exception) -> tuple[bool, bool]:
+    """(é estouro de cota?, é o limite diário?) — lido da mensagem do SDK."""
+    texto = f"{type(erro).__name__} {erro}".lower()
+    cota = any(m in texto for m in
+               ("resource_exhausted", "429", "quota", "rate limit", "ratelimit"))
+    diario = any(m in texto for m in ("per day", "perday", "per_day", "daily", "diári"))
+    return cota, diario
+
+
 class Motor:
     def __init__(self, modelo: str | None = None):
         try:
@@ -172,8 +194,9 @@ class Motor:
                 "Instruções completas no README.md."
             ))
 
-        chave = os.getenv("GEMINI_API_KEY", "").strip()
-        if not chave:
+        self.chaves = [(rotulo, valor) for var, rotulo in CHAVES_ENV
+                       if (valor := os.getenv(var, "").strip())]
+        if not self.chaves:
             sys.exit(vermelho(
                 "GEMINI_API_KEY não configurada.\n"
                 "  1. Gere a chave em https://aistudio.google.com/apikey\n"
@@ -182,28 +205,87 @@ class Motor:
                 "Detalhes no README.md."
             ))
 
+        self._genai = genai
         self._types = types
-        self.cliente = genai.Client(api_key=chave)
+        self.indice = 0
+        self.esgotadas: set[int] = set()
+        self.cliente = genai.Client(api_key=self.chaves[0][1])
         self.modelo = modelo or os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
         self.chamadas = 0
 
+    def descricao_chaves(self) -> str:
+        reservas = len(self.chaves) - 1
+        if not reservas:
+            return "1 chave (sem reserva)"
+        return f"{len(self.chaves)} chaves ({reservas} reserva{'s' if reservas > 1 else ''})"
+
     def _gerar(self, prompt: str, json_mode: bool) -> str:
-        self.chamadas += 1
         config = self._types.GenerateContentConfig(
             system_instruction=M.SYSTEM_BASE,
             temperature=0.3,
             response_mime_type="application/json" if json_mode else "text/plain",
         )
-        try:
-            resposta = self.cliente.models.generate_content(
-                model=self.modelo, contents=prompt, config=config
-            )
-        except Exception as erro:  # rede, cota, modelo inexistente
-            raise RuntimeError(
-                f"Falha ao chamar o modelo '{self.modelo}': {erro}\n"
-                "Se o modelo não existir mais, troque GEMINI_MODEL no demo/.env."
-            ) from erro
-        return (resposta.text or "").strip()
+        while True:
+            self.chamadas += 1
+            try:
+                resposta = self.cliente.models.generate_content(
+                    model=self.modelo, contents=prompt, config=config
+                )
+                return (resposta.text or "").strip()
+            except Exception as erro:  # rede, cota, modelo inexistente
+                cota, diario = _erro_de_cota(erro)
+                if cota:
+                    # Levanta Sair se a pessoa preferir parar; volta True para tentar de novo.
+                    self._resolver_cota(diario)
+                    continue
+                raise RuntimeError(
+                    f"Falha ao chamar o modelo '{self.modelo}': {erro}\n"
+                    "Se o modelo não existir mais, troque GEMINI_MODEL no demo/.env."
+                ) from erro
+
+    def _resolver_cota(self, diario: bool) -> None:
+        """Cota estourada no meio da sessão: trocar de conta, esperar, ou parar e voltar depois.
+
+        Nada do que já foi coletado se perde — quem escolhe parar cai no /sair, que salva.
+        """
+        rotulo = self.chaves[self.indice][0]
+        self.esgotadas.add(self.indice)
+
+        print()
+        aviso(f"A cota da chave {rotulo} acabou "
+              f"({'limite diário' if diario else 'limite por minuto'}).")
+
+        disponiveis = [i for i in range(len(self.chaves)) if i not in self.esgotadas]
+        opcoes: list[tuple[str, str]] = []
+        if not diario:
+            opcoes.append(("esperar", "Esperar 60 segundos e tentar de novo"))
+        opcoes += [(f"chave:{i}", f"Trocar para a conta {self.chaves[i][0]}")
+                   for i in disponiveis]
+        opcoes.append(("salvar", "Salvar a sessão e continuar depois"))
+
+        if not disponiveis and len(self.chaves) == 1:
+            nota("Nenhuma chave reserva configurada. Para ter uma, preencha "
+                 "GEMINI_API_KEY_2 (e _3) em demo/.env com chaves de OUTRA conta Google.")
+        elif not disponiveis:
+            nota("As chaves reserva também acabaram. A cota diária zera no dia seguinte — "
+                 "salve agora e continue depois, nada do que você contou se perde.")
+
+        escolha = escolher("O que você quer fazer?", opcoes, padrao=opcoes[0][0])
+
+        if escolha == "salvar":
+            raise Sair()
+        if escolha == "esperar":
+            self.esgotadas.discard(self.indice)
+            nota("Esperando 60s antes de tentar de novo...")
+            time.sleep(60)
+            return
+
+        self.indice = int(escolha.split(":")[1])
+        self.cliente = self._genai.Client(api_key=self.chaves[self.indice][1])
+        nota(f"Agora usando a conta {self.chaves[self.indice][0]}.")
+        if diario:
+            nota("Se esta chave for da mesma conta Google da anterior, a cota é a mesma "
+                 "e vai acabar de novo na hora.")
 
     def texto(self, prompt: str) -> str:
         return self._gerar(prompt, json_mode=False)
@@ -258,8 +340,24 @@ def ler_pdf(caminho: Path) -> dict:
 # sessão
 # ---------------------------------------------------------------------------
 
+# s.fase é quantas fases já fecharam, então o rótulo abaixo é o PRÓXIMO passo.
+NOME_FASE = {
+    0: "diagnóstico do currículo",
+    1: "objetivo pessoal",
+    2: "arquétipo e estrutura",
+    3: "parâmetros de escrita",
+    4: "contar as experiências",
+    5: "a vaga",
+    6: "gerar o currículo",
+    7: "concluída",
+}
+
+
 @dataclass
 class Sessao:
+    id: str = ""
+    criado_em: str = ""
+    atualizado_em: str = ""
     slug: str = "sessao"
     arquivos: list[dict] = field(default_factory=list)
     base: int = 0                      # índice do currículo que está em uso hoje
@@ -275,16 +373,80 @@ class Sessao:
     vaga: dict = field(default_factory=dict)
     fase: int = 0
 
+    # Sessão carregada de um arquivo de layout antigo continua escrevendo no arquivo dela.
+    # Atributo comum, não campo do dataclass — asdict() não o serializa.
+    _arquivo = None
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            self.id = secrets.token_hex(3)
+        if not self.criado_em:
+            self.criado_em = datetime.now().isoformat(timespec="seconds")
+
     def caminho(self) -> Path:
-        return SAIDA / f"{self.slug}-sessao.json"
+        if self._arquivo:
+            return self._arquivo
+        return SAIDA / f"{self.slug}-{self.id}-sessao.json"
 
     def salvar(self) -> None:
         SAIDA.mkdir(parents=True, exist_ok=True)
-        self.caminho().write_text(json.dumps(asdict(self), ensure_ascii=False, indent=2))
+        self.atualizado_em = datetime.now().isoformat(timespec="seconds")
+        destino = self.caminho()
+        destino.write_text(json.dumps(asdict(self), ensure_ascii=False, indent=2))
+        # O slug só é conhecido depois da Fase 1; o arquivo criado antes disso é lixo.
+        for antigo in SAIDA.glob(f"*-{self.id}-sessao.json"):
+            if antigo != destino:
+                antigo.unlink()
 
     @classmethod
     def carregar(cls, caminho: Path) -> "Sessao":
-        return cls(**json.loads(Path(caminho).read_text()))
+        caminho = Path(caminho)
+        dados = json.loads(caminho.read_text())
+        # Tolera arquivo de versão anterior do script: ignora chave que não existe mais.
+        s = cls(**{k: v for k, v in dados.items() if k in {f.name for f in fields(cls)}})
+
+        # Sessão gravada antes de existir id: deriva do nome do arquivo em vez de sortear,
+        # senão o id mudaria a cada leitura e --resume nunca acharia a sessão.
+        if not dados.get("id"):
+            s.id = hashlib.sha1(caminho.name.encode()).hexdigest()[:6]
+        if not s.atualizado_em:
+            s.atualizado_em = datetime.fromtimestamp(
+                caminho.stat().st_mtime).isoformat(timespec="seconds")
+        if not caminho.name.endswith(f"-{s.id}-sessao.json"):
+            s._arquivo = caminho
+        return s
+
+    @classmethod
+    def listar(cls) -> list["Sessao"]:
+        encontradas = []
+        for arquivo in SAIDA.glob("*sessao.json"):
+            try:
+                encontradas.append(cls.carregar(arquivo))
+            except Exception:
+                continue  # arquivo corrompido não derruba a listagem
+        return sorted(encontradas, key=lambda s: s.atualizado_em or "", reverse=True)
+
+    @classmethod
+    def resolver(cls, referencia: str) -> "Sessao":
+        """Aceita id (inteiro ou prefixo) ou caminho do arquivo."""
+        caminho = Path(referencia)
+        if caminho.exists():
+            return cls.carregar(caminho)
+
+        candidatas = [s for s in cls.listar() if s.id == referencia]
+        if not candidatas:
+            candidatas = [s for s in cls.listar() if s.id.startswith(referencia)]
+        if len(candidatas) == 1:
+            return candidatas[0]
+        if len(candidatas) > 1:
+            sys.exit(vermelho(
+                f"'{referencia}' casa com mais de uma sessão: "
+                + ", ".join(s.id for s in candidatas) + "\nUse o id completo."
+            ))
+        sys.exit(vermelho(
+            f"Sessão '{referencia}' não encontrada.\n"
+            "Veja as disponíveis com:  python demo/demo.py --sessoes"
+        ))
 
     def texto_base(self) -> str:
         return self.arquivos[self.base]["texto"] if self.arquivos else ""
@@ -823,11 +985,34 @@ def _periodo(f: dict) -> str:
 # main
 # ---------------------------------------------------------------------------
 
+def listar_sessoes() -> None:
+    sessoes = Sessao.listar()
+    if not sessoes:
+        print(fraco("Nenhuma sessão salva ainda."))
+        return
+
+    titulo("Sessões salvas")
+    for s in sessoes:
+        nome = s.perfil.get("nome") or s.slug
+        quando = (s.atualizado_em or "").replace("T", " ")[:16]
+        estado = ("concluída" if s.fase >= 7
+                  else f"próximo passo: {NOME_FASE.get(s.fase, '?')}")
+        print(f"\n  {negrito(s.id)}  {nome}")
+        print(fraco(f"      {estado}  ·  {len(s.relatos)} experiência(s) coletada(s)"
+                    f"{'  ·  vaga analisada' if s.vaga else ''}"))
+        print(fraco(f"      mexida por último em {quando or 'data desconhecida'}"))
+    print()
+    print(fraco(f"Continue qualquer uma com:  python demo/demo.py --resume {sessoes[0].id}"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Protótipo de terminal da metodologia de currículos.")
     parser.add_argument("pdfs", nargs="*", type=Path, help="currículos em PDF (0 ou mais)")
-    parser.add_argument("--retomar", type=Path, help="arquivo -sessao.json de uma sessão anterior")
+    parser.add_argument("--resume", "--retomar", dest="resume", metavar="ID",
+                        help="id da sessão a continuar (ou caminho do -sessao.json)")
+    parser.add_argument("--sessoes", action="store_true",
+                        help="lista as sessões salvas e sai")
     parser.add_argument("--modelo", help="sobrescreve GEMINI_MODEL")
     args = parser.parse_args()
 
@@ -837,11 +1022,18 @@ def main() -> None:
     except ImportError:
         pass
 
+    # Listar não fala com o modelo: funciona mesmo com a cota estourada ou sem chave.
+    if args.sessoes:
+        listar_sessoes()
+        return
+
     motor = Motor(args.modelo)
 
-    if args.retomar:
-        s = Sessao.carregar(args.retomar)
-        print(verde(f"Sessão retomada de {args.retomar} (fase {s.fase})."))
+    if args.resume:
+        s = Sessao.resolver(args.resume)
+        print(verde(f"Sessão {s.id} retomada — próximo passo: {NOME_FASE.get(s.fase, '?')}."))
+        if s.relatos:
+            nota(f"Já coletadas: {', '.join(r['rotulo'] for r in s.relatos)}")
     else:
         s = Sessao()
         for caminho in args.pdfs:
@@ -849,9 +1041,12 @@ def main() -> None:
                 sys.exit(vermelho(f"Arquivo não encontrado: {caminho}"))
             nota(f"Lendo {caminho.name}...")
             s.arquivos.append(ler_pdf(caminho))
+        s.salvar()
 
     print(negrito(ciano("\nProtótipo da metodologia de currículos")))
-    nota(f"modelo: {motor.modelo}  ·  /ajuda para os comandos")
+    nota(f"sessão: {negrito(s.id)}  ·  modelo: {motor.modelo}  ·  {motor.descricao_chaves()}")
+    nota(f"pare quando quiser com /sair e continue com:  "
+         f"python demo/demo.py --resume {s.id}")
 
     try:
         if s.fase < 1:
@@ -869,8 +1064,13 @@ def main() -> None:
         if s.fase < 6:
             fase_vaga(s, motor); s.fase = 6; s.salvar()
 
-        fase_gerar(s, motor)
-        s.fase = 7; s.salvar()
+        # Retomar uma sessão já concluída não regenera sozinho — chamada de modelo é
+        # justamente o recurso escasso. Quem quiser um arquivo novo pede no menu.
+        if s.fase < 7:
+            fase_gerar(s, motor)
+            s.fase = 7; s.salvar()
+        else:
+            nota("Sessão já concluída. Use o menu para gerar de novo ou analisar outra vaga.")
 
         while True:
             acao = escolher(
@@ -890,14 +1090,15 @@ def main() -> None:
 
     except Sair:
         s.salvar()
-        print(fraco(f"\nSessão salva em {s.caminho()}"))
-        print(fraco(f"Retome com:  python demo/demo.py --retomar {s.caminho()}"))
+        print(fraco(f"\nSessão salva ({s.caminho().name}). Nada do que você contou se perdeu."))
+        print(negrito(f"Continue de onde parou com:  python demo/demo.py --resume {s.id}"))
         return
     except RuntimeError as erro:
         s.salvar()
-        sys.exit(vermelho(f"\n{erro}\nSessão salva em {s.caminho()}"))
+        sys.exit(vermelho(f"\n{erro}\n") +
+                 f"Sessão salva. Continue com:  python demo/demo.py --resume {s.id}")
 
-    print(fraco(f"\n{motor.chamadas} chamadas ao modelo. Sessão em {s.caminho()}"))
+    print(fraco(f"\n{motor.chamadas} chamadas ao modelo. Sessão {s.id} em {s.caminho()}"))
 
 
 if __name__ == "__main__":

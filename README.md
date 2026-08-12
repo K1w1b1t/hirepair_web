@@ -76,7 +76,7 @@ Requer Python 3.10 ou superior.
 python3 -m venv .venv && source .venv/bin/activate && pip install -r demo/requirements.txt
 ```
 
-### 2. Chave da API do Gemini
+### 2. Chaves da API do Gemini
 
 1. Acesse **https://aistudio.google.com/apikey** e entre com uma conta Google.
 2. Clique em **Create API key** (pode ser preciso escolher/criar um projeto) e copie a chave.
@@ -90,12 +90,20 @@ O `demo/.env` fica assim — só a primeira linha é obrigatória:
 
 ```
 GEMINI_API_KEY=sua-chave-aqui
+GEMINI_API_KEY_2=
+GEMINI_API_KEY_3=
 GEMINI_MODEL=gemini-3.6-flash
 ```
 
 O Gemini tem camada gratuita com limite de requisições por minuto e por dia; uma sessão
 completa desta demo faz cerca de 6 a 12 chamadas. Se o modelo do exemplo deixar de existir,
 troque `GEMINI_MODEL` por outro da [lista de modelos](https://ai.google.dev/gemini-api/docs/models).
+
+**Chaves reserva (opcional, mas recomendado para sessão com pessoa de verdade).** A cota
+gratuita acaba no meio de uma entrevista longa. Se `GEMINI_API_KEY_2` e `GEMINI_API_KEY_3`
+estiverem preenchidas, o script oferece trocar de conta na hora, sem perder nada do que já
+foi coletado. Como a cota é **por conta Google**, a reserva só ajuda se for de outra conta —
+repita os passos 1 e 2 logado em outra conta.
 
 > O `.env` e a pasta de saída estão no `.gitignore`. **Nunca commite nenhum dos dois** —
 > a chave é pessoal e a saída contém currículo de gente real.
@@ -108,8 +116,27 @@ python demo/demo.py business/methodology/cases/joao_pedro/curriculo.pdf
 
 Aceita mais de um currículo (`demo.py um.pdf outro.pdf` — ele pergunta qual está em uso
 hoje) e também roda sem nenhum, coletando tudo pela conversa. Digite `/ajuda` em qualquer
-pergunta para ver os comandos; `/sair` salva a sessão e `--retomar demo/out/<nome>-sessao.json`
-continua de onde parou.
+pergunta para ver os comandos.
+
+### 4. Parar no meio e continuar depois
+
+Cada sessão tem um id curto, mostrado ao iniciar e sempre que ela é salva. A sessão é
+gravada em disco a cada passo, então `/sair`, Ctrl-C, cota estourada ou queda de rede não
+perdem nada.
+
+```bash
+python demo/demo.py --sessoes          # lista as sessões salvas com o próximo passo de cada
+python demo/demo.py --resume ea8e67    # continua de onde parou
+```
+
+`--sessoes` não fala com o modelo, então funciona mesmo com a cota estourada. O id aceita
+prefixo (`--resume ea8`) e também aceita o caminho do arquivo `-sessao.json`.
+
+**Quando a cota do Gemini acabar** no meio da sessão, o script para e pergunta o que fazer:
+esperar 60 segundos e tentar de novo (quando é limite por minuto), trocar para uma conta
+reserva (quando há chave preenchida no `.env`), ou salvar e continuar amanhã. Retomar uma
+sessão já concluída não regenera o currículo sozinho — chamada de modelo é o recurso
+escasso, então isso fica no menu.
 
 ### O que acontece na sessão
 
