@@ -109,6 +109,24 @@ Pedro é entrada **e** especialista). **Regra dura: o arquétipo é definido pel
 nunca pela biografia.** E a consequência: se a pessoa quer perseguir dois alvos, ela
 recebe **duas versões enxutas**, não uma versão completa e ambígua (§7).
 
+### 4.3 Orientação proativa de aderência (o produto não é formatador passivo)
+
+**Regra: quando a formação/certificação recente da pessoa dá força para uma vaga de nível
+superior à que ela mirou, o sistema aponta o descompasso e oferece a versão direcionada.**
+Nasceu das transcrições: a usuária tinha acabado de concluir o Técnico em Veterinária, mirou
+"Atendente", e o sistema apenas reordenou os bullets para atendimento e jogou o estágio
+técnico para o fim. O esperado era um alerta: *"Você concluiu Técnico em Veterinária. Seu
+perfil tem mais força para vagas de Técnica Veterinária do que para Atendente. Quer criar a
+versão para Técnica, ou seguir com Atendente?"*
+
+Duas consequências:
+
+- **O sistema sugere, nunca decide** (mesma trava de §9.5). Explicita o trade-off e deixa a
+  escolha com a pessoa.
+- **Múltiplos alvos são de primeira classe.** A pessoa pode mirar mais de um cargo; o
+  sistema agrega os mesmos relatos e gera **uma versão enxuta por alvo** (§7), cada uma
+  direcionada, em vez de uma só versão tentando servir a todos.
+
 ---
 
 ## 5. Etapa 3 — Coleta: a pessoa fala, o sistema escreve
@@ -133,6 +151,13 @@ Antes de qualquer captura, o sistema avisa, em linguagem simples:
 Esse aviso é **regra dura**: o usuário sempre sabe que está alimentando o currículo, e
 sempre revisa antes de exportar.
 
+**Nota de clareza de ação (vale onde o usuário seleciona itens — habilidades, experiências).**
+Este documento não é spec de interface, mas uma regra de conteúdo se impõe: todo seletor usa
+**rótulo afirmativo de manutenção** ("selecione o que você QUER MANTER"), nunca de exclusão.
+Nas transcrições a usuária entendeu que marcava para *remover* quando o sistema esperava marcar
+para *manter*, e o currículo saiu com as habilidades erradas. A confirmação sempre ecoa o que
+será **mantido** e o que será **removido**, para a ambiguidade não sobreviver à revisão.
+
 ### 5.2 O ciclo de cada relato
 
 ```
@@ -155,6 +180,17 @@ Duas regras duras dentro desse ciclo:
    aparece número. Se não deu ferramenta, não aparece ferramenta. Quando falta um dado
    que faria diferença, o sistema **pergunta** — e aceita "não sei" como resposta final,
    caindo para a formulação sem métrica.
+3. **Tradução de contexto: causo não vira bullet, competência vira.** A pessoa relata
+   situações concretas (uma cliente difícil, um dia de chuva, um conflito pontual). O
+   sistema é **proibido de transcrever o episódio literal** — nomes de terceiros, anedotas
+   e detalhes do causo não entram no currículo. O que entra é a **competência profissional
+   equivalente** que o episódio demonstra. Regra nascida do caso Ana Julia: o relato "uma
+   mulher quis me obrigar a acolher cachorros de 5 a 10 anos e eu expliquei com calma por
+   que não" precisa virar *"atendimento ao público em situação de conflito, com mediação e
+   comunicação didática"*, nunca *"lidou com a mulher que quis doar cachorros de 5 a 10
+   anos"*. Vale igual para a inflação boba do lado oposto: "ia trabalhar na chuva" não é
+   "presente mesmo nos dias mais difíceis" — é assiduidade, e só se a pessoa disser que era
+   assídua.
 
 ### 5.3 O que o sistema pergunta (roteiro por relato de experiência)
 
@@ -175,6 +211,30 @@ roteiro cava escola, voluntariado, negócio de família, bico e rede social de c
 local — porque é ali que está a matéria-prima. Para transição, cava as situações onde a
 habilidade transferível apareceu (pressão, conflito, tradução de assunto técnico para
 leigo, gestão de recurso).
+
+#### 5.3.1 Réplica guiada para resposta curta
+
+**Regra de coleta (nasceu das transcrições de teste):** pergunta seca gera resposta seca.
+O usuário operacional ou "quadrado" responde exatamente o que foi perguntado, literal e
+curto — *"O que você fazia no dia a dia?"* → seis palavras. E pergunta ambígua atrai
+desabafo inútil — *"Qual sua maior dificuldade?"* → *"lidar com meu chefe"*, que não é
+matéria de currículo.
+
+Por isso duas exigências:
+
+1. **As perguntas são conversacionais e explicam o porquê.** Em vez de *"Qual foi sua maior
+   dificuldade?"*, algo como *"Me conta uma situação difícil de atendimento e como você
+   resolveu — é isso que mostra jogo de cintura no currículo."* A pergunta carrega o tipo de
+   situação profissional que gera valor, para a pessoa não ter de adivinhar.
+2. **Resposta curta ou genérica não avança direto para a redação.** Se o relato tem menos de
+   ~10 palavras ou fica no vago, o sistema faz **uma réplica guiada** antes de escrever:
+   explica em uma frase por que aquele detalhe valoriza o currículo e pede um exemplo
+   concreto de trabalho (ferramenta usada, como garantia que a tarefa saía certa, quanta
+   gente/movimento). Nunca pede desabafo sobre chefe ou colega — pede a situação de trabalho.
+
+O sistema é **agnóstico à eloquência do usuário**: não pode depender de o candidato saber
+formular um relato rico sozinho. Se o criador testa em si mesmo o resultado sai ótimo porque
+ele conhece o tom esperado — o usuário real não conhece, e é para ele que o produto existe.
 
 ### 5.4 Entradas aceitas
 
@@ -283,6 +343,13 @@ declarado. Tom técnico não transforma script de estudo em sistema de produçã
   fluxo… alta confiabilidade e baixa latência" em script de estudo desconta
   credibilidade — achado do caso João Pedro.)
 - Percentual de lucro em vaga operacional → cai para Escopo + Conformidade.
+
+**Trava de temporalidade (regra dura, qualquer fórmula):** o tempo verbal dos bullets segue
+o vínculo, não um padrão fixo. Vínculo **ativo** ("atual", "presente", sem data de término)
+exige verbos no **presente do indicativo** (*"Atende…", "Organiza…"*); vínculo **encerrado**
+exige **pretérito** (*"Atendeu…", "Organizou…"*). Nasceu das transcrições: a usuária disse
+que *ainda* era voluntária e o gerador redigiu tudo no passado. O sistema pergunta/deriva se
+o vínculo é atual e aplica a regra sem exceção.
 
 ### 8.3 Palavras-chave e taxonomia do setor
 

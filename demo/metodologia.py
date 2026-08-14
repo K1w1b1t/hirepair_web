@@ -647,6 +647,11 @@ Regras absolutas, acima de qualquer outra instrução:
 4. Sem jargão vazio de RH ("proativo", "visto a camisa", "profissional dinâmico").
 5. Não infle escopo: descreva o cargo que a pessoa teve, não o cargo que soa melhor.
 6. Responda só o que foi pedido, sem preâmbulo, sem comentário, sem markdown de cerca.
+7. NUNCA transcreva causos, histórias pessoais, nomes de terceiros ou anedotas literais
+   contadas no relato. Toda situação bruta ("uma mulher quis doar cachorros de 5 a 10 anos")
+   deve ser TRADUZIDA para a competência profissional equivalente ("atendimento ao público em
+   situação de conflito, com mediação e comunicação didática"). O currículo recebe a
+   habilidade demonstrada, nunca o episódio que a demonstrou.
 """
 
 
@@ -681,11 +686,20 @@ def prompt_extrair_fatos(rotulo: str, transcricao: str) -> str:
     return f"""A pessoa contou, com as próprias palavras, como foi a experiência "{rotulo}".
 Extraia os fatos verificáveis desse relato. Nada além do que ela disse.
 
+A pessoa costuma contar CAUSOS e situações específicas (uma cliente difícil, um dia de chuva,
+um conflito pontual). O episódio em si NÃO vai para o currículo — o que vale é a COMPETÊNCIA
+que ele revela. Faça as duas coisas ao mesmo tempo: registre os fatos secos e, à parte,
+traduza as situações relatadas nas competências profissionais que elas demonstram.
+
+Não registre nomes de terceiros nem detalhes anedóticos (não interessa "a mulher que quis
+doar cachorros"; interessa "atendimento ao público sob pressão").
+
 Devolva JSON:
 {{
   "fatos": ["frases curtas e factuais, uma por linha"],
   "numeros": ["todo número citado, com o que ele mede"],
   "ferramentas": ["máquina, sistema ou ferramenta citada nominalmente"],
+  "competencias_observadas": ["habilidade comportamental ou operacional que o relato demonstra, já traduzida — ex.: 'mediação de conflito', 'atendimento sob pressão', 'comunicação didática'"],
   "duvidas": ["o que ficou vago e valeria perguntar — no máximo 3"]
 }}
 
@@ -695,7 +709,18 @@ RELATO:
 ---"""
 
 
-def prompt_redigir_bullets(rotulo: str, fatos: dict, tom: str, formula: str, cargo_alvo: str) -> str:
+def prompt_redigir_bullets(rotulo: str, fatos: dict, tom: str, formula: str, cargo_alvo: str,
+                           vinculo_ativo: bool = False) -> str:
+    if vinculo_ativo:
+        regra_tempo = (
+            "Este vínculo é ATUAL (a pessoa ainda faz isso). Cada bullet começa com verbo no "
+            "PRESENTE do indicativo (\"Atende...\", \"Organiza...\", \"Opera...\")."
+        )
+    else:
+        regra_tempo = (
+            "Este vínculo está ENCERRADO. Cada bullet começa com verbo no passado "
+            "(\"Atendeu...\", \"Organizou...\", \"Operou...\")."
+        )
     return f"""Escreva os bullets de experiência para "{rotulo}" em um currículo.
 
 Fórmula obrigatória: {FORMULAS[formula]['label']}
@@ -706,12 +731,48 @@ Tom obrigatório: {TONS[tom]['label']} — {TONS[tom]['guia']}
 Vaga-alvo: {cargo_alvo or 'não informada'}. Use o vocabulário desse mercado, mas só onde
 houver lastro nos fatos.
 
+PROIBIDO transcrever causos, histórias ou situações literais (ex.: "lidou com a mulher que quis
+doar cachorros de 5 a 10 anos", "esteve presente mesmo nos dias de chuva"). Traduza toda
+situação para a competência profissional equivalente. Use "competencias_observadas" como o
+insumo principal do que cada bullet demonstra.
+
 Fatos confirmados pela pessoa (é o único material permitido):
 {json.dumps(fatos, ensure_ascii=False, indent=2)}
 
 Devolva JSON: {{"bullets": ["...", "..."]}}
-Entre 2 e 4 bullets. Cada um começa com verbo no passado. Nenhum número que não esteja
-em "numeros". Nenhuma ferramenta que não esteja em "ferramentas"."""
+Entre 2 e 4 bullets. {regra_tempo} Nenhum número que não esteja em "numeros". Nenhuma
+ferramenta que não esteja em "ferramentas". Nenhum nome de terceiro nem episódio anedótico."""
+
+
+def resposta_e_curta(texto: str, minimo_palavras: int = 10) -> bool:
+    """§5.3.1 — gatilho da réplica guiada: resposta curta rende currículo pobre.
+
+    Pergunta seca gera resposta seca (achado das transcrições). Se a pessoa respondeu com
+    menos de `minimo_palavras`, o sistema não avança para a redação: pede um detalhe.
+    """
+    return len((texto or "").split()) < minimo_palavras
+
+
+def prompt_replica_guiada(rotulo: str, pergunta: str, transcricao: str) -> str:
+    return f"""A pessoa está contando a experiência "{rotulo}" e respondeu de forma curta ou genérica
+à pergunta abaixo. Respostas curtas viram currículos fracos.
+
+Faça UMA réplica conversacional, curta e acolhedora, que:
+- explique em uma frase POR QUE esse detalhe valoriza o currículo;
+- peça um exemplo concreto de situação profissional (uma ferramenta usada, como ela garantia
+  que a tarefa saía certa, quanta gente/quanto movimento, o que fazia num dia difícil).
+
+Não peça desabafo pessoal nem opinião sobre chefe/colegas — peça a situação de trabalho que
+gera valor. Uma pergunta só, em linguagem simples, sem jargão de RH.
+
+Pergunta original: "{pergunta}"
+
+Resposta da pessoa:
+---
+{transcricao}
+---
+
+Devolva só o texto da réplica (uma pergunta)."""
 
 
 def prompt_classificar_requisitos(texto_vaga: str) -> str:
@@ -762,6 +823,32 @@ RELATOS COLETADOS NA ENTREVISTA:
 Devolva JSON: {{"analise": [{{"requisito": "", "situacao": "", "evidencia": ""}}]}}"""
 
 
+def prompt_orientacao_carreira(perfil: dict, cargos_alvo: list[str]) -> str:
+    """§4.3 — orientação proativa de aderência.
+
+    Quando a formação/certificação mais recente supera o nível da(s) vaga(s)-alvo, o sistema
+    não é formatador passivo: aponta o descompasso e oferece a versão direcionada ao perfil
+    mais forte. Nunca decide pela pessoa — sugere (§9.5).
+    """
+    return f"""Compare a formação e as certificações da pessoa com a(s) vaga(s)-alvo que ela escolheu.
+
+Sua tarefa: detectar se a formação/certificação mais RECENTE dá à pessoa força para uma vaga de
+nível SUPERIOR ao que ela mirou (ex.: acabou de concluir Técnico em Veterinária mas mirou
+"Atendente"). Se sim, sugira — sem decidir por ela.
+
+Vaga(s)-alvo escolhida(s): {', '.join(cargos_alvo) if cargos_alvo else 'nenhuma'}
+
+Perfil (formação, certificações, experiências):
+{json.dumps(perfil, ensure_ascii=False, indent=2)}
+
+Devolva JSON:
+{{
+  "ha_descompasso": true/false,
+  "cargo_mais_forte": "o cargo para o qual o perfil tem mais força, ou ''",
+  "mensagem": "se ha_descompasso, uma sugestão curta e acolhedora no formato: 'Você concluiu X. Seu perfil tem mais força para vagas de Y do que para Z. Quer criar a versão para Y, ou seguir com Z?' — caso contrário, ''"
+}}"""
+
+
 def prompt_resumo_profissional(perfil: dict, arquetipo: str, objetivo: str, tom: str,
                                cargo_alvo: str, vaga: str | None) -> str:
     arq = ARQUETIPOS[arquetipo]
@@ -787,6 +874,14 @@ Devolva só o texto do resumo."""
 # ---------------------------------------------------------------------------
 # utilitários
 # ---------------------------------------------------------------------------
+
+def e_vinculo_ativo(fim: str | None) -> bool:
+    """§8.2 (trava de temporalidade) — vínculo sem data de término, ou marcado como
+    'atual/presente/hoje', é ativo e exige verbos no presente."""
+    if not fim:
+        return True
+    return any(a in str(fim).strip().lower() for a in _AGORA)
+
 
 def maiuscula(texto: str) -> str:
     return texto[:1].upper() + texto[1:] if texto else texto

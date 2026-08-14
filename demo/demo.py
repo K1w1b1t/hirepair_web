@@ -18,11 +18,19 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import re
 import secrets
 import sys
 import time
 import unicodedata
+
+# readline dá edição de linha ao input(): backspace/delete/setas param de travar a tela
+# (achado das transcrições). Ausente em alguns Windows — a falta não é fatal.
+try:
+    import readline  # noqa: F401
+except ImportError:
+    pass
 from dataclasses import dataclass, field, fields, asdict
 from datetime import date, datetime
 from pathlib import Path
@@ -67,17 +75,28 @@ class Sair(Exception):
     """/sair — salva a sessão e encerra."""
 
 
+class Voltar(Exception):
+    """/voltar — retorna à pergunta anterior no fluxo de coleta."""
+
+
 AJUDA = """
 Comandos disponíveis em qualquer pergunta:
   /ajuda    mostra esta lista
   /estado   mostra o que a sessão já sabe
+  /voltar   volta para a pergunta anterior (quando disponível)
   /pular    deixa a pergunta em branco e segue
   /sair     salva a sessão e encerra (retome com --resume <id>)
 """
 
 
-def perguntar(texto: str, obrigatorio: bool = False, sessao: "Sessao | None" = None) -> str:
-    """Uma pergunta por vez, com os comandos de barra interceptados."""
+def perguntar(texto: str, obrigatorio: bool = False, sessao: "Sessao | None" = None,
+              confirmar: bool = False, permitir_voltar: bool = False) -> str:
+    """Uma pergunta por vez, com os comandos de barra interceptados.
+
+    `confirmar`: depois de uma resposta não vazia, mostra o que foi digitado e pede
+    confirmação — evita que um Enter acidental envie sem revisão (achado das transcrições).
+    `permitir_voltar`: habilita /voltar, que levanta `Voltar` para o loop de coleta tratar.
+    """
     while True:
         try:
             resposta = input(negrito(f"\n{texto}\n> ")).strip()
@@ -92,12 +111,32 @@ def perguntar(texto: str, obrigatorio: bool = False, sessao: "Sessao | None" = N
         if resposta == "/estado":
             print(fraco(json.dumps(sessao.resumo_estado() if sessao else {}, ensure_ascii=False, indent=2)))
             continue
+        if resposta == "/voltar":
+            if permitir_voltar:
+                raise Voltar()
+            aviso("Não dá para voltar daqui.")
+            continue
         if resposta == "/pular":
             return ""
         if not resposta and obrigatorio:
             aviso("Esta resposta é obrigatória para a metodologia seguir. Use /sair se quiser parar.")
             continue
+
+        if confirmar and resposta:
+            decisao = escolher(
+                f'Você respondeu: "{_resumir(resposta)}"',
+                [("s", "Confirmar e seguir"),
+                 ("e", "Editar (escrever de novo)")],
+                padrao="s", sessao=sessao,
+            )
+            if decisao == "e":
+                continue
         return resposta
+
+
+def _resumir(texto: str, limite: int = 160) -> str:
+    texto = " ".join(texto.split())
+    return texto if len(texto) <= limite else texto[:limite].rstrip() + "…"
 
 
 def escolher(texto: str, opcoes: list[tuple[str, str]], padrao: str | None = None,
@@ -173,6 +212,15 @@ CHAVES_ENV = [
     ("GEMINI_API_KEY_3", "reserva 2"),
 ]
 
+# Modelos aceitos na cota gratuita, do mais capaz ao mais leve. Fallback quando o modelo
+# atual fica sobrecarregado (503) de forma persistente.
+MODELOS_FALLBACK = ["gemini-2.5-flash", "gemini-flash-lite-latest"]
+
+# Retry de 503 (servidor sobrecarregado): backoff exponencial com teto e jitter.
+MAX_TENTATIVAS_503 = 10
+BACKOFF_BASE = 1.0
+BACKOFF_TETO = 60.0
+
 
 def _erro_de_cota(erro: Exception) -> tuple[bool, bool]:
     """(é estouro de cota?, é o limite diário?) — lido da mensagem do SDK."""
@@ -181,6 +229,12 @@ def _erro_de_cota(erro: Exception) -> tuple[bool, bool]:
                ("resource_exhausted", "429", "quota", "rate limit", "ratelimit"))
     diario = any(m in texto for m in ("per day", "perday", "per_day", "daily", "diári"))
     return cota, diario
+
+
+def _erro_de_sobrecarga(erro: Exception) -> bool:
+    """503 / servidor indisponível — distinto de cota (429). Resolve-se esperando, não trocando conta."""
+    texto = f"{type(erro).__name__} {erro}".lower()
+    return any(m in texto for m in ("503", "overloaded", "unavailable", "service_unavailable"))
 
 
 class Motor:
@@ -225,6 +279,7 @@ class Motor:
             temperature=0.3,
             response_mime_type="application/json" if json_mode else "text/plain",
         )
+        tentativa_503 = 0
         while True:
             self.chamadas += 1
             try:
@@ -232,16 +287,64 @@ class Motor:
                     model=self.modelo, contents=prompt, config=config
                 )
                 return (resposta.text or "").strip()
-            except Exception as erro:  # rede, cota, modelo inexistente
+            except Exception as erro:  # rede, cota, sobrecarga, modelo inexistente
                 cota, diario = _erro_de_cota(erro)
                 if cota:
-                    # Levanta Sair se a pessoa preferir parar; volta True para tentar de novo.
+                    # Levanta Sair se a pessoa preferir parar; segue no loop para tentar de novo.
                     self._resolver_cota(diario)
+                    tentativa_503 = 0
                     continue
+
+                if _erro_de_sobrecarga(erro):
+                    tentativa_503 += 1
+                    if tentativa_503 < MAX_TENTATIVAS_503:
+                        espera = min(BACKOFF_TETO, BACKOFF_BASE * 2 ** (tentativa_503 - 1))
+                        espera += random.uniform(0.1, 0.5)
+                        aviso(f"Gemini sobrecarregado (503). Tentativa {tentativa_503}/"
+                              f"{MAX_TENTATIVAS_503} — aguardando {espera:.1f}s...")
+                        time.sleep(espera)
+                        continue
+                    # Esgotou os retries: oferece trocar de modelo (ou de conta) e recomeça.
+                    self._oferecer_troca_modelo_ou_chave()
+                    tentativa_503 = 0
+                    continue
+
                 raise RuntimeError(
                     f"Falha ao chamar o modelo '{self.modelo}': {erro}\n"
                     "Se o modelo não existir mais, troque GEMINI_MODEL no demo/.env."
                 ) from erro
+
+    def _oferecer_troca_modelo_ou_chave(self) -> None:
+        """503 persistente após os retries: trocar para um modelo mais leve da cota gratuita,
+        ou rotacionar para uma chave reserva. /sair continua salvando tudo."""
+        aviso(f"O modelo '{self.modelo}' segue indisponível após {MAX_TENTATIVAS_503} tentativas.")
+
+        opcoes: list[tuple[str, str]] = [
+            (f"modelo:{m}", f"Trocar para o modelo {m}")
+            for m in MODELOS_FALLBACK if m != self.modelo
+        ]
+        disponiveis = [i for i in range(len(self.chaves)) if i not in self.esgotadas
+                       and i != self.indice]
+        opcoes += [(f"chave:{i}", f"Tentar com a conta {self.chaves[i][0]}") for i in disponiveis]
+        opcoes.append(("esperar", "Esperar mais 60 segundos no modelo atual"))
+        opcoes.append(("salvar", "Salvar a sessão e continuar depois"))
+
+        escolha = escolher("O servidor está sobrecarregado. O que você quer fazer?",
+                           opcoes, padrao=opcoes[0][0], sessao=None)
+
+        if escolha == "salvar":
+            raise Sair()
+        if escolha == "esperar":
+            nota("Esperando 60s...")
+            time.sleep(60)
+            return
+        if escolha.startswith("modelo:"):
+            self.modelo = escolha.split(":", 1)[1]
+            nota(f"Agora usando o modelo {self.modelo}.")
+            return
+        self.indice = int(escolha.split(":")[1])
+        self.cliente = self._genai.Client(api_key=self.chaves[self.indice][1])
+        nota(f"Agora usando a conta {self.chaves[self.indice][0]}.")
 
     def _resolver_cota(self, diario: bool) -> None:
         """Cota estourada no meio da sessão: trocar de conta, esperar, ou parar e voltar depois.
@@ -364,14 +467,20 @@ class Sessao:
     perfil: dict = field(default_factory=dict)
     achados: list[dict] = field(default_factory=list)
     objetivo: str = ""
-    cargo_alvo: str = ""
+    cargo_alvo: str = ""               # alvo primário — compat e material de coleta
+    cargos_alvo: list[str] = field(default_factory=list)  # §4.3 — uma versão por alvo
     arquetipo: str = ""
     tom: str = ""
     formula: str = ""
     relatos: list[dict] = field(default_factory=list)
     habilidades_confirmadas: list[str] = field(default_factory=list)
-    vaga: dict = field(default_factory=dict)
+    vaga: dict = field(default_factory=dict)              # última vaga analisada (compat)
+    vagas: list[dict] = field(default_factory=list)       # §9 — vagas analisadas no loop
     fase: int = 0
+
+    def alvos(self) -> list[str]:
+        """Alvos a gerar: a lista multi-vaga, ou o alvo primário como lista de um."""
+        return self.cargos_alvo or ([self.cargo_alvo] if self.cargo_alvo else [""])
 
     # Sessão carregada de um arquivo de layout antigo continua escrevendo no arquivo dela.
     # Atributo comum, não campo do dataclass — asdict() não o serializa.
@@ -461,6 +570,7 @@ class Sessao:
             "fase": self.fase,
             "objetivo": self.objetivo,
             "cargo_alvo": self.cargo_alvo,
+            "cargos_alvo": self.cargos_alvo,
             "arquetipo": self.arquetipo,
             "tom": self.tom,
             "formula": self.formula,
@@ -568,13 +678,26 @@ def fase_objetivo(s: Sessao) -> None:
 # Fase 3 — Arquétipo e estrutura (§4)
 # ---------------------------------------------------------------------------
 
-def fase_arquetipo(s: Sessao) -> None:
+def fase_arquetipo(s: Sessao, motor: "Motor | None" = None) -> None:
     titulo("Fase 3 — Arquétipo e estrutura do documento")
 
     s.cargo_alvo = perguntar(
         "Qual cargo/vaga você está buscando? (ex.: auxiliar veterinária, estágio em desenvolvimento)",
-        obrigatorio=True, sessao=s,
+        obrigatorio=True, sessao=s, confirmar=True,
     )
+    s.cargos_alvo = [s.cargo_alvo]
+    # §4.3 — a pessoa pode mirar mais de um alvo; cada um vira uma versão enxuta (§7).
+    while perguntar(
+        "Quer mirar em outro cargo também? O sistema gera uma versão para cada um. (s/n)", sessao=s
+    ).lower().startswith("s"):
+        outro = perguntar("Qual o outro cargo/vaga?", sessao=s, confirmar=True)
+        if outro and outro not in s.cargos_alvo:
+            s.cargos_alvo.append(outro)
+
+    # §4.3 — orientação proativa: se a formação recente supera o alvo, avisa e oferece a versão.
+    if motor is not None and s.perfil.get("formacao"):
+        _orientar_carreira(s, motor)
+
     mesma_area = perguntar(
         "Sua experiência anterior é na mesma área desse cargo? (s/n)", sessao=s
     ).lower().startswith("s")
@@ -603,6 +726,29 @@ def fase_arquetipo(s: Sessao) -> None:
         if achados:
             mostrar_achados(achados)
             s.achados += [asdict(a) for a in achados]
+
+
+def _orientar_carreira(s: Sessao, motor: Motor) -> None:
+    """§4.3 — orientador proativo, não formatador passivo. Sugere; nunca decide (§9.5)."""
+    nota("Conferindo se sua formação abre uma vaga mais forte que a que você mirou...")
+    parecer = motor.json(M.prompt_orientacao_carreira(
+        {"formacao": s.perfil.get("formacao"), "habilidades": s.perfil.get("habilidades"),
+         "experiencias": s.perfil.get("experiencias")},
+        s.cargos_alvo,
+    ))
+    if not parecer.get("ha_descompasso"):
+        return
+
+    mensagem = parecer.get("mensagem", "").strip()
+    cargo_forte = parecer.get("cargo_mais_forte", "").strip()
+    if mensagem:
+        print()
+        print(amarelo(negrito("  " + "\n  ".join(_quebrar(mensagem, 74)))))
+    if cargo_forte and cargo_forte not in s.cargos_alvo and perguntar(
+        f"Quer adicionar uma versão para '{cargo_forte}' também? (s/n)", sessao=s
+    ).lower().startswith("s"):
+        s.cargos_alvo.append(cargo_forte)
+        nota(f"Alvos agora: {', '.join(s.cargos_alvo)}")
 
 
 # ---------------------------------------------------------------------------
@@ -649,7 +795,8 @@ def fase_coleta(s: Sessao, motor: Motor) -> None:
         {"rotulo": f"{e.get('cargo', '')} @ {e.get('empresa', '')}".strip(" @"),
          "cargo": e.get("cargo", ""), "empresa": e.get("empresa", ""),
          "periodo": f"{e.get('inicio', '')} – {e.get('fim') or 'atual'}",
-         "projeto_pessoal": bool(e.get("projeto_pessoal"))}
+         "projeto_pessoal": bool(e.get("projeto_pessoal")),
+         "vinculo_ativo": M.e_vinculo_ativo(e.get("fim"))}
         for e in (s.perfil.get("experiencias") or [])
     ]
 
@@ -667,9 +814,10 @@ def fase_coleta(s: Sessao, motor: Motor) -> None:
         cargo = perguntar("O que você fazia?", obrigatorio=True, sessao=s)
         empresa = perguntar("Onde? (se não tiver nome, descreva)", sessao=s)
         periodo = perguntar("Quando foi? (ex.: 03/2021 – 12/2021)", sessao=s)
+        ativo = perguntar("Você ainda faz isso hoje? (s/n)", sessao=s).lower().startswith("s")
         _coletar_uma(s, motor, {
             "rotulo": f"{cargo} @ {empresa}".strip(" @"), "cargo": cargo, "empresa": empresa,
-            "periodo": periodo, "projeto_pessoal": False,
+            "periodo": periodo, "projeto_pessoal": False, "vinculo_ativo": ativo,
         })
 
     _confirmar_habilidades(s)
@@ -677,13 +825,29 @@ def fase_coleta(s: Sessao, motor: Motor) -> None:
 
 def _coletar_uma(s: Sessao, motor: Motor, exp: dict) -> None:
     titulo(f"Experiência: {exp['rotulo'] or 'sem título'}")
+    nota("Use /voltar para corrigir a pergunta anterior.")
 
-    respostas = []
-    for pergunta in PERGUNTAS:
-        resposta = perguntar(pergunta, sessao=s)
-        if resposta:
-            respostas.append(f"{pergunta}\n{resposta}")
-    transcricao = "\n\n".join(respostas)
+    respostas: list[str] = [""] * len(PERGUNTAS)
+    i = 0
+    while i < len(PERGUNTAS):
+        try:
+            resposta = perguntar(PERGUNTAS[i], sessao=s, confirmar=True, permitir_voltar=(i > 0))
+        except Voltar:
+            i -= 1
+            continue
+
+        # §5.3.1 — resposta curta rende currículo pobre: uma réplica guiada pede o detalhe.
+        if resposta and M.resposta_e_curta(resposta):
+            replica = motor.texto(M.prompt_replica_guiada(exp["rotulo"], PERGUNTAS[i], resposta))
+            extra = perguntar(replica, sessao=s, confirmar=True)
+            if extra:
+                resposta = f"{resposta} {extra}"
+
+        respostas[i] = resposta
+        i += 1
+
+    transcricao = "\n\n".join(f"{PERGUNTAS[j]}\n{respostas[j]}"
+                              for j in range(len(PERGUNTAS)) if respostas[j])
 
     if not transcricao:
         nota("Nada contado — experiência fica de fora por enquanto.")
@@ -704,8 +868,8 @@ def _coletar_uma(s: Sessao, motor: Motor, exp: dict) -> None:
     bullets = _redigir(s, motor, exp, fatos, formula, transcricao)
     s.relatos.append({
         "rotulo": exp["rotulo"], "cargo": exp["cargo"], "empresa": exp["empresa"],
-        "periodo": exp.get("periodo", ""), "transcricao": transcricao,
-        "fatos": fatos, "formula": formula, "bullets": bullets,
+        "periodo": exp.get("periodo", ""), "vinculo_ativo": bool(exp.get("vinculo_ativo")),
+        "transcricao": transcricao, "fatos": fatos, "formula": formula, "bullets": bullets,
     })
     s.salvar()
 
@@ -745,7 +909,10 @@ def _extrair_e_confirmar(s: Sessao, motor: Motor, rotulo: str, transcricao: str)
 def _redigir(s: Sessao, motor: Motor, exp: dict, fatos: dict, formula: str,
              transcricao: str) -> list[str]:
     nota("Escrevendo os bullets...")
-    saida = motor.json(M.prompt_redigir_bullets(exp["rotulo"], fatos, s.tom, formula, s.cargo_alvo))
+    saida = motor.json(M.prompt_redigir_bullets(
+        exp["rotulo"], fatos, s.tom, formula, s.cargo_alvo,
+        vinculo_ativo=bool(exp.get("vinculo_ativo")),
+    ))
     bullets = saida.get("bullets", []) or []
 
     # Guardrail 1 (§11) — número que não saiu da boca da pessoa não entra.
@@ -781,19 +948,25 @@ def _confirmar_habilidades(s: Sessao) -> None:
     for i, c in enumerate(candidatas, 1):
         print(f"  {i}. {c}")
 
+    # §5.1 — rótulo afirmativo, sem ambiguidade: a pessoa marca o que MANTER, não o que remover
+    # (nas transcrições, a usuária entendeu ao contrário e o currículo saiu com o item errado).
     bruto = perguntar(
-        "Quais você usa de verdade e sustenta se perguntarem? (números separados por vírgula, "
-        "ou 'todas')", sessao=s,
+        "Digite os NÚMEROS das habilidades que você QUER MANTER no currículo — as que você usa "
+        "de verdade e sustenta se perguntarem (separados por vírgula, ou 'todas' para manter tudo)",
+        sessao=s,
     )
     if bruto.lower().startswith("todas"):
         s.habilidades_confirmadas = candidatas
+        nota("Mantendo todas as habilidades.")
         return
     indices = [int(x) for x in re.findall(r"\d+", bruto) if 1 <= int(x) <= len(candidatas)]
     s.habilidades_confirmadas = [candidatas[i - 1] for i in indices]
 
+    if s.habilidades_confirmadas:
+        nota(f"Mantidas no currículo: {', '.join(s.habilidades_confirmadas)}")
     cortadas = [c for c in candidatas if c not in s.habilidades_confirmadas]
     if cortadas:
-        nota(f"Fora do currículo: {', '.join(cortadas)}")
+        nota(f"Removidas do currículo: {', '.join(cortadas)}")
 
 
 # ---------------------------------------------------------------------------
@@ -850,6 +1023,7 @@ def fase_vaga(s: Sessao, motor: Motor) -> None:
         "empresa": extraido.get("empresa", ""),
         "analise": analise,
     }
+    s.vagas.append(s.vaga)  # §9 — histórico das vagas analisadas no loop
     s.salvar()
 
     _resolver_lacunas(s, motor, analise)
@@ -903,7 +1077,8 @@ def _resolver_lacunas(s: Sessao, motor: Motor, analise: list[dict]) -> None:
             aviso(motivo)
 
         saida = motor.json(M.prompt_redigir_bullets(
-            s.relatos[indice]["rotulo"], fatos, s.tom, formula, s.cargo_alvo
+            s.relatos[indice]["rotulo"], fatos, s.tom, formula, s.cargo_alvo,
+            vinculo_ativo=bool(s.relatos[indice].get("vinculo_ativo")),
         ))
         propostos = saida.get("bullets") or []
         novos = [b for b in propostos if not M.numeros_sem_lastro(b, relato)][:2]
@@ -926,6 +1101,18 @@ def _resolver_lacunas(s: Sessao, motor: Motor, analise: list[dict]) -> None:
 def fase_gerar(s: Sessao, motor: Motor) -> Path:
     titulo("Fase 7 — Gerando o currículo")
 
+    # §4.3 / §7 — uma versão enxuta por alvo, nunca uma completa e ambígua.
+    alvos = s.alvos()
+    if len(alvos) > 1:
+        nota(f"Gerando {len(alvos)} versões, uma por alvo: {', '.join(alvos)}.")
+
+    destino = None
+    for cargo in alvos:
+        destino = _gerar_para_alvo(s, motor, cargo, varias=len(alvos) > 1)
+    return destino
+
+
+def _gerar_para_alvo(s: Sessao, motor: Motor, cargo_alvo: str, varias: bool) -> Path:
     arq = M.ARQUETIPOS[s.arquetipo]
     conteudo = M.Conteudo(
         nome=s.perfil.get("nome", ""),
@@ -943,7 +1130,7 @@ def fase_gerar(s: Sessao, motor: Motor) -> Path:
         habilidades=s.habilidades_confirmadas,
     )
 
-    alvo = M.maiuscula(s.cargo_alvo)
+    alvo = M.maiuscula(cargo_alvo)
     if "objetivo" in arq.secoes:
         conteudo.objetivo = alvo
     if "oficio" in arq.secoes:
@@ -953,20 +1140,23 @@ def fase_gerar(s: Sessao, motor: Motor) -> Path:
     if "certificacoes" in arq.secoes:
         conteudo.certificacoes = s.habilidades_confirmadas
     if "resumo" in arq.secoes:
-        nota("Escrevendo o resumo profissional...")
+        nota(f"Escrevendo o resumo profissional para '{cargo_alvo or 'currículo base'}'...")
         conteudo.resumo = motor.texto(M.prompt_resumo_profissional(
             {**s.perfil, "relatos": [r["fatos"] for r in s.relatos]},
-            s.arquetipo, s.objetivo, s.tom, s.cargo_alvo, s.vaga.get("texto"),
+            s.arquetipo, s.objetivo, s.tom, cargo_alvo, s.vaga.get("texto"),
         ))
 
     markdown = M.montar_markdown(conteudo, s.arquetipo)
 
     SAIDA.mkdir(parents=True, exist_ok=True)
     marca_vaga = f"-vaga-{_slug(s.vaga.get('cargo', ''))}" if s.vaga.get("cargo") else ""
-    destino = SAIDA / f"{s.slug}-{s.arquetipo}{marca_vaga}-{datetime.now():%Y%m%d-%H%M}.md"
+    marca_alvo = f"-{_slug(cargo_alvo)}" if (varias and cargo_alvo) else ""
+    destino = SAIDA / f"{s.slug}-{s.arquetipo}{marca_alvo}{marca_vaga}-{datetime.now():%Y%m%d-%H%M}.md"
     destino.write_text(markdown, encoding="utf-8")
 
     print()
+    if varias:
+        print(negrito(ciano(f"  ▸ Versão para: {cargo_alvo or 'currículo base'}")))
     print(markdown)
     print(verde(negrito(f"\n  Currículo escrito em {destino}")))
     if marca_vaga:
@@ -1056,7 +1246,7 @@ def main() -> None:
         if s.fase < 2:
             fase_objetivo(s); s.fase = 2; s.salvar()
         if s.fase < 3:
-            fase_arquetipo(s); s.fase = 3; s.salvar()
+            fase_arquetipo(s, motor); s.fase = 3; s.salvar()
         if s.fase < 4:
             fase_parametros(s); s.fase = 4; s.salvar()
         if s.fase < 5:
