@@ -1,7 +1,8 @@
 .env
 .env.local
 
-# Saída do protótipo: currículos e transcrições com dado pessoal real.
+# Entrada e saída do protótipo: currículos e transcrições com dado pessoal real.
+demo/in/
 demo/out/
 
 __pycache__/
