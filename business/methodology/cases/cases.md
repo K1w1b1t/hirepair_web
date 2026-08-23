@@ -2,12 +2,14 @@
 
 Este documento descreve o processo usado para transformar o currículo de um candidato real em uma metodologia de busca de emprego (ver `ana_julia/metodologia.md` e `joao_pedro/metodologia.md`).
 
+> Este é o processo **manual**, feito a mão por nós. A versão dele codificada em regras de produto está em [`../metodologia-do-sistema.md`](../metodologia-do-sistema.md). Todo caso novo serve para testar e corrigir aquele documento.
+
 > **Lição do caso Ana Julia:** a primeira versão da metodologia dela foi escrita a partir do briefing verbal, sem que o conteúdo do PDF tivesse sido efetivamente lido. Quatro premissas centrais estavam erradas e o documento precisou ser reescrito. As etapas 1 e 2 abaixo existem por causa disso e não são opcionais.
 
 ## 1. Estrutura de pastas e proteção do dado pessoal
 
 ```
-business/cases/
+business/methodology/cases/
   <nome_do_candidato>/
     curriculo.pdf       # nunca sobe ao git
     .gitignore          # ignora curriculo.pdf
