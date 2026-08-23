@@ -652,6 +652,9 @@ Regras absolutas, acima de qualquer outra instrução:
    deve ser TRADUZIDA para a competência profissional equivalente ("atendimento ao público em
    situação de conflito, com mediação e comunicação didática"). O currículo recebe a
    habilidade demonstrada, nunca o episódio que a demonstrou.
+8. CALIBRAGEM ANTI-INFLAÇÃO: NUNCA gere currículos superinflados nem exagere na quantidade de
+   bullets para projetos pessoais ou de estudo (no máximo 1 a 2 bullets concisos). Evite
+   métricas corporativas artificiais ou adjetivação exagerada que soem como 'gerado por IA'.
 """
 
 
@@ -710,7 +713,7 @@ RELATO:
 
 
 def prompt_redigir_bullets(rotulo: str, fatos: dict, tom: str, formula: str, cargo_alvo: str,
-                           vinculo_ativo: bool = False) -> str:
+                           vinculo_ativo: bool = False, projeto_pessoal: bool = False) -> str:
     if vinculo_ativo:
         regra_tempo = (
             "Este vínculo é ATUAL (a pessoa ainda faz isso). Cada bullet começa com verbo no "
@@ -721,6 +724,12 @@ def prompt_redigir_bullets(rotulo: str, fatos: dict, tom: str, formula: str, car
             "Este vínculo está ENCERRADO. Cada bullet começa com verbo no passado "
             "(\"Atendeu...\", \"Organizou...\", \"Operou...\")."
         )
+    
+    if projeto_pessoal:
+        orientacao_quantidade = "PROJETO PESSOAL / ESTUDO: Devolva no máximo 1 a 2 bullets curtos e realistas. NUNCA gere mais do que 2 bullets."
+    else:
+        orientacao_quantidade = "Entre 2 e 4 bullets concisos."
+
     return f"""Escreva os bullets de experiência para "{rotulo}" em um currículo.
 
 Fórmula obrigatória: {FORMULAS[formula]['label']}
@@ -740,7 +749,7 @@ Fatos confirmados pela pessoa (é o único material permitido):
 {json.dumps(fatos, ensure_ascii=False, indent=2)}
 
 Devolva JSON: {{"bullets": ["...", "..."]}}
-Entre 2 e 4 bullets. {regra_tempo} Nenhum número que não esteja em "numeros". Nenhuma
+{orientacao_quantidade} {regra_tempo} Nenhum número que não esteja em "numeros". Nenhuma
 ferramenta que não esteja em "ferramentas". Nenhum nome de terceiro nem episódio anedótico."""
 
 

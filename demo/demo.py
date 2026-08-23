@@ -703,15 +703,10 @@ def fase_arquetipo(s: Sessao, motor: "Motor | None" = None) -> None:
     ).lower().startswith("s")
 
     sugerido = M.sugerir_arquetipo(s.perfil.get("experiencias") or [], mesma_area)
-    nota(f"Sugestão a partir da sua linha do tempo: {sugerido} — {M.ARQUETIPOS[sugerido].nome}")
-
-    s.arquetipo = escolher(
-        "Confirme o arquétipo (define a estrutura do currículo):",
-        [(k, f"{k}. {a.nome}") for k, a in M.ARQUETIPOS.items()],
-        padrao=sugerido, sessao=s,
-    )
-
+    s.arquetipo = sugerido
     arq = M.ARQUETIPOS[s.arquetipo]
+    nota(f"Estrutura definida pelo sistema com base na sua linha do tempo: {s.arquetipo} — {arq.nome}")
+
     titulo("Estrutura pré-definida (regra dura)")
     print(f"  Ordem das seções : {' → '.join(M.TITULOS_SECAO[x] or 'Ofício' for x in arq.secoes)}")
     print(f"  Tamanho          : {arq.nota_tamanho}")
@@ -763,12 +758,8 @@ def fase_parametros(s: Sessao) -> None:
         [(k, f"{v['label']} — {v['guia']}") for k, v in M.TONS.items()],
         padrao=M.tom_padrao(s.arquetipo), sessao=s,
     )
-    s.formula = escolher(
-        "Fórmula de impacto dos bullets:",
-        [(k, v["label"]) for k, v in M.FORMULAS.items()],
-        padrao=M.ARQUETIPOS[s.arquetipo].formula_padrao, sessao=s,
-    )
-    nota("As travas de fórmula são aplicadas por experiência, na hora de redigir.")
+    s.formula = M.ARQUETIPOS[s.arquetipo].formula_padrao
+    nota(f"Fórmula de escrita resolvida automaticamente pelo arquétipo: {M.FORMULAS[s.formula]['label']}")
 
 
 # ---------------------------------------------------------------------------
@@ -778,7 +769,7 @@ def fase_parametros(s: Sessao) -> None:
 PERGUNTAS = [
     "O que era o lugar e o que você fazia lá no dia a dia?",
     "Conta uma coisa difícil que aconteceu e o que você fez.",
-    "Tinha quanta gente / quantos clientes / quanto movimento?",
+    "Qual era a escala do seu trabalho? (Por exemplo: quantas pessoas atendia por dia, quantos clientes na carteira ou o volume de entregas)",
     "Deu certo? Como você sabe que deu certo?",
     "Você mexia com que máquina, sistema ou ferramenta?",
     "Por que você saiu?",
@@ -912,6 +903,7 @@ def _redigir(s: Sessao, motor: Motor, exp: dict, fatos: dict, formula: str,
     saida = motor.json(M.prompt_redigir_bullets(
         exp["rotulo"], fatos, s.tom, formula, s.cargo_alvo,
         vinculo_ativo=bool(exp.get("vinculo_ativo")),
+        projeto_pessoal=bool(exp.get("projeto_pessoal")),
     ))
     bullets = saida.get("bullets", []) or []
 

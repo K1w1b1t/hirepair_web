@@ -29,12 +29,11 @@ Então o sistema não tem "um método". Ele tem **três camadas**:
 
 | Camada | Quem decide | Exemplo |
 |---|---|---|
-| **1. Regras duras** | O sistema, a partir do arquétipo e do diagnóstico | Estrutura macro das seções, tamanho, o que nunca entra, o que a interface é obrigada a alertar |
-| **2. Parâmetros mixáveis** | O usuário, dentro de opções pré-validadas | Tom de escrita, fórmula de impacto, profundidade de pesquisa, preset visual, idioma |
+| **1. Regras duras & Parâmetros derivados** | O sistema, a partir da linha do tempo, da vaga e dos dados fornecidos | Estrutura macro (arquétipo), fórmula de impacto dos bullets, limites de tamanho e densidade (calibragem anti-inflação), o que nunca entra, alertas obrigatórios |
+| **2. Parâmetros mixáveis** | O usuário, dentro de opções pré-validadas | Tom de escrita, profundidade de pesquisa, preset visual, idioma |
 | **3. Entradas** | O usuário conta (de preferência falando), o sistema estrutura | Áudio contando como foi a experiência → fatos extraídos → texto redigido |
 
-Camada 1 é o que protege o usuário de si mesmo. Camada 2 é o que faz o produto parecer
-dele. Camada 3 é o que remove a parte chata — **escrever**.
+Camada 1 é o que protege o usuário de si mesmo e da repulsa por jargões técnicos de RH. Camada 2 é o que faz o produto parecer dele. Camada 3 é o que remove a parte chata — **escrever**.
 
 ---
 
@@ -86,9 +85,11 @@ também é o que permite medir sucesso depois (§10).
 
 ## 4. Etapa 2 — Arquétipo: a regra dura que muda por caso
 
-O arquétipo é **derivado**, não escolhido livremente: sai da linha do tempo (existe
+O arquétipo é **derivado**, não escolhido livremente pelo candidato: sai da linha do tempo (existe
 vínculo formal? há quanto tempo? na área-alvo?) mais a vaga-alvo declarada. Ele define a
 estrutura macro — e essa estrutura é **regra dura**.
+
+**Regra de interface e UX (Rodada 2): O candidato nunca é forçado a escolher o arquétipo em um menu (A, B, C, D, E).** Exibir códigos de arquétipo ou exigir que o usuário decida qual a melhor estrutura para si é um erro de experiência (feedback Pedro/Rodada 2). O sistema deriva a estrutura ideal a partir do perfil e da vaga-alvo e apenas informa a estrutura aplicada.
 
 ### 4.1 Matriz de estrutura por arquétipo
 
@@ -191,6 +192,11 @@ Duas regras duras dentro desse ciclo:
    anos"*. Vale igual para a inflação boba do lado oposto: "ia trabalhar na chuva" não é
    "presente mesmo nos dias mais difíceis" — é assiduidade, e só se a pessoa disser que era
    assídua.
+4. **Calibragem anti-inflação e proporcionalidade de densidade (Rodada 2 - caso João Pedro):**
+   O sistema não aceita nem gera currículos inflados com dezenas de bullets ou métricas irreais (que recrutadores descartam imediatamente como 'gerado por IA'). A densidade de bullets obedece ao tipo e à relevância da experiência:
+   - **Projetos pessoais, bicos ou trabalhos escolares:** no máximo **1 a 2 bullets** concisos e factualizados. Projetos de estudo nunca recebem 10–20 bullets nem métricas corporativas de impacto artificial.
+   - **Experiências formais principais:** de **2 a 4 bullets** focados nos requisitos da vaga-alvo.
+   - **Filtro de realismo:** se o candidato insere um currículo antigo superinflado ou relato exagerado, o sistema recalibra o texto para o que é viável e crível para aquela posição.
 
 ### 5.3 O que o sistema pergunta (roteiro por relato de experiência)
 
@@ -335,6 +341,8 @@ declarado. Tom técnico não transforma script de estudo em sistema de produçã
   atendimento, saúde, RH, design.
 - **Escopo + Conformidade** — *escala da operação + norma cumprida + ausência de
   incidente*. Para operacional, indústria, logística, saúde primária.
+
+**Regra dura de UX e decisão interna (Rodada 2): A fórmula de impacto é uma decisão interna do sistema (regra dura/derivada), não uma escolha do usuário.** Termos como "XYZ vs CAR" e "impacto de bullets" são jargões técnicos de RH que causam repulsa e confusão no candidato quando exibidos na interface (feedback Pedro, Rodada 2). O sistema decide a fórmula adequada com base no arquétipo e na existência de dados/métricas confirmadas, aplicando a redação de forma transparente.
 
 **Travas (combinações proibidas):**
 
