@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# 1. Validar padrão da branch: numero_da_issue-titulo_da_issue
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+branch_regex="^[0-9]+-.+$"
+
+if [[ ! $branch_name =~ $branch_regex ]]; then
+  echo "❌ ERRO: Nome da branch inválido ($branch_name)."
+  echo "O padrão deve ser: numero_da_issue-titulo_da_issue (Ex: 4-task-01-inicializar-monorepo)"
+  exit 1
+fi
+
+# 2. Executar Lint e Build
+echo "🔍 Validando código antes do commit..."
+
+npm run lint && \
+npm run build || {
+  echo "❌ ERRO: Verificação falhou. O commit foi cancelado."
+  exit 1
+}

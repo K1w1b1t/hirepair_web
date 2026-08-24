@@ -31,6 +31,41 @@ O exemplo navegável de interface fica em [`docs/design/web/`](./docs/design/web
 
 Para visualizar, abra [`docs/design/web/index.html`](./docs/design/web/index.html) diretamente no navegador. As convenções, telas e decisões de implementação estão descritas no [guia do protótipo](./docs/design/web/README.md).
 
+## Aplicação
+
+Backend & Frontend do produto (**Next.js** + **NestJS** + **PostgreSQL** & **Redis** via **Docker Compose**).
+O monorepo está organizado em `apps/web` (Next.js App Router, React 19, Tailwind v4, TypeScript) e `apps/api` (NestJS API).
+
+## 🚀 Execução do Monorepo
+
+### Pré-requisitos
+- Node.js (v20 ou superior)
+- Docker & Docker Compose
+
+### Instalação e Comandos Básicos
+
+```bash
+# Copiar variáveis de ambiente
+cp .env.example .env
+
+# Subir banco de dados Postgres (porta 5434) e Redis (porta 6379)
+npm run db:up
+
+# Rodar a aplicação Web (Next.js - http://localhost:3000)
+npm run dev:web
+
+# Rodar a API Backend (NestJS - http://localhost:3001)
+npm run dev:api
+
+# Executar lint e verificação de tipos em todos os pacotes
+npm run lint
+
+# Executar build de produção
+npm run build
+```
+
+**Status:** Fase de infraestrutura inicializada (Task 01 concluída).
+
 ## Documentação de negócio
 
 O plano de negócio e o planejamento do MVP estão em [`business/`](./business/):

@@ -1,14 +1,43 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# apps build & temp outputs
+/.next/
+/dist/
+/build/
+/out/
+/coverage/
+
+# env files
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Entrada e saída do protótipo: currículos e transcrições com dado pessoal real.
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# misc & OS
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+
+# local IDE / tools settings
+.vscode/
+.idea/
+.claude/
+
+# Entrada e saída do protótipo (Python)
 demo/in/
 demo/out/
-
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-
-node_modules/
-dist/

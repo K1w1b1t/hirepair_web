@@ -1,0 +1,42 @@
+name: CI PR (lint, format, test, build)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - release
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-build:
+    name: Lint, Format Check, Test and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run format check
+        run: npm run format:check
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Run build
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://hirepair:hirepair_secret@localhost:5434/hirepair
