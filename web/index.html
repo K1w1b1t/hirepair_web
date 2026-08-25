@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Seu currículo, escrito numa conversa</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+    <!-- Navbar Oficial Conforme Manual 1d -->
+    <header class="glass-header sticky top-0 z-50">
+        <div class="flex justify-between items-center w-full px-6 md:px-10 py-4 max-w-7xl mx-auto">
+            <!-- Brand Signature -->
+            <a href="index.html" class="flex items-center gap-2.5 group">
+                <img src="./assets/logo.png" class="w-14 h-14 object-contain drop-shadow-sm transition-transform group-hover:scale-105" alt="hirepair logo"/>
+                <div class="flex flex-col">
+                    <span class="font-heading font-medium text-[24px] tracking-[0.01em] text-[#333364] leading-none">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+                </div>
+            </a>
+            
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center gap-8">
+                <a href="preview.html" class="font-body font-medium text-[15px] text-[#4A4643] hover:text-[#333364] transition-colors">Currículo</a>
+                <a href="jobs.html" class="font-body font-medium text-[15px] text-[#4A4643] hover:text-[#333364] transition-colors">Vagas</a>
+                <a href="voice-flow.html" class="font-body font-medium text-[15px] text-[#4A4643] hover:text-[#333364] transition-colors">Entrevistas</a>
+                <a href="dashboard.html" class="font-body font-medium text-[15px] text-[#4A4643] hover:text-[#333364] transition-colors">Painel</a>
+                <a href="design-system.html" class="font-body font-medium text-[15px] text-[#807A72] hover:text-[#636FC1] transition-colors">Manual da Marca</a>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <button onclick="toggleTheme()" aria-label="Alternar Tema" class="w-14 h-14 rounded-full flex items-center justify-center text-[#4A4643] hover:bg-[#EDE4D3] transition-colors">
+                    <span class="material-symbols-outlined text-[20px]" id="theme-icon">dark_mode</span>
+                </button>
+                <a href="voice-flow.html" class="btn-primary-brand text-[15px]">
+                    <span>Criar meu currículo</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section Conforme Manual 1d -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 md:px-10 py-12 md:py-16 flex flex-col gap-16">
+        
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <!-- Left Column: Copywriting Calmo & Acolhedor -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                <span class="badge-label">Sem formulários. Sem pressa.</span>
+                <h1 class="font-heading font-medium text-4xl sm:text-5xl lg:text-[58px] leading-[1.08] tracking-[-0.025em] text-[#333364]">
+                    Seu currículo, escrito numa conversa
+                </h1>
+                <p class="font-body text-lg sm:text-[19px] leading-[1.6] text-[#4A4643] max-w-xl">
+                    A gente conversa sobre o que você já fez, e o currículo vai se escrevendo do lado. Depois você escolhe as vagas e a gente te acompanha até a proposta.
+                </p>
+                
+                <div class="flex flex-wrap items-center gap-4 pt-2">
+                    <a href="voice-flow.html" class="btn-primary-brand text-base py-4 px-8 shadow-soft-lg">
+                        <span class="material-symbols-outlined text-[22px]">mic</span>
+                        <span>Começar a conversa</span>
+                    </a>
+                    <a href="preview.html" class="btn-secondary-brand text-base py-4 px-7">
+                        <span>Ver exemplo</span>
+                    </a>
+                </div>
+
+                <div class="flex items-center gap-2.5 pt-2 text-sm text-[#807A72]">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#3D7A3D]"></span>
+                    <span>Grátis para o primeiro currículo · leva ~8 minutos</span>
+                </div>
+            </div>
+
+            <!-- Right Column: Interactive Chat Concept ("Pair") Conforme Manual 1d/1e -->
+            <div class="lg:col-span-5 bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-6 sm:p-7 shadow-desktop-frame flex flex-col gap-4">
+                <div class="flex items-center justify-between pb-3.5 border-b border-[rgba(37,38,38,0.10)]">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#636FC1]"></span>
+                        <span class="font-heading font-semibold text-sm text-[#4A4643]">Conversa com a Pair</span>
+                    </div>
+                    <span class="font-body text-xs text-[#807A72]">Passo 1 de 5</span>
+                </div>
+
+                <!-- Chat Simulation -->
+                <div class="flex flex-col gap-3">
+                    <div class="self-start max-w-[85%] bg-[#F5EEE2] rounded-2xl rounded-bl-sm p-3.5 text-sm sm:text-[15px] leading-relaxed text-[#252626]">
+                        Me conta a coisa do seu último trabalho de que você mais se orgulha.
+                    </div>
+                    <div class="self-end max-w-[85%] bg-[#636FC1] text-[#F5EEE2] rounded-2xl rounded-br-sm p-3.5 text-sm sm:text-[15px] leading-relaxed">
+                        Reorganizei o atendimento e a fila de espera caiu bastante.
+                    </div>
+                    <div class="self-start max-w-[90%] bg-[#F5EEE2] rounded-2xl rounded-bl-sm p-3.5 text-sm sm:text-[15px] leading-relaxed text-[#252626]">
+                        Boa. Quanto ela caiu, mais ou menos? Números assim são o que o recrutador lê primeiro.
+                    </div>
+                </div>
+
+                <!-- Interactive Input Simulation -->
+                <div class="flex items-center gap-3 bg-[#F5EEE2] border border-[rgba(37,38,38,0.12)] rounded-full p-2 pl-4 mt-2">
+                    <input type="text" placeholder="Escreva do seu jeito..." class="flex-1 bg-transparent border-0 text-sm text-[#252626] focus:ring-0 placeholder-[#807A72] p-0"/>
+                    <a href="voice-flow.html" class="btn-navy-brand text-xs px-4 py-2">
+                        <span>Enviar</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3 Steps Section Conforme Manual 1d -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <!-- Step 1 -->
+            <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-3">
+                <span class="font-heading font-extrabold text-sm tracking-wider text-[#636FC1]">01</span>
+                <h3 class="font-heading font-semibold text-xl text-[#333364]">Converse</h3>
+                <p class="font-body text-[15px] leading-relaxed text-[#4A4643]">
+                    Perguntas simples, uma de cada vez. Nada de campos em branco te encarando. Fale por áudio ou digite como preferir.
+                </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-3">
+                <span class="font-heading font-extrabold text-sm tracking-wider text-[#636FC1]">02</span>
+                <h3 class="font-heading font-semibold text-xl text-[#333364]">Ajuste para a vaga</h3>
+                <p class="font-body text-[15px] leading-relaxed text-[#4A4643]">
+                    Cole o anúncio e a gente reescreve o que importa para passar na triagem dos robôs de RH (ATS), mantendo a sua voz autêntica.
+                </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-3">
+                <span class="font-heading font-extrabold text-sm tracking-wider text-[#636FC1]">03</span>
+                <h3 class="font-heading font-semibold text-xl text-[#333364]">Passe no processo</h3>
+                <p class="font-body text-[15px] leading-relaxed text-[#4A4643]">
+                    Baixe o PDF limpo e receba dicas de ensaio de entrevista e lembretes de follow-up até a resposta da empresa chegar.
+                </p>
+            </div>
+        </section>
+
+        <!-- Preview Strip Mock Conforme Manual 1e -->
+        <section class="card-creme p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="space-y-2 text-center md:text-left">
+                <span class="badge-label">Currículo 100% Compatível</span>
+                <h2 class="font-heading font-medium text-2xl sm:text-3xl text-[#333364]">Veja seu currículo montado em tempo real</h2>
+                <p class="font-body text-base text-[#4A4643]">Folha limpa em formato padrão aprovado por recrutadores de empresas líderes.</p>
+            </div>
+            <div class="flex gap-3 shrink-0">
+                <a href="preview.html" class="btn-primary-brand text-sm px-6 py-3">
+                    <span class="material-symbols-outlined text-[18px]">visibility</span>
+                    <span>Ver modelo do currículo</span>
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Conforme Manual -->
+    <footer class="border-t border-[rgba(37,38,38,0.10)] bg-[#EDE4D3] py-10 px-6 md:px-10">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-3">
+                <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair logo"/>
+                <span class="font-heading font-medium text-lg text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+                <span class="text-sm text-[#807A72] ml-2">· Currículos que abrem portas</span>
+            </div>
+            <div class="flex items-center gap-6 text-sm text-[#4A4643]">
+                <a href="preview.html" class="hover:text-[#636FC1]">Currículo</a>
+                <a href="jobs.html" class="hover:text-[#636FC1]">Vagas</a>
+                <a href="settings.html" class="hover:text-[#636FC1]">Conta</a>
+                <a href="design-system.html" class="hover:text-[#636FC1]">Manual de Marca</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

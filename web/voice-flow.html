@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+    <title>hirepair — Conversa com a Pair</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#EDE4D3] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Container Mobile / Desktop Centrado (Conforme Manual 2a/1e) -->
+<div class="w-full max-w-lg md:max-w-2xl mx-auto flex-1 flex flex-col bg-[#EDE4D3] border-x border-[rgba(37,38,38,0.10)] min-h-screen shadow-mobile-frame relative">
+
+    <!-- Top Header: Pair & Step Progress -->
+    <header class="glass-header sticky top-0 z-40 px-6 py-4 flex flex-col gap-3 border-b border-[rgba(37,38,38,0.10)]">
+        <div class="flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-2.5">
+                <img src="./assets/logo.png" class="w-10 h-10 object-contain drop-shadow-sm" alt="Pair"/>
+                <span class="font-heading font-semibold text-base text-[#333364]">Pair</span>
+            </a>
+            <span class="font-body text-xs text-[#807A72]" id="stepIndicator">Passo 1 de 5</span>
+        </div>
+        <!-- Progress Bar -->
+        <div class="w-full h-1.5 rounded-full bg-[rgba(51,51,100,0.15)] overflow-hidden">
+            <div class="h-full bg-[#636FC1] rounded-full transition-all duration-500" style="width: 25%" id="progressBar"></div>
+        </div>
+    </header>
+
+    <!-- Main Chat Canvas -->
+    <main class="flex-1 p-6 flex flex-col gap-4 overflow-y-auto pb-44" id="chatContainer">
+        
+        <span class="self-center font-body text-xs text-[#807A72]">Hoje · Conversa assistida</span>
+
+        <!-- Bot Message 1 -->
+        <div class="self-start max-w-[88%] bg-[#F5EEE2] border border-[rgba(37,38,38,0.08)] rounded-2xl rounded-bl-sm p-4 text-[15px] leading-relaxed text-[#252626] shadow-soft-sm">
+            Olá! Vamos montar o seu currículo em poucos minutos. Para começar: <strong>qual foi o seu último trabalho e o que você fazia no dia a dia?</strong>
+        </div>
+
+        <!-- Voice Interaction Hub Card -->
+        <div class="w-full bg-[#F5EEE2] border border-[rgba(37,38,38,0.10)] rounded-3xl p-6 flex flex-col items-center justify-center gap-4 text-center my-2 shadow-soft-sm">
+            <span class="badge-label">Fale ou Digite</span>
+            <p class="text-xs text-[#807A72] max-w-xs">Fale com suas próprias palavras. Nós estruturamos nos padrões que os recrutadores buscam.</p>
+            
+            <!-- Voice Trigger FAB -->
+            <div class="relative flex flex-col items-center justify-center py-2" id="recordingZone">
+                <button aria-label="Gravar áudio" class="w-20 h-20 rounded-full flex items-center justify-center bg-[#636FC1] text-[#F5EEE2] hover:bg-[#525EAF] hover:scale-105 active:scale-95 transition-all duration-200 shadow-soft-md border-4 border-[#EDE4D3]" id="micBtn">
+                    <span class="material-symbols-outlined text-[36px]">mic</span>
+                </button>
+                
+                <!-- Timer Badge (Hidden initially) -->
+                <div id="recordingTimerBadge" class="hidden mt-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#D7EACD] text-[#3D7A3D] font-heading font-bold text-xs animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-[#3D7A3D]"></span>
+                    <span id="recordingTimer">00:00</span> • Gravando
+                </div>
+
+                <span class="font-heading font-semibold text-sm text-[#4A4643] mt-2.5" id="micLabel">
+                    Toque para falar
+                </span>
+
+                <!-- Animated Equalizer Waveform -->
+                <div class="hidden mt-2.5 flex gap-1.5 items-end h-6" id="waveform">
+                    <div class="w-1.5 bg-[#636FC1] rounded-full animate-wave-1"></div>
+                    <div class="w-1.5 bg-[#636FC1] rounded-full animate-wave-2"></div>
+                    <div class="w-1.5 bg-[#636FC1] rounded-full animate-wave-3"></div>
+                    <div class="w-1.5 bg-[#636FC1] rounded-full animate-wave-4"></div>
+                    <div class="w-1.5 bg-[#636FC1] rounded-full animate-wave-5"></div>
+                </div>
+            </div>
+
+            <!-- Quick Pill Suggestions -->
+            <div class="flex flex-wrap justify-center gap-2 pt-1">
+                <button onclick="insertSample('Reorganizei o atendimento e reduzi a espera de 40 para 12 minutos.')" class="text-xs font-heading font-medium bg-[#EDE4D3] text-[#333364] px-3.5 py-1.5 rounded-full hover:bg-[#636FC1] hover:text-[#F5EEE2] transition-colors border border-[rgba(37,38,38,0.10)]">
+                    + Atendimento e redução de espera
+                </button>
+                <button onclick="insertSample('Gerenciei equipe de 10 pessoas e bati metas comerciais trimestrais.')" class="text-xs font-heading font-medium bg-[#EDE4D3] text-[#333364] px-3.5 py-1.5 rounded-full hover:bg-[#636FC1] hover:text-[#F5EEE2] transition-colors border border-[rgba(37,38,38,0.10)]">
+                    + Gestão de equipe e metas
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Sticky Bottom Chat Input & Action Area Conforme Manual 2a/1e -->
+    <div class="fixed bottom-0 left-0 w-full max-w-lg md:max-w-2xl md:left-1/2 md:-translate-x-1/2 bg-[#F5EEE2] border-t border-[rgba(37,38,38,0.10)] p-4 flex flex-col gap-3 z-50">
+        <!-- Input Row -->
+        <div class="flex items-center gap-2 bg-[#EDE4D3] border border-[rgba(37,38,38,0.12)] rounded-full p-1.5 pl-4 focus-within:border-[#636FC1] transition-all">
+            <input type="text" id="manualInput" placeholder="Escreva do seu jeito..." class="flex-1 bg-transparent border-0 text-sm text-[#252626] focus:ring-0 placeholder-[#807A72] p-0"/>
+            <button onclick="submitExperienceText()" class="btn-navy-brand text-xs px-4 py-2" id="sendTextBtn">
+                <span>Enviar</span>
+            </button>
+        </div>
+
+        <!-- Navigation Bar -->
+        <div class="flex items-center justify-between pt-1">
+            <a href="preview.html" class="font-heading font-semibold text-sm text-[#333364] hover:text-[#636FC1] transition-colors">
+                Ver currículo
+            </a>
+            <div class="flex gap-2">
+                <a href="confirm-facts.html" class="font-heading font-medium text-xs text-[#807A72] border border-[rgba(51,51,100,0.2)] px-3.5 py-1.5 rounded-full hover:bg-[#EDE4D3] transition-colors">
+                    Revisar fatos
+                </a>
+                <a href="preview.html" class="btn-primary-brand text-xs py-1.5 px-4">
+                    <span>Baixar PDF</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Voice Interaction Script -->
+<script>
+    let isRecording = false;
+    let timerInterval = null;
+    let seconds = 0;
+
+    const micBtn = document.getElementById('micBtn');
+    const micLabel = document.getElementById('micLabel');
+    const waveform = document.getElementById('waveform');
+    const timerBadge = document.getElementById('recordingTimerBadge');
+    const timerText = document.getElementById('recordingTimer');
+    const manualInput = document.getElementById('manualInput');
+    const chatContainer = document.getElementById('chatContainer');
+
+    function insertSample(text) {
+        manualInput.value = text;
+        submitExperienceText();
+    }
+
+    async function submitExperienceText() {
+        const text = manualInput.value.trim();
+        if (!text) return;
+
+        // User message
+        const userBubble = document.createElement('div');
+        userBubble.className = "self-end max-w-[86%] bg-[#636FC1] text-[#F5EEE2] rounded-2xl rounded-br-sm p-4 text-[15px] leading-relaxed shadow-soft-sm";
+        userBubble.textContent = text;
+        chatContainer.appendChild(userBubble);
+        manualInput.value = '';
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Bot thinking & response
+        setTimeout(() => {
+            const botBubble = document.createElement('div');
+            botBubble.className = "self-start max-w-[88%] bg-[#F5EEE2] border border-[rgba(37,38,38,0.08)] rounded-2xl rounded-bl-sm p-4 text-[15px] leading-relaxed text-[#252626] shadow-soft-sm";
+            botBubble.textContent = "Ótimo relato. Já resumi esse resultado no seu currículo com foco em impacto:";
+            chatContainer.appendChild(botBubble);
+
+            const cardPreview = document.createElement('div');
+            cardPreview.className = "self-start w-[88%] bg-[#FFFFFF] border border-[rgba(37,38,38,0.12)] border-left-3 border-l-4 border-l-[#636FC1] rounded-r-2xl rounded-l-md p-4 text-sm leading-relaxed text-[#252626] shadow-soft-sm";
+            cardPreview.innerHTML = `<strong>Experiência Estruturada:</strong><br/>"${text}"`;
+            chatContainer.appendChild(cardPreview);
+
+            const actionRow = document.createElement('div');
+            actionRow.className = "flex gap-2 self-start";
+            actionRow.innerHTML = `
+                <a href="confirm-facts.html" class="font-heading font-semibold text-xs bg-[#333364] text-[#F5EEE2] px-4 py-2 rounded-full">Ficou bom, avançar</a>
+                <a href="preview.html" class="font-heading font-semibold text-xs border border-[rgba(51,51,100,0.3)] text-[#333364] px-4 py-2 rounded-full">Ver currículo</a>
+            `;
+            chatContainer.appendChild(actionRow);
+
+            document.getElementById('stepIndicator').textContent = "Passo 2 de 5";
+            document.getElementById('progressBar').style.width = "50%";
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }, 800);
+    }
+
+    if (micBtn) {
+        micBtn.addEventListener('click', () => {
+            if (!isRecording) {
+                isRecording = true;
+                micBtn.classList.remove('bg-[#636FC1]');
+                micBtn.classList.add('bg-[#A63838]');
+                micLabel.textContent = 'Gravando... Toque para concluir';
+                waveform.classList.remove('hidden');
+                timerBadge.classList.remove('hidden');
+                
+                seconds = 0;
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                    const s = String(seconds % 60).padStart(2, '0');
+                    timerText.textContent = `${m}:${s}`;
+                }, 1000);
+            } else {
+                isRecording = false;
+                micBtn.classList.remove('bg-[#A63838]');
+                micBtn.classList.add('bg-[#636FC1]');
+                micLabel.textContent = 'Toque para falar';
+                waveform.classList.add('hidden');
+                timerBadge.classList.add('hidden');
+                clearInterval(timerInterval);
+                
+                insertSample('Coordenei o atendimento e reduzi a espera em 60% com nova triagem e treinamento de 14 colaboradores.');
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

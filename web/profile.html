@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Perfil Profissional</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Header Conforme Manual -->
+<header class="glass-header sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-2.5">
+            <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair"/>
+            <span class="font-heading font-medium text-xl text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden md:flex items-center gap-8">
+            <a href="preview.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Currículo</a>
+            <a href="jobs.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Vagas</a>
+            <a href="dashboard.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Painel</a>
+            <a href="settings.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Configurações</a>
+        </nav>
+
+        <a href="preview.html" class="btn-primary-brand text-xs py-2 px-4">
+            <span>Ver currículo</span>
+        </a>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow max-w-4xl mx-auto w-full px-6 py-8 pb-32 flex flex-col gap-6">
+
+    <!-- Bio Card -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-soft-sm">
+        <div class="w-24 h-24 rounded-2xl bg-[#636FC1] flex items-center justify-center font-heading font-bold text-3xl text-[#F5EEE2] shrink-0">
+            AS
+        </div>
+        <div class="flex-1 text-center sm:text-left space-y-2">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
+                <div>
+                    <h1 class="font-heading font-bold text-2xl sm:text-3xl text-[#252626]">Alexandre Silva</h1>
+                    <p class="font-heading font-medium text-base text-[#636FC1]">Coordenador de Atendimento</p>
+                </div>
+                <span class="badge-success text-xs font-heading font-bold">Disponível para Vagas</span>
+            </div>
+            <p class="font-body text-sm leading-relaxed text-[#4A4643]">
+                Profissional com 6 anos de experiência em operações de atendimento e liderança de equipes. Focado em otimizar processos de triagem e reduzir tempo de espera.
+            </p>
+            <div class="flex flex-wrap gap-2 justify-center sm:justify-start pt-1 text-xs text-[#807A72]">
+                <span>São Paulo, SP</span> · <span>alexandre@email.com</span> · <span>(11) 98765-4321</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Experience -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-8 flex flex-col gap-6 shadow-soft-sm">
+        <span class="font-heading font-semibold text-lg text-[#333364]">Histórico Profissional</span>
+
+        <div class="relative border-l-2 border-[#636FC1] ml-3 pl-6 space-y-6">
+            <!-- Job 1 -->
+            <div class="relative">
+                <span class="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-[#636FC1] border-2 border-[#EDE4D3]"></span>
+                <div class="flex justify-between items-baseline">
+                    <h3 class="font-heading font-semibold text-base text-[#252626]">Coordenador de Atendimento</h3>
+                    <span class="font-body text-xs text-[#807A72]">2022 — Presente</span>
+                </div>
+                <p class="font-body text-xs text-[#636FC1] font-semibold mb-1">Clínica Vitale Saúde</p>
+                <p class="font-body text-sm text-[#4A4643] leading-relaxed">
+                    Reduzi a espera de 40 para 12 minutos em 6 meses, redesenhando a fila e a escala de 14 atendentes.
+                </p>
+            </div>
+
+            <!-- Job 2 -->
+            <div class="relative">
+                <span class="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-[#A7BBE0] border-2 border-[#EDE4D3]"></span>
+                <div class="flex justify-between items-baseline">
+                    <h3 class="font-heading font-semibold text-base text-[#252626]">Analista de Atendimento</h3>
+                    <span class="font-body text-xs text-[#807A72]">2019 — 2022</span>
+                </div>
+                <p class="font-body text-xs text-[#636FC1] font-semibold mb-1">Rede Bem Viver</p>
+                <p class="font-body text-sm text-[#4A4643] leading-relaxed">
+                    Implantei o roteiro de triagem e atendimento humanizado adotado nas 5 unidades da rede.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+</body>
+</html>

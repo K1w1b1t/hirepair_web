@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Vagas que combinam com seu perfil</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Header Conforme Manual -->
+<header class="glass-header sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-2.5">
+            <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair"/>
+            <span class="font-heading font-medium text-xl text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden md:flex items-center gap-8">
+            <a href="preview.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Currículo</a>
+            <a href="jobs.html" class="font-body text-sm font-semibold text-[#636FC1]">Vagas</a>
+            <a href="dashboard.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Painel</a>
+            <a href="settings.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Configurações</a>
+        </nav>
+
+        <a href="voice-flow.html" class="btn-primary-brand text-xs py-2 px-4">
+            <span>Novo currículo</span>
+        </a>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow max-w-7xl mx-auto w-full px-6 py-8 pb-32 flex flex-col gap-8">
+    
+    <!-- Title Area -->
+    <div class="space-y-1">
+        <span class="badge-label">Oportunidades Compatíveis</span>
+        <h1 class="font-heading font-medium text-3xl sm:text-4xl text-[#333364]">Vagas que combinam com seu perfil</h1>
+        <p class="font-body text-base text-[#4A4643]">Calculamos a compatibilidade de cada vaga com as habilidades confirmadas no seu currículo.</p>
+    </div>
+
+    <!-- Jobs Grid Conforme Manual 2a -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Job Card 1 -->
+        <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-5 shadow-soft-sm hover:-translate-y-1 transition-transform">
+            <div class="flex items-center gap-4">
+                <span class="w-12 h-12 rounded-2xl bg-[#A7BBE0] flex items-center justify-center font-heading font-bold text-lg text-[#333364]">RS</span>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-body text-xs text-[#807A72]">Rede Saúde SP · Híbrido</span>
+                        <span class="badge-success text-xs font-heading font-bold text-[#3D7A3D]">92% Match</span>
+                    </div>
+                    <h3 class="font-heading font-semibold text-xl text-[#252626] mt-0.5">Coordenador de Atendimento</h3>
+                </div>
+            </div>
+
+            <p class="font-body text-sm leading-relaxed text-[#4A4643]">
+                Liderança de equipe presencial e remota, controle de indicadores de tempo de espera e treinamento contínuo de atendimento ao cliente.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">Atendimento ao Cliente</span>
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">Gestão de Equipe</span>
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">R$ 5.500 - R$ 7.000</span>
+            </div>
+
+            <div class="pt-3 border-t border-[rgba(37,38,38,0.10)] flex items-center justify-between">
+                <span class="font-body text-xs text-[#807A72]">Publicada há 2 dias</span>
+                <a href="preview.html" class="btn-primary-brand text-xs py-2.5 px-5">
+                    <span>Candidatar com meu currículo</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Job Card 2 -->
+        <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-5 shadow-soft-sm hover:-translate-y-1 transition-transform">
+            <div class="flex items-center gap-4">
+                <span class="w-12 h-12 rounded-2xl bg-[#D3A4CF] flex items-center justify-center font-heading font-bold text-lg text-[#333364]">VC</span>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-body text-xs text-[#807A72]">Vitta Clínicas · Presencial</span>
+                        <span class="badge-success text-xs font-heading font-bold text-[#645D1E] bg-[#F5EEE2]">78% Match</span>
+                    </div>
+                    <h3 class="font-heading font-semibold text-xl text-[#252626] mt-0.5">Supervisora de Experiência do Paciente (CX)</h3>
+                </div>
+            </div>
+
+            <p class="font-body text-sm leading-relaxed text-[#4A4643]">
+                Mapeamento de jornada do paciente, análise de pesquisas de satisfação (NPS) e otimização das etapas de recepção e pós-consulta.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">CX / Atendimento</span>
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">NPS e Relatórios</span>
+                <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-3 py-1 rounded-full">R$ 4.800 - R$ 6.200</span>
+            </div>
+
+            <div class="pt-3 border-t border-[rgba(37,38,38,0.10)] flex items-center justify-between">
+                <span class="font-body text-xs text-[#807A72]">Publicada há 4 dias</span>
+                <a href="preview.html" class="btn-primary-brand text-xs py-2.5 px-5">
+                    <span>Candidatar com meu currículo</span>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</main>
+
+</body>
+</html>

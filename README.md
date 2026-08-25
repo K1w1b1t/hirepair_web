@@ -25,13 +25,34 @@ os dois pontos:
   na conta e **IA para otimizar** o currículo (reescrever experiências, inserir
   palavras-chave de ATS), pago por currículo.
 
-## Este repositório
+## Este repositório & Serviço Web
 
-Backend do produto (**NestJS** + **PostgreSQL** via **Docker Compose**), responsável
-pelas funcionalidades online: conta Google, IA de otimização, pagamentos e anúncios.
-O app React Native é um projeto separado.
+O projeto conta com um **Serviço Web completo (FastAPI + Tailwind CSS + Inter)**, integrando a interface visual de todas as telas, rotas limpas e APIs RESTful para criação, validação de fatos, match de vagas e exportação de currículos para ATS e WhatsApp.
 
-**Status:** fase de pesquisa e planejamento — implementação técnica ainda não iniciada.
+### 🚀 Como Rodar o Serviço Web:
+
+1. Certifique-se de ter o Python 3.10+ instalado.
+2. Inicie o serviço com:
+
+```bash
+python server.py
+```
+*(No Windows, você também pode simplesmente dar duplo clique em `start_server.bat`)*
+
+3. Acesse a aplicação no seu navegador: **`http://localhost:8080`**
+
+### 📍 Rotas e Telas Disponíveis:
+- `/` — Landing Page Principal
+- `/voice` — Criação de Currículo por Voz
+- `/confirm` — Confirmação e Edição de Fatos
+- `/progress` — Progresso do Currículo e Diagnóstico ATS
+- `/preview` — Pré-visualização do Currículo ATS & Envio WhatsApp
+- `/dashboard` — Painel de Controle do Candidato
+- `/jobs` — Oportunidades & Vagas com Match ATS
+- `/profile` — Perfil Profissional Completo
+- `/settings` — Configurações da Conta e Segurança
+- `/design-system` — Guia Interativo de Design Tokens & Componentes
+- `/docs` — Documentação interativa da API (Swagger / OpenAPI)
 
 ## Documentação de negócio
 

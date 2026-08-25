@@ -1,0 +1,205 @@
+/* HirePair - Manual de Marca Oficial (Direção 1b: Quiet Azul + Fundo Creme) */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+:root {
+  /* Fontes Oficiais */
+  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+
+  /* Cores Oficiais */
+  --color-primary: #636FC1;        /* Azul Confiança */
+  --color-primary-hover: #525EAF;
+  --color-navy: #333364;           /* Navy */
+  --color-light: #A7BBE0;          /* Azul Claro */
+  --color-pink: #D3A4CF;           /* Rosa Humano */
+  --color-creme: #F5EEE2;          /* Fundo Padrão */
+  --color-creme-deep: #EDE4D3;     /* Cards / Superfícies Elevadas */
+  --color-paper: #FFFFFF;          /* Papel de Currículo */
+  --color-text-main: #252626;      /* Tinta */
+  --color-text-muted: #4A4643;     /* Tinta Suave */
+  --color-text-dim: #807A72;       /* Tinta Apagada */
+  
+  --color-success: #3D7A3D;
+  --color-success-bg: #D7EACD;
+  --color-danger: #A63838;
+  --color-whatsapp: #2E7D32;
+
+  /* Bordas e Raio */
+  --border-subtle: 1px solid rgba(37, 38, 38, 0.12);
+  --border-focus: 1px solid #636FC1;
+  --radius-card: 24px;
+  --radius-pill: 9999px;
+}
+
+html.dark {
+  --color-creme: #1E1E38;
+  --color-creme-deep: #2A2A4E;
+  --color-text-main: #F5EEE2;
+  --color-text-muted: #D1CFE2;
+  --color-text-dim: #9D9BB6;
+  --border-subtle: 1px solid rgba(245, 238, 226, 0.15);
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-creme);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  margin: 0;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+}
+
+/* Botões Oficiais do Manual (Pílula) */
+.btn-primary-brand {
+  background-color: var(--color-primary);
+  color: #F5EEE2;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 26px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-primary-brand:hover {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -6px rgba(99, 111, 193, 0.45);
+}
+
+.btn-primary-brand:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary-brand {
+  background-color: transparent;
+  color: var(--color-navy);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(51, 51, 100, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+html.dark .btn-secondary-brand {
+  color: #F5EEE2;
+  border-color: rgba(245, 238, 226, 0.3);
+}
+
+.btn-secondary-brand:hover {
+  background-color: rgba(51, 51, 100, 0.06);
+  border-color: var(--color-navy);
+}
+
+.btn-navy-brand {
+  background-color: var(--color-navy);
+  color: #F5EEE2;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-navy-brand:hover {
+  background-color: #25254A;
+  transform: translateY(-1px);
+}
+
+/* Cards & Superfícies */
+.card-creme {
+  background-color: var(--color-creme-deep);
+  border: var(--border-subtle);
+  border-radius: var(--radius-card);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-paper {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(37, 38, 38, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 16px 36px -6px rgba(37, 38, 38, 0.08);
+}
+
+/* Header Fixo */
+.glass-header {
+  background: rgba(245, 238, 226, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(37, 38, 38, 0.10);
+}
+
+html.dark .glass-header {
+  background: rgba(30, 30, 56, 0.94);
+  border-bottom: 1px solid rgba(245, 238, 226, 0.10);
+}
+
+/* Tags & Badges */
+.badge-label {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.badge-success {
+  background-color: var(--color-success-bg);
+  color: var(--color-text-main);
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Equalizer & Wave Animation */
+@keyframes wave-bar {
+  0%, 100% { height: 6px; }
+  50% { height: 28px; }
+}
+
+.animate-wave-1 { animation: wave-bar 0.8s ease-in-out infinite; }
+.animate-wave-2 { animation: wave-bar 1.1s ease-in-out infinite 0.15s; }
+.animate-wave-3 { animation: wave-bar 0.7s ease-in-out infinite 0.3s; }
+.animate-wave-4 { animation: wave-bar 1.2s ease-in-out infinite 0.1s; }
+.animate-wave-5 { animation: wave-bar 0.9s ease-in-out infinite 0.25s; }

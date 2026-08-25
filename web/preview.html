@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Pré-visualização do Currículo</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+    <style>
+        @media print {
+            body { background: #FFFFFF !important; padding: 0 !important; }
+            .no-print { display: none !important; }
+            .resume-sheet { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Header Conforme Manual -->
+<header class="no-print glass-header sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <a href="confirm-facts.html" class="p-1 rounded-full text-[#4A4643] hover:bg-[#EDE4D3] transition-colors">
+                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+            </a>
+            <a href="index.html" class="flex items-center gap-2.5">
+                <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair"/>
+                <span class="font-heading font-medium text-xl text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+            </a>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <button onclick="window.print()" class="btn-primary-brand text-xs py-2 px-4 shadow-soft-sm">
+                <span class="material-symbols-outlined text-[16px]">download</span>
+                <span>Baixar PDF</span>
+            </button>
+            <button onclick="shareWhatsApp()" class="btn-navy-brand text-xs py-2 px-4 bg-[#2E7D32] hover:bg-[#256328]">
+                <span class="material-symbols-outlined text-[16px]">share</span>
+                <span>WhatsApp</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow max-w-4xl mx-auto w-full px-6 py-8 pb-32 flex flex-col gap-6">
+
+    <!-- Top Preview Status Bar Conforme Manual 1e -->
+    <div class="no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
+        <span class="badge-label">Pré-visualização</span>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="font-heading font-medium text-[#333364] border border-[rgba(51,51,100,0.3)] bg-[#EDE4D3] px-3 py-1 rounded-full">Modelo: Calmo</span>
+            <span class="badge-success">Score ATS 98% · Pronto</span>
+        </div>
+    </div>
+
+    <!-- Resume Paper Sheet (Fundo Branco #FFFFFF puro dentro do papel conforme manual) -->
+    <div class="resume-sheet bg-[#FFFFFF] border border-[rgba(37,38,38,0.12)] rounded-2xl p-8 sm:p-12 shadow-desktop-frame flex flex-col gap-6">
+        
+        <!-- Candidate Header -->
+        <div class="flex flex-col gap-2 pb-6 border-b border-[rgba(37,38,38,0.12)]">
+            <h1 class="font-heading font-bold text-3xl tracking-[-0.02em] text-[#252626]" id="resumeName">Alexandre Silva</h1>
+            <p class="font-body text-sm text-[#4A4643]">
+                Coordenador de Atendimento e Operações · São Paulo, SP · (11) 98765-4321 · alexandre@email.com
+            </p>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="flex flex-col gap-2">
+            <span class="font-heading font-bold text-xs tracking-[0.14em] uppercase text-[#636FC1]">Resumo Profissional</span>
+            <p class="font-body text-sm leading-[1.6] text-[#252626]">
+                Profissional com 6 anos de experiência em operações de atendimento e liderança de equipes. Focado em otimizar processos de triagem, reduzir tempos de espera e estruturar rotinas com foco em retenção e satisfação do cliente.
+            </p>
+        </div>
+
+        <!-- Experience Section -->
+        <div class="flex flex-col gap-4">
+            <span class="font-heading font-bold text-xs tracking-[0.14em] uppercase text-[#636FC1]">Experiência Profissional</span>
+            
+            <!-- Job 1 -->
+            <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-baseline">
+                    <span class="font-heading font-semibold text-base text-[#252626]">Clínica Vitale Saúde · Coordenador de Atendimento</span>
+                    <span class="font-body text-xs text-[#807A72]">2022 — Presente</span>
+                </div>
+                <div class="font-body text-sm leading-[1.6] text-[#252626] bg-[#EDE4D3]/40 border-l-2 border-[#636FC1] p-3 rounded-r-lg">
+                    Reduzi o tempo de espera de 40 para 12 minutos em 6 meses, redesenhando a fila e a escala de 14 atendentes.
+                </div>
+            </div>
+
+            <!-- Job 2 -->
+            <div class="flex flex-col gap-1.5 pt-2">
+                <div class="flex justify-between items-baseline">
+                    <span class="font-heading font-semibold text-base text-[#252626]">Rede Bem Viver · Analista de Atendimento</span>
+                    <span class="font-body text-xs text-[#807A72]">2019 — 2022</span>
+                </div>
+                <p class="font-body text-sm leading-[1.6] text-[#4A4643]">
+                    Implantei o roteiro de triagem e atendimento humanizado adotado nas 5 unidades da rede, aumentando o índice de satisfação em 35%.
+                </p>
+            </div>
+        </div>
+
+        <!-- Skills Section -->
+        <div class="flex flex-col gap-2 pt-2">
+            <span class="font-heading font-bold text-xs tracking-[0.14em] uppercase text-[#636FC1]">Competências</span>
+            <p class="font-body text-sm text-[#252626]">
+                Gestão de Atendimento, Otimização de Processos, Liderança de Equipes, Treinamento de Colaboradores, CRM e Comunicação Empática.
+            </p>
+        </div>
+
+        <!-- Education Section -->
+        <div class="flex flex-col gap-2 pt-2">
+            <span class="font-heading font-bold text-xs tracking-[0.14em] uppercase text-[#636FC1]">Educação & Cursos</span>
+            <p class="font-body text-sm text-[#252626]">
+                <strong>Graduação em Administração de Empresas</strong> — Universidade Paulista (2018)<br/>
+                <span class="text-[#807A72] text-xs">Curso de Gestão de Equipes e Experiência do Cliente (CX) — 40h</span>
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Dica Box Conforme Manual 1e -->
+    <div class="no-print bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-2xl p-5 flex items-center gap-3.5">
+        <span class="badge-success shrink-0">Dica</span>
+        <p class="text-sm text-[#4A4643] leading-relaxed">
+            Vagas de coordenação pedem gestão de pessoas — você pode adicionar quantos colaboradores treinou para deixar o perfil ainda mais forte.
+        </p>
+    </div>
+
+</main>
+
+<script>
+function shareWhatsApp() {
+    const text = encodeURIComponent("Olá! Estou enviando meu currículo gerado no hirepair: " + window.location.href);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+}
+</script>
+
+</body>
+</html>
