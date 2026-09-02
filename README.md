@@ -82,20 +82,174 @@ npm run test
 npm run build
 ```
 
-### Banco de dados
+## 🗄️ Operando o banco de dados
+
+**Prisma 7** é o ORM e a ferramenta de migration. Localmente o banco é o Postgres
+16 do `docker-compose.yml`; em produção é o **Supabase**, que entra apenas pela
+connection string. Não usamos a CLI do Supabase, nem Supabase Auth.
+
+O modelo de dados, a decisão de RLS e as convenções do schema estão em
+[`docs/database/README.md`](./docs/database/README.md). Abaixo é o dia a dia.
+
+### Referência dos comandos
+
+Todos existem na raiz do monorepo e repassam para `apps/api`.
+
+| Comando               | O que faz                                                                            |
+| :-------------------- | :----------------------------------------------------------------------------------- |
+| `npm run db:up`       | Sobe Postgres (`5434`) e Redis (`6379`)                                              |
+| `npm run db:down`     | Derruba os containers, preservando os dados                                          |
+| `npm run db:logs`     | Acompanha o log dos containers                                                       |
+| `npm run db:migrate`  | `prisma migrate dev` — gera e aplica migration de uma mudança no schema              |
+| `npm run db:deploy`   | `prisma migrate deploy` — só aplica pendentes, sem gerar nada. É o comando do deploy |
+| `npm run db:seed`     | Popula com dado de amostra. Idempotente                                              |
+| `npm run db:generate` | Regenera o Prisma Client (o `npm ci` já faz isso)                                    |
+| `npm run db:studio`   | Abre o Prisma Studio para navegar nos dados                                          |
+| `npm run db:reset`    | **Destrói** o banco, reaplica tudo e roda o seed                                     |
+
+### Primeira vez
 
 ```bash
-npm run db:migrate     # cria/aplica migration a partir do schema.prisma
-npm run db:deploy      # só aplica pendentes (é o que roda no deploy)
-npm run db:seed        # dado de amostra (idempotente)
-npm run db:studio      # Prisma Studio
-npm run db:reset       # destrói e recria — SÓ em desenvolvimento
+cp .env.example .env     # os valores padrão já servem para o local
+npm run db:up            # Postgres 16 na 5434 + Redis 7
+npm run db:migrate       # cria o schema
+npm run db:seed          # usuário dev@hirepair.local + rodada de amostra
+```
 
+Conferindo que a API fala com o banco:
+
+```bash
+npm run dev:api
 curl localhost:3001/health/db     # {"database":"ok","latencyMs":1}
 ```
 
-O guia completo — modelo de dados, decisão de RLS, fluxo de migration e as duas
-URLs do Supabase — está em [`docs/database/README.md`](./docs/database/README.md).
+`/health/db` faz um `SELECT 1` de verdade e **sempre responde 200** — o veredito
+está no corpo, em `database`. Health check que responde 500 é indistinguível de
+aplicação morta, e a informação útil é "API de pé, banco fora".
+
+### Mudando o schema
+
+```bash
+# 1. edite apps/api/prisma/schema.prisma
+# 2. gere e aplique a migration
+npm run db:migrate
+```
+
+O Prisma pede um nome e cria `apps/api/prisma/migrations/<timestamp>_<nome>/`.
+Commite a pasta junto com o schema.
+
+Três regras que evitam a maior parte dos problemas:
+
+- **Não escreva migration à mão** como fluxo principal. Deixe o Prisma gerar o
+  diff a partir do schema.
+- **Nunca edite uma migration já aplicada.** O checksum muda e o Prisma passa a
+  acusar migration modificada em todo comando seguinte. Para corrigir, crie uma
+  migration nova — ou, em desenvolvimento e sabendo que perde os dados,
+  `npm run db:reset`.
+- **Depois de mudar o schema, rode o ciclo completo** antes de abrir PR, porque é
+  o que o CI faz:
+
+  ```bash
+  npm run db:migrate
+  npm run db:seed && npm run db:seed     # a segunda prova a idempotência
+  ```
+
+#### Quando o SQL não cabe no schema do Prisma
+
+RLS, grants, trigger, função e índice parcial não existem no DSL. Nesses casos:
+
+```bash
+cd apps/api
+npx prisma migrate dev --create-only --name minha_mudanca   # gera sem aplicar
+# edite o migration.sql: anexe o SQL manual ABAIXO do diff gerado,
+# com um comentário explicando o motivo
+cd ../.. && npm run db:migrate                              # agora aplica
+```
+
+A migration de RLS
+([`enable_rls_deny_by_default`](./apps/api/prisma/migrations/20260902041400_enable_rls_deny_by_default/migration.sql))
+é o exemplo vivo desse padrão.
+
+> **Toda tabela precisa de RLS habilitada.** Não é o mecanismo de autorização
+> (esse fica na API), mas o Supabase publica automaticamente o schema `public`
+> pela Data API, e uma tabela sem RLS fica legível com a chave anônima do
+> projeto. Um modelo novo sem a linha `ENABLE ROW LEVEL SECURITY` **falha o
+> `npm run test`**, por conta de
+> [`schema-rls.spec.ts`](./apps/api/src/prisma/schema-rls.spec.ts). O porquê está
+> em [`docs/database/README.md`](./docs/database/README.md#row-level-security).
+
+### Inspecionando os dados
+
+```bash
+npm run db:studio        # interface web do Prisma
+
+# ou psql direto no container
+docker exec -it hirepair-postgres psql -U hirepair -d hirepair
+```
+
+Conferindo o estado da RLS:
+
+```bash
+docker exec hirepair-postgres psql -U hirepair -d hirepair -c \
+  "select relname, relrowsecurity from pg_class
+   where relnamespace='public'::regnamespace and relkind='r' order by 1;"
+# toda linha deve ter relrowsecurity = t
+
+docker exec hirepair-postgres psql -U hirepair -d hirepair -c \
+  "select count(*) from pg_policies where schemaname='public';"
+# deve ser 0 — RLS ativa sem policy nega tudo
+```
+
+### Recomeçando do zero
+
+```bash
+npm run db:reset          # apaga os dados, reaplica as migrations e roda o seed
+```
+
+Se o próprio container ficar num estado ruim (por exemplo, ao trocar as
+credenciais do `.env` depois do primeiro `db:up` — o volume mantém as antigas):
+
+```bash
+npm run db:down -- -v     # remove também os volumes
+npm run db:up && npm run db:migrate && npm run db:seed
+```
+
+### Deploy: as migrations aplicam sozinhas
+
+`apps/api/package.json` declara `prestart:prod`, e o npm o roda automaticamente
+antes de `start:prod`:
+
+```json
+"prestart:prod": "prisma migrate deploy",
+"start:prod": "node dist/main"
+```
+
+Então qualquer ambiente que suba a API com `npm run start:prod` aplica as
+migrations pendentes primeiro. Sem `DATABASE_URL` no ambiente o comando falha
+alto — de propósito: melhor não subir do que subir contra um schema desatualizado.
+
+Para apontar para o Supabase, preencha no ambiente de deploy (as strings estão em
+_Project Settings → Database → Connection string_):
+
+| Variável       | Qual copiar                       | Usada por        |
+| :------------- | :-------------------------------- | :--------------- |
+| `DATABASE_URL` | Transaction pooler (porta `6543`) | A API em runtime |
+| `DIRECT_URL`   | Session pooler (porta `5432`)     | `prisma migrate` |
+
+São duas porque o pooler em modo transaction é o certo para a aplicação, mas não
+sustenta o advisory lock que a migration usa. Localmente `DIRECT_URL` fica em
+branco e o Prisma cai para `DATABASE_URL`.
+
+### Problemas comuns
+
+| Sintoma                                                      | Causa e solução                                                                                                   |
+| :----------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| `Can't reach database server at localhost:5434`              | Container não está de pé: `npm run db:up`                                                                         |
+| `Configuracao de ambiente invalida: DATABASE_URL...` no boot | Falta o `.env`: `cp .env.example .env`                                                                            |
+| `The migration ... was modified after it was applied`        | Uma migration já aplicada foi editada. Crie uma nova, ou `npm run db:reset` em desenvolvimento                    |
+| `Drift detected` no `db:migrate`                             | O banco saiu de sincronia com as migrations (alteração feita à mão via psql). `npm run db:reset`                  |
+| Erro de tipo em `@prisma/client` após mudar o schema         | O Client não foi regenerado: `npm run db:generate`                                                                |
+| `password authentication failed`                             | As credenciais do `.env` mudaram depois do primeiro `db:up`. O volume manteve as antigas: `npm run db:down -- -v` |
 
 **Status:** infraestrutura e camada de persistência prontas (Task 01 e Task 02
 concluídas).
