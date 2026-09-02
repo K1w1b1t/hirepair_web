@@ -39,6 +39,7 @@ O monorepo está organizado em `apps/web` (Next.js App Router, React 19, Tailwin
 ## 🚀 Execução do Monorepo
 
 ### Pré-requisitos
+
 - Node.js (v20 ou superior)
 - Docker & Docker Compose
 
@@ -173,15 +174,15 @@ escasso, então isso fica no menu.
 
 ### O que acontece na sessão
 
-| Fase | O que faz |
-|---|---|
-| 1 | Extrai o texto do PDF como um ATS extrairia e mostra os defeitos: palavras coladas, dado sensível, imagem embutida, gaps na linha do tempo |
-| 2 | Pergunta o objetivo pessoal — nada é escrito antes disso |
-| 3 | Deriva o arquétipo e mostra a estrutura pré-definida que ele impõe |
-| 4 | Tom de escrita e fórmula de impacto, com as travas aplicadas |
-| 5 | Pergunta sobre cada experiência, extrai os fatos, pede confirmação e redige |
-| 6 | Lê a vaga colada, classifica os requisitos e mostra o que falta (sem nota de aderência) |
-| 7 | Escreve o currículo em `demo/out/*.md` |
+| Fase | O que faz                                                                                                                                  |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Extrai o texto do PDF como um ATS extrairia e mostra os defeitos: palavras coladas, dado sensível, imagem embutida, gaps na linha do tempo |
+| 2    | Pergunta o objetivo pessoal — nada é escrito antes disso                                                                                   |
+| 3    | Deriva o arquétipo e mostra a estrutura pré-definida que ele impõe                                                                         |
+| 4    | Tom de escrita e fórmula de impacto, com as travas aplicadas                                                                               |
+| 5    | Pergunta sobre cada experiência, extrai os fatos, pede confirmação e redige                                                                |
+| 6    | Lê a vaga colada, classifica os requisitos e mostra o que falta (sem nota de aderência)                                                    |
+| 7    | Escreve o currículo em `demo/out/*.md`                                                                                                     |
 
 ### Limitações conhecidas
 

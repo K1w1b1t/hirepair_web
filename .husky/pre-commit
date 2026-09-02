@@ -1,19 +1,11 @@
-#!/usr/bin/env bash
-# 1. Validar padrão da branch: numero_da_issue-titulo_da_issue
-branch_name=$(git rev-parse --abbrev-ref HEAD)
-branch_regex="^[0-9]+-.+$"
+#!/usr/bin/env sh
 
-if [[ ! $branch_name =~ $branch_regex ]]; then
-  echo "❌ ERRO: Nome da branch inválido ($branch_name)."
-  echo "O padrão deve ser: numero_da_issue-titulo_da_issue (Ex: 4-task-01-inicializar-monorepo)"
-  exit 1
-fi
+# 1. Padrao da branch: {numero_da_issue}-{titulo_da_issue}
+sh .husky/scripts/validate-branch-name.sh
 
-# 2. Executar Lint e Build
-echo "🔍 Validando código antes do commit..."
-
-npm run lint && \
-npm run build || {
-  echo "❌ ERRO: Verificação falhou. O commit foi cancelado."
-  exit 1
-}
+# 2. Lint + format apenas nos arquivos em stage.
+#    O gate completo (lint, typecheck, test, build) roda no CI; rodar build
+#    inteiro a cada commit tornava o hook lento demais para ser usado.
+#    Caminho direto ao binario: `npx --no-install` nao resolve o pacote a
+#    partir do contexto em que o husky executa o hook.
+./node_modules/.bin/lint-staged

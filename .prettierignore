@@ -1,0 +1,19 @@
+# Dependencias e artefatos de build
+node_modules/
+.next/
+dist/
+build/
+out/
+coverage/
+package-lock.json
+
+# Prototipo visual estatico: HTML/CSS/JS entregues como asset de design,
+# nao como codigo da aplicacao. Reformatar quebraria a paridade com o Figma
+# e um dos arquivos nem sequer e HTML valido para o parser do Prettier.
+docs/design/
+
+# Prototipo Python: fora do escopo do toolchain JS/TS.
+demo/
+
+# Documentacao de negocio: texto editado a mao.
+business/

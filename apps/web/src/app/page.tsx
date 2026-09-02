@@ -9,21 +9,28 @@ export default function Home() {
           HirePair Web
         </h1>
         <p className="text-lg text-slate-400">
-          Candidate Assistant & ATS CV Builder — Next.js 15, React 19, Tailwind CSS v4 e TypeScript em Monorepo.
+          Candidate Assistant & ATS CV Builder — Next.js 15, React 19, Tailwind CSS v4 e TypeScript
+          em Monorepo.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 text-left">
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur-sm">
             <h2 className="text-sm font-semibold text-emerald-400">⚡ Frontend App</h2>
-            <p className="mt-2 text-xs text-slate-400">Next.js App Router com suporte total a React 19 e Tailwind CSS v4.</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Next.js App Router com suporte total a React 19 e Tailwind CSS v4.
+            </p>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur-sm">
             <h2 className="text-sm font-semibold text-sky-400">🚀 Backend API</h2>
-            <p className="mt-2 text-xs text-slate-400">NestJS configurado em workspace para microsserviços e integração local.</p>
+            <p className="mt-2 text-xs text-slate-400">
+              NestJS configurado em workspace para microsserviços e integração local.
+            </p>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur-sm">
             <h2 className="text-sm font-semibold text-purple-400">🐳 Infra Local</h2>
-            <p className="mt-2 text-xs text-slate-400">Docker Compose com PostgreSQL 16 e Redis 7 com healthchecks configurados.</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Docker Compose com PostgreSQL 16 e Redis 7 com healthchecks configurados.
+            </p>
           </div>
         </div>
       </div>

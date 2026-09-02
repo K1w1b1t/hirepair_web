@@ -1,14 +1,15 @@
 # dependencies
-/node_modules
-/.pnp
+# Sem barra inicial: num monorepo os diretorios existem na raiz E em cada apps/*.
+node_modules/
+.pnp
 .pnp.*
 
 # apps build & temp outputs
-/.next/
-/dist/
-/build/
-/out/
-/coverage/
+.next/
+dist/
+build/
+out/
+coverage/
 
 # env files
 .env

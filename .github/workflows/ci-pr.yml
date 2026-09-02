@@ -3,7 +3,7 @@ name: CI PR (lint, format, test, build)
 on:
   pull_request:
     branches:
-      - main
+      - master
       - release
 
 permissions:
