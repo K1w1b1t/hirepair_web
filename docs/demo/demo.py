@@ -9,7 +9,7 @@ currículo estruturado em Markdown.
     python demo/demo.py --sessoes
     python demo/demo.py --resume <id-da-sessao>
 
-Setup e chaves da API: ver README.md.
+Setup e chaves da API: ver docs/demo/README.md.
 """
 
 from __future__ import annotations
