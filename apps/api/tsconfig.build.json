@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  // `prisma` e `prisma.config.ts` ficam fora do build: sao ferramentas de
+  // desenvolvimento (seed e config do CLI), rodadas por ts-node. Incluir os dois
+  // faria o tsc subir o rootDir inferido de `src` para a raiz do app, e o bundle
+  // passaria a emitir `dist/src/main.js` — quebrando o `start:prod`.
+  "exclude": ["node_modules", "test", "dist", "prisma", "prisma.config.ts", "**/*spec.ts"]
 }

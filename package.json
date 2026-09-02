@@ -19,7 +19,13 @@
     "test:cov": "npm run test:cov --workspaces --if-present",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f"
+    "db:logs": "docker compose logs -f",
+    "db:generate": "npm run db:generate -w apps/api",
+    "db:migrate": "npm run db:migrate -w apps/api",
+    "db:deploy": "npm run db:deploy -w apps/api",
+    "db:reset": "npm run db:reset -w apps/api",
+    "db:seed": "npm run db:seed -w apps/api",
+    "db:studio": "npm run db:studio -w apps/api"
   },
   "lint-staged": {
     "*.{json,md,yml,yaml,css,js,mjs}": [

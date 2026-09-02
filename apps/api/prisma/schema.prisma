@@ -1,0 +1,856 @@
+// Schema do HirePair. Convencao (herdada de amora_corban_api):
+//
+//   - modelos PascalCase singular, campos camelCase, SEM @@map/@map — o Postgres
+//     guarda os identificadores entre aspas, com o mesmo nome do Prisma;
+//   - id sempre `String @id @default(uuid())`;
+//   - `createdAt`/`updatedAt` no rodape do modelo, depois @@unique, depois @@index;
+//   - soft delete e `deletedAt DateTime?`, filtrado explicitamente na consulta
+//     (sem middleware que esconda linhas por tras das costas de quem le o codigo);
+//   - comentarios `///` carregam o PORQUE da coluna, nao o que ela obviamente e.
+//
+// A URL do datasource vem do prisma.config.ts, por isso nao ha `url` aqui.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identidade e autenticacao
+//
+// Auth e nossa: nao usamos Supabase Auth. O Supabase entra apenas como Postgres
+// gerenciado, pela connection string, entao nao existe `auth.users` para
+// referenciar e todo o ciclo de credencial/token e modelado aqui.
+// ---------------------------------------------------------------------------
+
+model User {
+  id String @id @default(uuid())
+
+  /// Identificador de login. Guardado em minusculas pela aplicacao — o unique do
+  /// Postgres e case-sensitive, e "Joao@x.com" e "joao@x.com" sao a mesma pessoa.
+  email String @unique
+
+  /// Hash da senha (argon2id). O PrismaService aplica `omit` global nesta coluna,
+  /// entao ela nao sai em nenhuma leitura por acidente — para conferir a senha no
+  /// login, peca explicitamente com `omit: { passwordHash: false }`.
+  /// Nulo quando a conta so tem login social (ver OAuthAccount).
+  passwordHash String?
+
+  /// Quando o e-mail foi confirmado. Nulo = conta ainda nao verificada.
+  emailVerifiedAt DateTime?
+
+  status UserStatus @default(PENDING_VERIFICATION)
+  role   UserRole   @default(CANDIDATE)
+
+  /// Plano comercial. FREE roda offline e com anuncios; PREMIUM libera a
+  /// otimizacao por vaga (ver docs/business/proximos-passos-mvp.md secao 2.2).
+  plan UserPlan @default(FREE)
+
+  lastLoginAt DateTime?
+
+  profile                 Profile?
+  authSessions            AuthSession[]
+  oauthAccounts           OAuthAccount[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  consents                UserConsent[]
+  sessions                Session[]
+  resumes                 Resume[]
+  applications            Application[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// LGPD: exclusao logica primeiro, para atender pedido de exclusao do titular
+  /// sem perder de imediato o rastro de auditoria do consentimento.
+  deletedAt DateTime?
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
+/// Sessao de LOGIN (par access/refresh token) — nao confundir com {@link Session},
+/// que e a rodada da metodologia de construcao de curriculo. Sao duas coisas
+/// diferentes com o mesmo nome no dominio, e a distincao e proposital.
+model AuthSession {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Somente o hash do refresh token e persistido: um vazamento desta tabela nao
+  /// pode ser suficiente para assumir a sessao de ninguem.
+  refreshTokenHash String @unique
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt DateTime
+  /// Preenchido no logout ou na rotacao do token. Revogar em vez de deletar
+  /// preserva o rastro de "esta sessao existiu e foi encerrada".
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Login social (Google OAuth — SHOULD HAVE do MVP). Fica em tabela separada
+/// porque uma conta pode acumular mais de um provedor sem duplicar o User.
+model OAuthAccount {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider OAuthProvider
+
+  /// `sub` do provedor. Estavel e opaco de proposito: e-mail do Google pode
+  /// mudar, o `sub` nao.
+  providerAccountId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Hash, pela mesma razao de AuthSession.refreshTokenHash.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  /// Uso unico: preenchido no consumo, e um segundo uso e recusado.
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Registro de consentimento LGPD (Lei 13.709/2018). O curriculo e recheado de
+/// dado pessoal e pode conter dado sensivel, e a base legal precisa ser
+/// demonstravel por titular, por finalidade e por VERSAO do texto aceito — por
+/// isso `version` e o historico de linhas, em vez de um booleano no User.
+model UserConsent {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type ConsentType
+
+  /// Versao do texto aceito (ex.: "2026-09-01"). Um texto novo exige consentimento
+  /// novo; sem isso nao ha como provar A QUE o titular consentiu.
+  version String
+
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  /// Evidencia de onde partiu o aceite.
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Perfil profissional
+//
+// Espelha o JSON de `prompt_extrair_perfil` em docs/demo/metodologia.py. As
+// listas viram tabelas, e nao jsonb, porque a UI edita item a item (tela
+// confirm-facts do prototipo) e o motor de redacao percorre item a item.
+// ---------------------------------------------------------------------------
+
+model Profile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName String?
+
+  /// Cargo declarado pela pessoa, ou o oficio no arquetipo C. Vira tagline no
+  /// topo do curriculo, nao uma secao.
+  headline String?
+
+  phone        String?
+  /// Contato do curriculo, separado de User.email (que e credencial de login).
+  contactEmail String?
+  city         String?
+  state        String?
+
+  /// Resumo profissional (secao "resumo" dos arquetipos B/D).
+  summary   String?
+  /// Objetivo declarado (secao "objetivo" do arquetipo A).
+  objective String?
+
+  experiences ProfileExperience[]
+  educations  ProfileEducation[]
+  skills      ProfileSkill[]
+  links       ProfileLink[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model ProfileExperience {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  role    String
+  company String?
+
+  /// Precisao de mes: o prototipo coleta "mm/aaaa". `endedOn` nulo com
+  /// `isCurrent` = vinculo ativo, o que tambem decide o tempo verbal dos bullets
+  /// (presente para ativo, passado para encerrado — secao 6 da metodologia).
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  isCurrent Boolean   @default(false)
+
+  description String?
+
+  /// Trabalho sem vinculo formal (autonomo, informal). Conta na linha do tempo,
+  /// mas nao no calculo de meses formais que sugere o arquetipo.
+  isInformal        Boolean @default(false)
+  /// Projeto pessoal ou estudo. Limita a densidade a 1-2 bullets, contra 2-4 de
+  /// emprego formal (calibragem anti-inflacao, secao 6 da metodologia).
+  isPersonalProject Boolean @default(false)
+
+  /// Ordem de exibicao escolhida pela pessoa. A ordem das SECOES vem do
+  /// arquetipo; a ordem DENTRO da secao e editavel.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, sortOrder])
+}
+
+model ProfileEducation {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  course      String
+  institution String?
+
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+
+  /// COMPLETED e o gatilho do orientador proativo: formacao concluida pode
+  /// qualificar a pessoa para vaga superior a que ela mirou.
+  status EducationStatus @default(IN_PROGRESS)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, sortOrder])
+}
+
+/// Habilidade, ferramenta, idioma ou certificacao. Um modelo com `kind` em vez de
+/// quatro tabelas iguais: a diferenca entre eles e so a secao onde saem.
+model ProfileSkill {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  name String
+  kind ProfileSkillKind @default(SKILL)
+
+  /// A metodologia proibe publicar competencia que a pessoa nao confirmou. Uma
+  /// competencia inferida de um relato entra como `false` e so vai para o
+  /// curriculo depois do aceite na tela de confirmacao.
+  isConfirmed Boolean @default(false)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, kind, name])
+  @@index([profileId, kind])
+}
+
+model ProfileLink {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  label String?
+  url   String
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Rodada da metodologia
+//
+// Espelha o @dataclass Sessao de docs/demo/demo.py e as fases 1-9 de
+// docs/business/methodology/metodologia-do-sistema.md.
+// ---------------------------------------------------------------------------
+
+/// Uma passada pela metodologia, do diagnostico ao curriculo pronto. NAO e sessao
+/// de autenticacao — essa e {@link AuthSession}.
+model Session {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Codigo curto para a pessoa retomar de onde parou ("--resume ea8e67" no
+  /// prototipo). Curto o bastante para ser ditado por telefone.
+  publicCode String @unique
+
+  objective SessionObjective?
+
+  /// Derivado da linha do tempo pela regra dura de `sugerir_arquetipo`, e
+  /// confirmado pela pessoa. Decide a ORDEM DAS SECOES e o teto de paginas.
+  archetype Archetype?
+
+  tone    WritingTone?
+  formula ImpactFormula?
+
+  phase SessionPhase @default(DIAGNOSIS)
+
+  targets   SessionTarget[]
+  documents UploadedDocument[]
+  findings  DiagnosticFinding[]
+  stories   Story[]
+  jobs      Job[]
+  resumes   Resume[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([deletedAt])
+}
+
+/// Cargo-alvo da rodada. Secao 4.3 da metodologia: UMA versao de curriculo por
+/// alvo — por isso e tabela, e nao uma coluna de texto na Session.
+model SessionTarget {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role      String
+  /// O primeiro alvo e o principal (cargo_alvo do prototipo).
+  sortOrder Int    @default(0)
+
+  resumes Resume[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, role])
+  @@index([sessionId, sortOrder])
+}
+
+/// Curriculo antigo importado, do qual sai o diagnostico.
+model UploadedDocument {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  /// Caminho no object storage. O binario NAO fica no Postgres.
+  storagePath String?
+  mimeType    String?
+  sizeBytes   Int?
+
+  /// Extracao LINEAR do texto — de proposito igual ao que o parser de um ATS le,
+  /// porque e essa leitura, e nao a visual, que reprova o curriculo.
+  extractedText String?
+
+  pageCount  Int?
+  /// Imagem embutida quebra parser de ATS; contar aqui alimenta o achado.
+  imageCount Int?
+
+  /// Documento em uso como base da rodada (`base` do prototipo). Ao menos um por
+  /// sessao quando ha upload.
+  isBase Boolean @default(false)
+
+  findings DiagnosticFinding[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+/// Achado do diagnostico automatico (fase 4). Um por problema encontrado.
+model DiagnosticFinding {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Nulo quando o achado nao vem de um arquivo (ex.: gap calculado da linha do
+  /// tempo digitada, sem upload nenhum).
+  documentId String?
+  document   UploadedDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  kind     FindingKind
+  severity FindingSeverity
+
+  /// Texto ja em linguagem de gente, sem jargao de RH — e o que a pessoa le.
+  message String
+
+  /// Payload especifico do tipo (palavras coladas encontradas, quais dados
+  /// sensiveis, etc.). Json porque a forma muda por `kind` e nada consulta por
+  /// dentro dele.
+  detail Json?
+
+  /// Recorte temporal do achado. Preenchido em TIMELINE_GAP, nulo nos outros.
+  periodStart DateTime? @db.Date
+  periodEnd   DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId, severity])
+  @@index([documentId])
+}
+
+/// Relato bruto de uma experiencia, por voz ou texto (fase 3, coleta
+/// conversacional).
+///
+/// `transcript` (fala bruta), {@link StoryFact} (fato extraido) e o bullet
+/// redigido em {@link Resume} sao TRES coisas separadas de proposito: a secao 11
+/// da metodologia proibe publicar transcricao crua ou usar fala nao confirmada.
+model Story {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// A que experiencia este relato se refere, em texto livre ("padaria",
+  /// "estagio no mercado").
+  label String?
+
+  source StorySource @default(TEXT)
+
+  transcript String?
+
+  /// Caminho do audio no storage. `audioDeletedAt` existe porque a retencao de
+  /// audio e decisao ABERTA (secao 12 da metodologia) e descartar apos a
+  /// transcricao e o mais seguro em LGPD — precisamos poder apagar o arquivo sem
+  /// perder o rastro de que ele existiu.
+  audioStoragePath String?
+  audioDeletedAt   DateTime?
+
+  /// Aceite da pessoa na tela de confirmacao. Sem isso, nada daqui pode virar
+  /// texto de curriculo.
+  confirmedAt DateTime?
+
+  facts StoryFact[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+/// Item extraido de um relato. `kind` QUESTION guarda a duvida que o sistema
+/// devolve a pessoa quando o relato ficou curto (replica guiada).
+model StoryFact {
+  id      String @id @default(uuid())
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  kind  StoryFactKind
+  value String
+
+  /// Guardrail contra numero inventado: um NUMBER so pode entrar no curriculo se
+  /// a pessoa o confirmou, porque o motor de redacao nao pode criar numero que
+  /// ela nao citou.
+  isConfirmed Boolean @default(false)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storyId, kind])
+}
+
+/// Vaga analisada no loop de aderencia (fase 8). Uma vaga por candidatura
+/// pretendida; o loop pode rodar varias vezes na mesma sessao.
+model Job {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title   String?
+  company String?
+
+  sourceUrl String?
+  /// Descricao colada pela pessoa, de onde saem os requisitos.
+  rawText   String?
+
+  /// Recomendacao pragmatica em TEXTO ("vale tentar" / "nao vale", com o motivo).
+  /// Nao existe, e nao deve existir, coluna de score de aderencia: numero da
+  /// falsa precisao matematica a um julgamento que nao a tem.
+  recommendation String?
+
+  requirements JobRequirement[]
+  resumes      Resume[]
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+model JobRequirement {
+  id    String @id @default(uuid())
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  text String
+
+  /// ELIMINATORY so para requisito objetivo e verificavel (registro de classe,
+  /// CNH, NR, curso concluido). A classificacao tem vies para BAIXO de proposito:
+  /// anuncio infla requisito, e tratar tudo como eliminatorio faz a pessoa
+  /// desistir de vaga que ela pegaria.
+  category RequirementCategory
+
+  /// Por que caiu nessa categoria — o que torna a classificacao auditavel.
+  reason String?
+
+  /// Comparacao com o perfil. Nulo antes da analise.
+  situation RequirementSituation?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobId, category])
+}
+
+// ---------------------------------------------------------------------------
+// Curriculo gerado, exportacao e funil
+// ---------------------------------------------------------------------------
+
+model Resume {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Alvo desta versao. Nulo quando a rodada nao chegou a definir cargo-alvo.
+  sessionTargetId String?
+  sessionTarget   SessionTarget? @relation(fields: [sessionTargetId], references: [id], onDelete: SetNull)
+
+  /// Preenchido apenas em `kind` JOB_TARGETED.
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  /// Secao 7 da metodologia: a versao dirigida a uma vaga especifica fica marcada
+  /// como tal e NUNCA vira o curriculo padrao.
+  kind ResumeKind @default(DEFAULT)
+
+  /// Congelado na geracao: o arquetipo da sessao pode mudar depois, e o curriculo
+  /// ja gerado precisa continuar explicavel pela regra que o produziu.
+  archetype Archetype?
+
+  title String?
+
+  /// Saida canonica: markdown de coluna unica, sem tabela e sem icone — 100%
+  /// legivel por ATS. PDF e DOCX sao renderizacoes disto (ver ResumeExport).
+  contentMarkdown String?
+
+  /// Conteudo estruturado (o @dataclass Conteudo do prototipo: nome, contato,
+  /// oficio, objetivo, resumo, experiencias com bullets, formacao, habilidades,
+  /// certificacoes, projetos, stack). Json porque a forma varia com o arquetipo e
+  /// nada consulta por dentro dele.
+  content Json?
+
+  version Int @default(1)
+
+  exports      ResumeExport[]
+  applications Application[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([sessionId, version])
+  @@index([userId, createdAt])
+  @@index([sessionTargetId])
+  @@index([jobId])
+  @@index([deletedAt])
+}
+
+/// Um arquivo gerado e entregue. Existe para responder "o que a pessoa REALMENTE
+/// levou embora", que e a metrica de sucesso do MVP (gerou e baixou/compartilhou).
+model ResumeExport {
+  id       String @id @default(uuid())
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  format  ExportFormat
+  channel ExportChannel
+
+  storagePath String?
+
+  createdAt DateTime @default(now())
+
+  @@index([resumeId, createdAt])
+}
+
+/// Candidatura enviada. Secao 10 da metodologia trata o baseline do funil como o
+/// dado mais valioso que o sistema pode acumular: sem ele nao ha como dizer se
+/// mudar o curriculo mudou alguma coisa.
+model Application {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Nulos quando a candidatura e do BASELINE — o que a pessoa ja tinha enviado
+  /// ANTES de usar o sistema, registrado justamente para servir de comparacao.
+  resumeId String?
+  resume   Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  jobId    String?
+  job      Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  company String?
+  role    String?
+
+  /// Canal importa mais que o resto: o publico operacional se candidata por
+  /// WhatsApp e presencialmente, nao por agregador.
+  channel ApplicationChannel @default(OTHER)
+
+  appliedAt DateTime
+
+  status       ApplicationStatus @default(SENT)
+  /// Quando o status mudou pela ultima vez — e daqui que sai "quanto tempo sem
+  /// resposta", incluindo as negativas, que tambem contam.
+  lastStatusAt DateTime?
+
+  notes String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId, appliedAt])
+  @@index([userId, status])
+  @@index([resumeId])
+  @@index([jobId])
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CANDIDATE
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  BLOCKED
+}
+
+enum UserPlan {
+  FREE
+  PREMIUM
+}
+
+enum OAuthProvider {
+  GOOGLE
+}
+
+enum ConsentType {
+  TERMS
+  PRIVACY_POLICY
+  /// Envio do curriculo a um LLM de terceiro para otimizacao — tratamento por
+  /// operador, possivelmente com transferencia internacional.
+  AI_PROCESSING
+  /// Retencao do audio do relato apos a transcricao.
+  AUDIO_RETENTION
+}
+
+enum EducationStatus {
+  IN_PROGRESS
+  COMPLETED
+  DROPPED
+}
+
+enum ProfileSkillKind {
+  SKILL
+  TOOL
+  LANGUAGE
+  CERTIFICATION
+}
+
+/// Objetivo pessoal declarado na fase 1. Decide os desempates da redacao.
+enum SessionObjective {
+  ENTER_FAST
+  MAXIMIZE_SALARY
+  CHANGE_FIELD
+  WORK_REMOTE
+  BALANCE_STUDY_FAMILY
+}
+
+/// Os cinco arquetipos da metodologia. Cada um fixa a ordem das secoes e o teto
+/// de paginas; o prefixo preserva a letra usada na metodologia e no prototipo.
+enum Archetype {
+  A_FIRST_JOB
+  B_CAREER_CHANGE
+  C_OPERATIONAL
+  D_SAME_FIELD_RETURN
+  E_SPECIALIST
+}
+
+enum WritingTone {
+  DIRECT
+  NEUTRAL
+  CONSULTATIVE
+  TECHNICAL
+  WELCOMING
+}
+
+/// Formula de impacto do bullet. SCOPE e "ESCOPO" da metodologia; XYZ e proibido
+/// nos arquetipos A e C, onde nao ha numero para sustentar.
+enum ImpactFormula {
+  CAR
+  XYZ
+  SCOPE
+}
+
+/// Fase concluida da rodada, na ordem de NOME_FASE do prototipo.
+enum SessionPhase {
+  DIAGNOSIS
+  OBJECTIVE
+  ARCHETYPE
+  WRITING_PARAMETERS
+  STORIES
+  JOB
+  RESUME
+  DONE
+}
+
+enum FindingKind {
+  /// Palavra colada, token repetido — o PDF le errado no parser do ATS.
+  PARSING
+  /// CPF, RG, estado civil, foto, endereco completo: dado que discrimina ou que
+  /// nao deveria circular.
+  SENSITIVE_DATA
+  EMBEDDED_IMAGE
+  /// Numero de paginas acima do teto do arquetipo.
+  LENGTH
+  TIMELINE_GAP
+}
+
+enum FindingSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum StorySource {
+  VOICE
+  TEXT
+}
+
+enum StoryFactKind {
+  FACT
+  NUMBER
+  TOOL
+  COMPETENCY
+  QUESTION
+}
+
+enum RequirementCategory {
+  ELIMINATORY
+  NEGOTIABLE
+  DECORATIVE
+}
+
+enum RequirementSituation {
+  /// Tem e ja esta no curriculo.
+  HAS_AND_PRESENT
+  /// Tem, mas o curriculo nao mostra — o caso mais acionavel de todos.
+  HAS_NOT_PRESENT
+  DOES_NOT_HAVE
+}
+
+enum ResumeKind {
+  DEFAULT
+  JOB_TARGETED
+}
+
+enum ExportFormat {
+  PDF
+  DOCX
+  MARKDOWN
+}
+
+enum ExportChannel {
+  DOWNLOAD
+  WHATSAPP
+  EMAIL
+}
+
+enum ApplicationChannel {
+  AGGREGATOR
+  LINKEDIN
+  WHATSAPP
+  IN_PERSON
+  REFERRAL
+  EMAIL
+  OTHER
+}
+
+enum ApplicationStatus {
+  SENT
+  NO_REPLY
+  /// Reprovado por triagem automatica — o alvo direto da metodologia.
+  AUTO_REJECTED
+  SCREENING
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
