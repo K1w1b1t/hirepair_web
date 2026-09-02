@@ -9,9 +9,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage --passWithNoTests"
+    "test:cov": "jest --coverage"
   },
   "dependencies": {
     "next": "^15.2.0",

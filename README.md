@@ -58,8 +58,17 @@ npm run dev:web
 # Rodar a API Backend (NestJS - http://localhost:3001)
 npm run dev:api
 
-# Executar lint e verificação de tipos em todos os pacotes
+# Executar lint em todos os pacotes
 npm run lint
+
+# Verificar formatação (Prettier)
+npm run format:check
+
+# Executar verificação de tipos em todos os pacotes
+npm run typecheck
+
+# Executar os testes de todos os pacotes
+npm run test
 
 # Executar build de produção
 npm run build

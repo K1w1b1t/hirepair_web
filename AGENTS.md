@@ -61,5 +61,20 @@ hirepair_web/
 - **Start Infrastructure**: `npm run db:up` (launches Postgres on port `5434` and Redis on port `6379`).
 - **Start Web**: `npm run dev:web` (runs Next.js on `http://localhost:3000`).
 - **Start API**: `npm run dev:api` (runs NestJS on `http://localhost:3001`).
-- **Run Lint & Format**: `npm run lint` / `npm run format`.
-- **Run Build**: `npm run build`.
+- **Run Format**: `npm run format` (writes) — CI checks it with `npm run format:check`.
+
+### Mandatory Quality Gate
+
+All five commands must pass before delivering any change (same gate declared in
+`.codex/instructions.md`):
+
+```bash
+npm run lint
+npm run format:check
+npm run typecheck
+npm run test
+npm run build
+```
+
+No shortcuts to force a green pipeline: no `skip`, `only`, `--no-verify`, ad hoc
+disabled lint rules or commented-out tests.

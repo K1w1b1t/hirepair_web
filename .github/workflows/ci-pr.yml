@@ -1,4 +1,4 @@
-name: CI PR (lint, format, test, build)
+name: CI PR (lint, format, typecheck, test, build)
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality-and-build:
-    name: Lint, Format Check, Test and Build
+    name: Lint, Format Check, Typecheck, Test and Build
     runs-on: ubuntu-latest
 
     steps:
@@ -32,6 +32,11 @@ jobs:
 
       - name: Run format check
         run: npm run format:check
+
+      # O build da API usa tsconfig.build.json, que exclui **/*spec.ts.
+      # O typecheck roda no tsconfig.json completo e cobre também os testes.
+      - name: Run typecheck
+        run: npm run typecheck
 
       - name: Run tests
         run: npm run test
