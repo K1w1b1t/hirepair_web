@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Painel do Candidato</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Header Conforme Manual -->
+<header class="glass-header sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-2.5">
+            <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair"/>
+            <span class="font-heading font-medium text-xl text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden md:flex items-center gap-8">
+            <a href="preview.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Currículo</a>
+            <a href="jobs.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Vagas</a>
+            <a href="dashboard.html" class="font-body text-sm font-semibold text-[#636FC1]">Painel</a>
+            <a href="settings.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Configurações</a>
+        </nav>
+
+        <a href="voice-flow.html" class="btn-primary-brand text-xs py-2 px-4">
+            <span>Conversar com Pair</span>
+        </a>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow max-w-4xl mx-auto w-full px-6 py-8 pb-32 flex flex-col gap-6">
+
+    <!-- Title Section -->
+    <div class="space-y-1">
+        <span class="badge-label">Seu Acompanhamento</span>
+        <h1 class="font-heading font-medium text-3xl sm:text-4xl text-[#333364]">Painel de Progresso</h1>
+        <p class="font-body text-base text-[#4A4643]">Acompanhe o nivelamento do seu currículo e suas candidaturas ativas.</p>
+    </div>
+
+    <!-- Advisor Banner Conforme Manual 1e -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] p-6 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-soft-sm">
+        <div class="flex items-start gap-4">
+            <span class="badge-success mt-1 shrink-0">Dica da Pair</span>
+            <div>
+                <p class="font-body text-sm leading-relaxed text-[#252626]">
+                    Seu perfil está qualificado para posições de <strong>Coordenação e Supervisão</strong>. Deseja ajustar seu objetivo de carreira?
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto">
+            <a href="preview.html" class="btn-navy-brand text-xs py-2 px-4 whitespace-nowrap">
+                <span>Ver currículo</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Strength Meter Card -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-4 shadow-soft-sm">
+        <div class="flex justify-between items-center">
+            <span class="font-heading font-semibold text-lg text-[#333364]">Força do Currículo</span>
+            <span class="font-heading font-bold text-xs text-[#3D7A3D] bg-[#D7EACD] px-3 py-1 rounded-full">85% · Pronto para Enviar</span>
+        </div>
+        <div class="w-full h-2 rounded-full bg-[rgba(51,51,100,0.15)] overflow-hidden">
+            <div class="h-full bg-[#636FC1] rounded-full" style="width: 85%"></div>
+        </div>
+        <p class="font-body text-xs text-[#807A72]">
+            Seu currículo contém métricas numéricas e palavras-chave alinhadas com as vagas mais buscadas em São Paulo.
+        </p>
+    </div>
+
+    <!-- Confirmed Competencies Card -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-7 flex flex-col gap-4 shadow-soft-sm">
+        <span class="font-heading font-semibold text-lg text-[#333364]">Competências Validadas</span>
+        <div class="flex flex-wrap gap-2">
+            <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-4 py-1.5 rounded-full border border-[rgba(37,38,38,0.10)]">Gestão de Atendimento</span>
+            <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-4 py-1.5 rounded-full border border-[rgba(37,38,38,0.10)]">Otimização de Processos</span>
+            <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-4 py-1.5 rounded-full border border-[rgba(37,38,38,0.10)]">Liderança de 14 pessoas</span>
+            <span class="bg-[#F5EEE2] text-[#333364] text-xs font-heading font-medium px-4 py-1.5 rounded-full border border-[rgba(37,38,38,0.10)]">Redução de Espera</span>
+        </div>
+    </div>
+
+</main>
+
+</body>
+</html>

@@ -25,13 +25,11 @@ os dois pontos:
   na conta e **IA para otimizar** o currículo (reescrever experiências, inserir
   palavras-chave de ATS), pago por currículo.
 
-## Este repositório
+## Protótipo visual estático
 
-Backend do produto (**NestJS** + **PostgreSQL** via **Docker Compose**), responsável
-pelas funcionalidades online: conta Google, IA de otimização, pagamentos e anúncios.
-O app React Native é um projeto separado.
+O exemplo navegável de interface fica em [`docs/design/web/`](./docs/design/web/). Ele é um conjunto de páginas HTML, CSS, assets e pequenas simulações locais para comunicar o fluxo e o sistema visual do HirePair. Não há servidor, API, persistência ou dados reais.
 
-**Status:** fase de pesquisa e planejamento — implementação técnica ainda não iniciada.
+Para visualizar, abra [`docs/design/web/index.html`](./docs/design/web/index.html) diretamente no navegador. As convenções, telas e decisões de implementação estão descritas no [guia do protótipo](./docs/design/web/README.md).
 
 ## Documentação de negócio
 

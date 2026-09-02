@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>hirepair — Configurações da Conta</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="./js/tailwind-theme.js"></script>
+    <script src="./js/theme-toggle.js"></script>
+    <link rel="stylesheet" href="./css/luminous-theme.css"/>
+</head>
+<body class="bg-[#F5EEE2] text-[#252626] antialiased min-h-screen flex flex-col font-body selection:bg-[#636FC1] selection:text-[#F5EEE2]">
+
+<!-- Header Conforme Manual -->
+<header class="glass-header sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-2.5">
+            <img src="./assets/logo.png" class="w-12 h-12 object-contain drop-shadow-sm" alt="hirepair"/>
+            <span class="font-heading font-medium text-xl text-[#333364]">hire<span class="font-extrabold text-[#636FC1]">pair</span></span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden md:flex items-center gap-8">
+            <a href="preview.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Currículo</a>
+            <a href="jobs.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Vagas</a>
+            <a href="dashboard.html" class="font-body text-sm text-[#4A4643] hover:text-[#333364]">Painel</a>
+            <a href="settings.html" class="font-body text-sm font-semibold text-[#636FC1]">Configurações</a>
+        </nav>
+
+        <a href="preview.html" class="btn-primary-brand text-xs py-2 px-4">
+            <span>Ver currículo</span>
+        </a>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow max-w-3xl mx-auto w-full px-6 py-8 pb-32 flex flex-col gap-6">
+
+    <!-- Title Section -->
+    <div class="space-y-1">
+        <span class="badge-label">Preferências</span>
+        <h1 class="font-heading font-medium text-3xl sm:text-4xl text-[#333364]">Configurações da Conta</h1>
+        <p class="font-body text-base text-[#4A4643]">Gerencie seus dados pessoais e de acesso.</p>
+    </div>
+
+    <!-- Personal Info Card -->
+    <div class="bg-[#EDE4D3] border border-[rgba(37,38,38,0.10)] rounded-3xl p-8 flex flex-col gap-5 shadow-soft-sm">
+        <span class="font-heading font-semibold text-lg text-[#333364]">Dados de Contato</span>
+
+        <form class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="font-heading font-bold text-xs text-[#807A72] uppercase tracking-wider">Nome</label>
+                    <input type="text" value="Alexandre" class="w-full bg-[#F5EEE2] border border-[rgba(37,38,38,0.12)] rounded-xl px-4 py-2.5 text-sm text-[#252626] focus:border-[#636FC1] focus:ring-0"/>
+                </div>
+                <div class="space-y-1">
+                    <label class="font-heading font-bold text-xs text-[#807A72] uppercase tracking-wider">Sobrenome</label>
+                    <input type="text" value="Silva" class="w-full bg-[#F5EEE2] border border-[rgba(37,38,38,0.12)] rounded-xl px-4 py-2.5 text-sm text-[#252626] focus:border-[#636FC1] focus:ring-0"/>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="font-heading font-bold text-xs text-[#807A72] uppercase tracking-wider">E-mail</label>
+                <input type="email" value="alexandre@email.com" class="w-full bg-[#F5EEE2] border border-[rgba(37,38,38,0.12)] rounded-xl px-4 py-2.5 text-sm text-[#252626] focus:border-[#636FC1] focus:ring-0"/>
+            </div>
+
+            <div class="space-y-1">
+                <label class="font-heading font-bold text-xs text-[#807A72] uppercase tracking-wider">Cargo Desejado</label>
+                <input type="text" value="Coordenador de Atendimento e Operações" class="w-full bg-[#F5EEE2] border border-[rgba(37,38,38,0.12)] rounded-xl px-4 py-2.5 text-sm text-[#252626] focus:border-[#636FC1] focus:ring-0"/>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="button" onclick="alert('Dados salvos com sucesso!')" class="btn-primary-brand text-xs px-6 py-2.5">
+                    <span>Salvar alterações</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+</main>
+
+</body>
+</html>
