@@ -33,8 +33,10 @@ hirepair_web/
 │       │   └── main.ts
 │       ├── package.json
 │       └── tsconfig.json
-├── business/              # Product business rules & methodology docs
-├── demo/                  # Python prototype script
+├── docs/
+│   ├── business/          # Product business rules & methodology docs
+│   ├── demo/              # Python prototype script
+│   └── design/            # Brand manual & static visual prototype
 ├── .github/
 │   └── workflows/
 │       └── ci-pr.yml      # GitHub Actions CI for PR validation

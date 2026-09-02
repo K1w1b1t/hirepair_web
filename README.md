@@ -78,14 +78,14 @@ npm run build
 
 ## Documentação de negócio
 
-O plano de negócio e o planejamento do MVP estão em [`business/`](./business/):
+O plano de negócio e o planejamento do MVP estão em [`docs/business/`](./docs/business/):
 
-- [`business/plano-de-negocio.md`](./business/plano-de-negocio.md) — hipótese,
+- [`docs/business/plano-de-negocio.md`](./docs/business/plano-de-negocio.md) — hipótese,
   públicos, concorrência, monetização e dinâmica de ATS no Brasil.
-- [`business/proximos-passos-mvp.md`](./business/proximos-passos-mvp.md) — roteiro
+- [`docs/business/proximos-passos-mvp.md`](./docs/business/proximos-passos-mvp.md) — roteiro
   para definir o MVP: pesquisa de público, funcionalidades, marca/linguagem,
   gateway de pagamento, LGPD e demais regulações.
-- [`business/survey-validacao.md`](./business/survey-validacao.md) — survey curto de
+- [`docs/business/survey-validacao.md`](./docs/business/survey-validacao.md) — survey curto de
   validação das hipóteses de produto.
 
 ## Metodologia
@@ -93,10 +93,10 @@ O plano de negócio e o planejamento do MVP estão em [`business/`](./business/)
 Como o produto trata um currículo: o que é regra dura do sistema, o que o usuário
 escolhe e como a informação entra.
 
-- [`business/methodology/metodologia-do-sistema.md`](./business/methodology/metodologia-do-sistema.md)
+- [`docs/business/methodology/metodologia-do-sistema.md`](./docs/business/methodology/metodologia-do-sistema.md)
   — a metodologia do produto: três camadas, pipeline de 9 etapas, matriz de estrutura
   por arquétipo, guardrails e decisões ainda abertas.
-- [`business/methodology/cases/`](./business/methodology/cases/) — casos reais que
+- [`docs/business/methodology/cases/`](./docs/business/methodology/cases/) — casos reais que
   originaram (e corrigiram) a metodologia, e o processo manual de análise.
 
 ## Protótipo da metodologia (demo em Python)
@@ -106,9 +106,9 @@ currículos que ela já tem, diagnostica o documento, conduz a entrevista, anali
 que ela quer e escreve um currículo estruturado em Markdown.
 
 É protótipo descartável para validação — **não** é o backend do produto. As regras duras
-da metodologia estão em [`demo/metodologia.py`](./demo/metodologia.py) (é o arquivo que se
+da metodologia estão em [`docs/demo/metodologia.py`](./docs/demo/metodologia.py) (é o arquivo que se
 edita quando a metodologia muda); a condução das fases está em
-[`demo/demo.py`](./demo/demo.py). O Gemini é chamado só para extrair perfil, extrair fatos
+[`docs/demo/demo.py`](./docs/demo/demo.py). O Gemini é chamado só para extrair perfil, extrair fatos
 de um relato, classificar requisitos de vaga e redigir.
 
 ### 1. Ambiente
@@ -116,7 +116,7 @@ de um relato, classificar requisitos de vaga e redigir.
 Requer Python 3.10 ou superior.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate && pip install -r demo/requirements.txt
+python3 -m venv .venv && source .venv/bin/activate && pip install -r docs/demo/requirements.txt
 ```
 
 ### 2. Chaves da API do Gemini
@@ -126,10 +126,10 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -r demo/requir
 3. Crie o arquivo de configuração e cole a chave nele:
 
 ```bash
-cp demo/.env.example demo/.env
+cp docs/demo/.env.example docs/demo/.env
 ```
 
-O `demo/.env` fica assim — só a primeira linha é obrigatória:
+O `docs/demo/.env` fica assim — só a primeira linha é obrigatória:
 
 ```
 GEMINI_API_KEY=sua-chave-aqui
@@ -154,7 +154,7 @@ repita os passos 1 e 2 logado em outra conta.
 ### 3. Rodar
 
 ```bash
-python demo/demo.py business/methodology/cases/joao_pedro/curriculo.pdf
+python docs/demo/demo.py docs/business/methodology/cases/joao_pedro/curriculo.pdf
 ```
 
 Aceita mais de um currículo (`demo.py um.pdf outro.pdf` — ele pergunta qual está em uso
@@ -168,8 +168,8 @@ gravada em disco a cada passo, então `/sair`, Ctrl-C, cota estourada ou queda d
 perdem nada.
 
 ```bash
-python demo/demo.py --sessoes          # lista as sessões salvas com o próximo passo de cada
-python demo/demo.py --resume ea8e67    # continua de onde parou
+python docs/demo/demo.py --sessoes          # lista as sessões salvas com o próximo passo de cada
+python docs/demo/demo.py --resume ea8e67    # continua de onde parou
 ```
 
 `--sessoes` não fala com o modelo, então funciona mesmo com a cota estourada. O id aceita
@@ -191,7 +191,7 @@ escasso, então isso fica no menu.
 | 4    | Tom de escrita e fórmula de impacto, com as travas aplicadas                                                                               |
 | 5    | Pergunta sobre cada experiência, extrai os fatos, pede confirmação e redige                                                                |
 | 6    | Lê a vaga colada, classifica os requisitos e mostra o que falta (sem nota de aderência)                                                    |
-| 7    | Escreve o currículo em `demo/out/*.md`                                                                                                     |
+| 7    | Escreve o currículo em `docs/demo/out/*.md`                                                                                                |
 
 ### Limitações conhecidas
 

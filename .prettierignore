@@ -13,7 +13,7 @@ package-lock.json
 docs/design/
 
 # Prototipo Python: fora do escopo do toolchain JS/TS.
-demo/
+docs/demo/
 
 # Documentacao de negocio: texto editado a mao.
-business/
+docs/business/

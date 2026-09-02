@@ -36,8 +36,8 @@ next-env.d.ts
 .claude/
 
 # Entrada e saída do protótipo (Python)
-demo/in/
-demo/out/
+docs/demo/in/
+docs/demo/out/
 __pycache__/
 *.py[cod]
 .venv/

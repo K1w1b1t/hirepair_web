@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, fields, asdict
 from datetime import date, datetime
 from pathlib import Path
 
-import metodologia as M
+import docs.demo.metodologia as M
 
 RAIZ = Path(__file__).resolve().parent
 SAIDA = RAIZ / "out"
