@@ -33,8 +33,12 @@ Para visualizar, abra [`docs/design/web/index.html`](./docs/design/web/index.htm
 
 ## Aplicação
 
-Backend & Frontend do produto (**Next.js** + **NestJS** + **PostgreSQL** & **Redis** via **Docker Compose**).
-O monorepo está organizado em `apps/web` (Next.js App Router, React 19, Tailwind v4, TypeScript) e `apps/api` (NestJS API).
+Backend & Frontend do produto (**Next.js** + **NestJS** + **Prisma** + **PostgreSQL** & **Redis** via **Docker Compose**).
+O monorepo está organizado em `apps/web` (Next.js App Router, React 19, Tailwind v4, TypeScript) e `apps/api` (NestJS API, Prisma 7).
+
+Em produção o Postgres é o **Supabase**, consumido apenas pela connection string —
+não usamos a CLI do Supabase nem Supabase Auth. Detalhes do schema, da política de
+RLS e do fluxo de migration em [`docs/database/`](./docs/database/README.md).
 
 ## 🚀 Execução do Monorepo
 
@@ -51,6 +55,10 @@ cp .env.example .env
 
 # Subir banco de dados Postgres (porta 5434) e Redis (porta 6379)
 npm run db:up
+
+# Criar o schema no banco e popular com dado de amostra
+npm run db:migrate
+npm run db:seed
 
 # Rodar a aplicação Web (Next.js - http://localhost:3000)
 npm run dev:web
@@ -74,7 +82,23 @@ npm run test
 npm run build
 ```
 
-**Status:** Fase de infraestrutura inicializada (Task 01 concluída).
+### Banco de dados
+
+```bash
+npm run db:migrate     # cria/aplica migration a partir do schema.prisma
+npm run db:deploy      # só aplica pendentes (é o que roda no deploy)
+npm run db:seed        # dado de amostra (idempotente)
+npm run db:studio      # Prisma Studio
+npm run db:reset       # destrói e recria — SÓ em desenvolvimento
+
+curl localhost:3001/health/db     # {"database":"ok","latencyMs":1}
+```
+
+O guia completo — modelo de dados, decisão de RLS, fluxo de migration e as duas
+URLs do Supabase — está em [`docs/database/README.md`](./docs/database/README.md).
+
+**Status:** infraestrutura e camada de persistência prontas (Task 01 e Task 02
+concluídas).
 
 ## Documentação de negócio
 

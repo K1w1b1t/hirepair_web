@@ -1,4 +1,4 @@
-name: CI PR (lint, format, typecheck, test, build)
+name: CI PR (lint, format, typecheck, test, build, migrations)
 
 on:
   pull_request:
@@ -14,6 +14,28 @@ jobs:
     name: Lint, Format Check, Typecheck, Test and Build
     runs-on: ubuntu-latest
 
+    # Postgres descartável para validar as migrations. NÃO é o Supabase: o CI
+    # nunca toca no banco gerenciado. A porta 5434 é a mesma do
+    # docker-compose.yml local, para que a DATABASE_URL abaixo seja a mesma do
+    # .env.example e não exista uma segunda string para manter em sincronia.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hirepair
+          POSTGRES_USER: hirepair
+          POSTGRES_PASSWORD: hirepair_secret
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U hirepair -d hirepair"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://hirepair:hirepair_secret@localhost:5434/hirepair?schema=public
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,6 +46,8 @@ jobs:
           node-version: 20
           cache: npm
 
+      # O postinstall de apps/api roda `prisma generate`, então o Prisma Client
+      # existe a partir daqui — é o que permite typecheck, test e build sem banco.
       - name: Install dependencies
         run: npm ci
 
@@ -43,5 +67,28 @@ jobs:
 
       - name: Run build
         run: npm run build
-        env:
-          DATABASE_URL: postgresql://hirepair:hirepair_secret@localhost:5434/hirepair
+
+      # Prova que as migrations aplicam num banco VAZIO, na ordem. É o mesmo
+      # comando que o prestart:prod roda no deploy: se falhar aqui, o app não
+      # sobe em produção.
+      - name: Apply migrations to a clean database
+        run: npm run db:deploy
+
+      # Guarda contra o erro mais comum de Prisma: editar schema.prisma e
+      # esquecer de gerar a migration. Compara o banco RECÉM-MIGRADO do passo
+      # anterior com o schema.prisma; qualquer diferença significa que o schema
+      # mudou sem migration correspondente. `--exit-code` sai 2 quando há diff.
+      - name: Check for schema drift
+        working-directory: apps/api
+        run: |
+          npx prisma migrate diff \
+            --from-config-datasource \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+
+      # O seed é fixture de desenvolvimento, mas quebra silenciosamente quando o
+      # schema muda. Roda duas vezes: a segunda prova a idempotência dos upserts.
+      - name: Run seed twice (idempotency)
+        run: |
+          npm run db:seed
+          npm run db:seed
