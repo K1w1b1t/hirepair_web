@@ -9,7 +9,7 @@ currículo estruturado em Markdown.
     python demo/demo.py --sessoes
     python demo/demo.py --resume <id-da-sessao>
 
-Setup e chaves da API: ver README.md.
+Setup e chaves da API: ver docs/demo/README.md.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, fields, asdict
 from datetime import date, datetime
 from pathlib import Path
 
-import docs.demo.metodologia as M
+import metodologia as M
 
 RAIZ = Path(__file__).resolve().parent
 SAIDA = RAIZ / "out"

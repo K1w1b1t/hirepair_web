@@ -1,11 +1,11 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('CANDIDATE', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('PENDING_VERIFICATION', 'ACTIVE', 'BLOCKED');
-
--- CreateEnum
-CREATE TYPE "UserPlan" AS ENUM ('FREE', 'PREMIUM');
 
 -- CreateEnum
 CREATE TYPE "OAuthProvider" AS ENUM ('GOOGLE');
@@ -35,7 +35,7 @@ CREATE TYPE "ImpactFormula" AS ENUM ('CAR', 'XYZ', 'SCOPE');
 CREATE TYPE "SessionPhase" AS ENUM ('DIAGNOSIS', 'OBJECTIVE', 'ARCHETYPE', 'WRITING_PARAMETERS', 'STORIES', 'JOB', 'RESUME', 'DONE');
 
 -- CreateEnum
-CREATE TYPE "FindingKind" AS ENUM ('PARSING', 'SENSITIVE_DATA', 'EMBEDDED_IMAGE', 'LENGTH', 'TIMELINE_GAP');
+CREATE TYPE "FindingKind" AS ENUM ('PARSING', 'SENSITIVE_DATA', 'EMBEDDED_IMAGE', 'LENGTH', 'TIMELINE_GAP', 'INFLATED_DESCRIPTION', 'UNSUPPORTED_SKILL', 'STALE_TARGET', 'OVERQUALIFIED', 'GENERIC_RESUME');
 
 -- CreateEnum
 CREATE TYPE "FindingSeverity" AS ENUM ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW');
@@ -75,7 +75,6 @@ CREATE TABLE "User" (
     "emailVerifiedAt" TIMESTAMP(3),
     "status" "UserStatus" NOT NULL DEFAULT 'PENDING_VERIFICATION',
     "role" "UserRole" NOT NULL DEFAULT 'CANDIDATE',
-    "plan" "UserPlan" NOT NULL DEFAULT 'FREE',
     "lastLoginAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -549,7 +548,7 @@ ALTER TABLE "EmailVerificationToken" ADD CONSTRAINT "EmailVerificationToken_user
 ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserConsent" ADD CONSTRAINT "UserConsent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserConsent" ADD CONSTRAINT "UserConsent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -616,3 +615,111 @@ ALTER TABLE "Application" ADD CONSTRAINT "Application_resumeId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "Application" ADD CONSTRAINT "Application_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+
+-- SQL manual abaixo do diff gerado: Prisma não modela RLS, grants nem invariantes
+-- que atravessam relações. Mantemos estes controles na migration inicial da PR.
+
+-- RLS deny-by-default: a Data API do Supabase não pode expor tabelas public.
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "AuthSession" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "OAuthAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmailVerificationToken" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "PasswordResetToken" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UserConsent" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Profile" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProfileExperience" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProfileEducation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProfileSkill" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProfileLink" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Session" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SessionTarget" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UploadedDocument" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "DiagnosticFinding" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Story" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StoryFact" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Job" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "JobRequirement" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Resume" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ResumeExport" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Application" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE target_role text;
+BEGIN
+  FOREACH target_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = target_role) THEN
+      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', target_role);
+      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', target_role);
+      EXECUTE format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', target_role);
+      EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', target_role);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM %I', current_user, target_role);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', current_user, target_role);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM %I', current_user, target_role);
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- Impede referências entre agregados de pessoas ou rodadas diferentes de forma
+-- atômica, inclusive quando a escrita não passa por um serviço NestJS.
+CREATE FUNCTION "assertResumeOwnership"() RETURNS trigger AS $$
+DECLARE
+  session_user_id text;
+  related_session_id text;
+BEGIN
+  SELECT "userId" INTO session_user_id FROM "Session" WHERE "id" = NEW."sessionId";
+  IF session_user_id IS NULL OR session_user_id <> NEW."userId" THEN
+    RAISE EXCEPTION 'Resume.userId must match Session.userId';
+  END IF;
+
+  IF NEW."sessionTargetId" IS NOT NULL THEN
+    SELECT "sessionId" INTO related_session_id FROM "SessionTarget" WHERE "id" = NEW."sessionTargetId";
+    IF related_session_id IS NULL OR related_session_id <> NEW."sessionId" THEN
+      RAISE EXCEPTION 'Resume.sessionTargetId must belong to Resume.sessionId';
+    END IF;
+  END IF;
+
+  IF NEW."jobId" IS NOT NULL THEN
+    SELECT "sessionId" INTO related_session_id FROM "Job" WHERE "id" = NEW."jobId";
+    IF related_session_id IS NULL OR related_session_id <> NEW."sessionId" THEN
+      RAISE EXCEPTION 'Resume.jobId must belong to Resume.sessionId';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "Resume_aggregate_integrity"
+BEFORE INSERT OR UPDATE OF "userId", "sessionId", "sessionTargetId", "jobId" ON "Resume"
+FOR EACH ROW EXECUTE FUNCTION "assertResumeOwnership"();
+
+CREATE FUNCTION "assertApplicationOwnership"() RETURNS trigger AS $$
+DECLARE
+  resource_user_id text;
+BEGIN
+  IF NEW."resumeId" IS NOT NULL THEN
+    SELECT "userId" INTO resource_user_id FROM "Resume" WHERE "id" = NEW."resumeId";
+    IF resource_user_id IS NULL OR resource_user_id <> NEW."userId" THEN
+      RAISE EXCEPTION 'Application.resumeId must belong to Application.userId';
+    END IF;
+  END IF;
+
+  IF NEW."jobId" IS NOT NULL THEN
+    SELECT s."userId" INTO resource_user_id
+    FROM "Job" j JOIN "Session" s ON s."id" = j."sessionId"
+    WHERE j."id" = NEW."jobId";
+    IF resource_user_id IS NULL OR resource_user_id <> NEW."userId" THEN
+      RAISE EXCEPTION 'Application.jobId must belong to Application.userId';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "Application_aggregate_integrity"
+BEFORE INSERT OR UPDATE OF "userId", "resumeId", "jobId" ON "Application"
+FOR EACH ROW EXECUTE FUNCTION "assertApplicationOwnership"();

@@ -3,7 +3,6 @@ import {
   EducationStatus,
   type PrismaClient,
   ProfileSkillKind,
-  UserPlan,
   UserRole,
   UserStatus,
 } from '@prisma/client';
@@ -50,7 +49,6 @@ export async function seedUsers(prisma: PrismaClient) {
       email: DEV_USER_EMAIL,
       status: UserStatus.ACTIVE,
       role: UserRole.CANDIDATE,
-      plan: UserPlan.FREE,
       emailVerifiedAt: new Date('2026-09-01T12:00:00.000Z'),
     },
   });

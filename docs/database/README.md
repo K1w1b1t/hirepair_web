@@ -42,7 +42,7 @@ Todos existem na raiz e repassam para `apps/api`.
 
 ## Modelo de dados
 
-22 modelos, em quatro blocos. As entidades não foram inventadas: saem do
+22 modelos, organizados em cinco contextos de responsabilidade. As entidades não foram inventadas: saem do
 `@dataclass Sessao` e do `prompt_extrair_perfil` do protótipo em
 [`docs/demo/`](../demo/) e das fases 1–9 da
 [metodologia](../business/methodology/metodologia-do-sistema.md).
@@ -78,10 +78,11 @@ erDiagram
   Job ||--o{ Application : "candidatura para"
 ```
 
-### Bloco 1 — Identidade e autenticação
+### Contexto 1 — Identidade e autenticação
 
 `User`, `AuthSession`, `OAuthAccount`, `EmailVerificationToken`,
-`PasswordResetToken`, `UserConsent`.
+`PasswordResetToken`, `UserConsent`. A raiz é `User`; credenciais, sessões e
+consentimentos não atravessam uma identidade.
 
 Auth é nossa. Como não usamos Supabase Auth, não existe `auth.users` para
 referenciar e todo o ciclo de credencial e token está modelado aqui. A task de
@@ -100,12 +101,16 @@ Dois cuidados que estão no schema por razão de segurança, não de estilo:
 
 `UserConsent` é histórico de linhas com `version`, e não um booleano no `User`,
 porque a LGPD exige demonstrar **a que texto** o titular consentiu. Um texto novo
-exige consentimento novo.
+exige consentimento novo. A exclusão regular é lógica (`User.deletedAt`). A exclusão
+física é bloqueada por `ON DELETE RESTRICT` enquanto houver evidência; após o prazo
+de retenção aprovado, o processo de privacidade deve anonimizar a evidência antes de
+remover a conta.
 
-### Bloco 2 — Perfil profissional
+### Contexto 2 — Perfil profissional
 
 `Profile` (1:1 com `User`), `ProfileExperience`, `ProfileEducation`,
-`ProfileSkill`, `ProfileLink`.
+`ProfileSkill`, `ProfileLink`. A raiz é `Profile`; este contexto só é ligado ao
+restante por seu `User`.
 
 As listas são tabelas, e não `jsonb`, porque a UI edita item a item (tela
 `confirm-facts` do protótipo) e o motor de redação percorre item a item — com
@@ -118,10 +123,11 @@ formais que sugere o arquétipo; `isPersonalProject` é o que limita a densidade
 `ProfileEducation.status = COMPLETED` é o gatilho do orientador proativo de
 carreira.
 
-### Bloco 3 — Rodada da metodologia
+### Contexto 3 — Construção de currículo
 
 `Session`, `SessionTarget`, `UploadedDocument`, `DiagnosticFinding`, `Story`,
-`StoryFact`, `Job`, `JobRequirement`.
+`StoryFact`, `Resume` e `ResumeExport`. A raiz é `Session`; tudo neste contexto
+pertence a uma rodada e não atravessa usuários.
 
 > **`Session` não é sessão de autenticação.** É uma passada pela metodologia, do
 > diagnóstico ao currículo pronto. Sessão de login é `AuthSession`. "Sessão" é
@@ -142,9 +148,17 @@ Três guardrails da metodologia que viraram estrutura:
   `recommendation` em texto, com o motivo. Número daria falsa precisão
   matemática a um julgamento que não a tem.
 
-### Bloco 4 — Currículo e funil
+### Contexto 4 — Análise de vaga
 
-`Resume`, `ResumeExport`, `Application`.
+`Job`, `JobRequirement` e o vínculo de `Resume` com uma vaga. A raiz é `Job`,
+sempre pertencente à `Session` que o analisou; a migration exige que esse vínculo
+permaneça dentro da mesma rodada.
+
+### Contexto 5 — Acompanhamento de candidaturas
+
+`Application`. A raiz é `Application`: ela pertence à pessoa e pode ser baseline
+(sem referências) ou apontar apenas para recursos dela. Triggers na migration
+inicial rejeitam, atomicamente, referências cruzadas entre usuários ou rodadas.
 
 `Resume.kind = JOB_TARGETED` marca a versão dirigida a uma vaga específica, que
 pela seção 7 **nunca** vira o currículo padrão. `Resume.archetype` é congelado na
@@ -182,7 +196,7 @@ qualquer um que tenha essa chave — e `Profile`, `Story` e `Resume` são rechea
 de dado pessoal, com possível dado sensível.
 
 Duas camadas, na migration
-[`20260902041400_enable_rls_deny_by_default`](../../apps/api/prisma/migrations/20260902041400_enable_rls_deny_by_default/migration.sql):
+[`20260902041335_init`](../../apps/api/prisma/migrations/20260902041335_init/migration.sql):
 
 1. `ENABLE ROW LEVEL SECURITY` em cada tabela, sem policy → nega tudo.
 2. `REVOKE` dos grants de `anon` e `authenticated`, mais `ALTER DEFAULT

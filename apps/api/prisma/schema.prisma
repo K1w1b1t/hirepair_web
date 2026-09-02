@@ -45,10 +45,6 @@ model User {
   status UserStatus @default(PENDING_VERIFICATION)
   role   UserRole   @default(CANDIDATE)
 
-  /// Plano comercial. FREE roda offline e com anuncios; PREMIUM libera a
-  /// otimizacao por vaga (ver docs/business/proximos-passos-mvp.md secao 2.2).
-  plan UserPlan @default(FREE)
-
   lastLoginAt DateTime?
 
   profile                 Profile?
@@ -159,7 +155,9 @@ model PasswordResetToken {
 model UserConsent {
   id     String @id @default(uuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// O historico nao pode sumir por cascata. A exclusao fisica de uma conta e
+  /// bloqueada ate a retencao expirar e a evidencia ser anonimizada.
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   type ConsentType
 
@@ -691,11 +689,6 @@ enum UserStatus {
   BLOCKED
 }
 
-enum UserPlan {
-  FREE
-  PREMIUM
-}
-
 enum OAuthProvider {
   GOOGLE
 }
@@ -780,6 +773,11 @@ enum FindingKind {
   /// Numero de paginas acima do teto do arquetipo.
   LENGTH
   TIMELINE_GAP
+  INFLATED_DESCRIPTION
+  UNSUPPORTED_SKILL
+  STALE_TARGET
+  OVERQUALIFIED
+  GENERIC_RESUME
 }
 
 enum FindingSeverity {
