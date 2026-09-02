@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+# 1. Padrao da branch: {numero_da_issue}-{titulo_da_issue}
+sh .husky/scripts/validate-branch-name.sh
+
+# 2. Lint + format apenas nos arquivos em stage.
+#    O gate completo (lint, typecheck, test, build) roda no CI; rodar build
+#    inteiro a cada commit tornava o hook lento demais para ser usado.
+#    Caminho direto ao binario: `npx --no-install` nao resolve o pacote a
+#    partir do contexto em que o husky executa o hook.
+./node_modules/.bin/lint-staged

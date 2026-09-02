@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+# Caminho direto ao binario pelo mesmo motivo do pre-commit: `npx --no-install`
+# nao resolve o pacote a partir do contexto em que o husky executa o hook.
+./node_modules/.bin/commitlint --edit "$1"
