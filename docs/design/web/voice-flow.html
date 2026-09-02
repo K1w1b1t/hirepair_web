@@ -11,7 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="./js/tailwind-theme.js"></script>
-    <script src="./js/api.js"></script>
     <script src="./js/theme-toggle.js"></script>
     <link rel="stylesheet" href="./css/luminous-theme.css"/>
 </head>
@@ -23,10 +22,15 @@
     <!-- Top Header: Pair & Step Progress -->
     <header class="glass-header sticky top-0 z-40 px-6 py-4 flex flex-col gap-3 border-b border-[rgba(37,38,38,0.10)]">
         <div class="flex items-center justify-between">
-            <a href="index.html" class="flex items-center gap-2.5">
+            <div class="flex items-center gap-2.5">
+                <a href="index.html" aria-label="Voltar para a página inicial" class="p-1 -ml-1 rounded-full text-[#4A4643] hover:bg-[#EDE4D3] transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                </a>
+                <a href="index.html" class="flex items-center gap-2.5" aria-label="Ir para a página inicial">
                 <img src="./assets/logo.png" class="w-10 h-10 object-contain drop-shadow-sm" alt="Pair"/>
                 <span class="font-heading font-semibold text-base text-[#333364]">Pair</span>
-            </a>
+                </a>
+            </div>
             <span class="font-body text-xs text-[#807A72]" id="stepIndicator">Passo 1 de 5</span>
         </div>
         <!-- Progress Bar -->
@@ -37,6 +41,7 @@
 
     <!-- Main Chat Canvas -->
     <main class="flex-1 p-6 flex flex-col gap-4 overflow-y-auto pb-44" id="chatContainer">
+        <h1 class="sr-only">Conversa para criar seu currículo</h1>
         
         <span class="self-center font-body text-xs text-[#807A72]">Hoje · Conversa assistida</span>
 
