@@ -4,6 +4,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   const port = process.env.PORT || 3001;
   app.enableCors({
     origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
