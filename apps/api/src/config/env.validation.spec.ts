@@ -60,6 +60,19 @@ describe('validate (ambiente)', () => {
     expect(() => validate({ DATABASE_URL: VALID_URL, REDIS_PORT: '0' })).toThrow();
   });
 
+  it('aceita configuracao opcional dos provedores de IA', () => {
+    const result = validate({
+      DATABASE_URL: VALID_URL,
+      GEMINI_API_KEY: 'gemini-key',
+      GROQ_API_KEY: 'groq-key',
+      AI_REQUEST_TIMEOUT_MS: '15000',
+    });
+
+    expect(result.GEMINI_API_KEY).toBe('gemini-key');
+    expect(result.GROQ_API_KEY).toBe('groq-key');
+    expect(result.AI_REQUEST_TIMEOUT_MS).toBe(15000);
+  });
+
   it('ignora variaveis nao declaradas', () => {
     // process.env inteiro e passado ao validate; chave desconhecida nao pode
     // derrubar o boot.
