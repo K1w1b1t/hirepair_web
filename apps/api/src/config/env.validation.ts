@@ -58,6 +58,25 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   NEXT_PUBLIC_SITE_URL?: string;
+
+  /** URL TCP do Redis gerenciado; `rediss://` ativa TLS no Upstash. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  REDIS_URL?: string;
+
+  /** Fallback local quando REDIS_URL nao esta definido. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  REDIS_HOST?: string;
+
+  /** Porta do fallback local do Redis. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  REDIS_PORT?: number;
 }
 
 /**

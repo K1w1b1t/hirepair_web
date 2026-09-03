@@ -46,6 +46,20 @@ describe('validate (ambiente)', () => {
     expect(() => validate({ DATABASE_URL: VALID_URL, PRISMA_CONNECTION_LIMIT: '0' })).toThrow();
   });
 
+  it('aceita Redis remoto por URL TLS', () => {
+    const result = validate({
+      DATABASE_URL: VALID_URL,
+      REDIS_URL: 'rediss://default:secret@eu1-example.upstash.io:6379',
+    });
+
+    expect(result.REDIS_URL).toContain('upstash.io');
+  });
+
+  it('converte REDIS_PORT para numero e reprova porta invalida', () => {
+    expect(validate({ DATABASE_URL: VALID_URL, REDIS_PORT: '6379' }).REDIS_PORT).toBe(6379);
+    expect(() => validate({ DATABASE_URL: VALID_URL, REDIS_PORT: '0' })).toThrow();
+  });
+
   it('ignora variaveis nao declaradas', () => {
     // process.env inteiro e passado ao validate; chave desconhecida nao pode
     // derrubar o boot.
