@@ -77,6 +77,43 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   REDIS_PORT?: number;
+
+  /** Chave do Gemini. Opcional para permitir subir a API sem recursos de IA locais. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GEMINI_API_KEY?: string;
+
+  /** Chave do Groq, compartilhada pelos dois provedores de fallback. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GROQ_API_KEY?: string;
+
+  /** Permite trocar o modelo principal sem alterar o código. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GEMINI_MODEL?: string;
+
+  /** Permite acompanhar mudanças de catálogo do Groq por configuração. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GROQ_70B_MODEL?: string;
+
+  /** Modelo de menor capacidade que encerra a cadeia de fallback. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GROQ_8B_MODEL?: string;
+
+  /** Limite por chamada para não deixar uma resposta indisponível prender a sessão. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120_000)
+  AI_REQUEST_TIMEOUT_MS?: number;
 }
 
 /**
