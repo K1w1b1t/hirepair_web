@@ -35,6 +35,10 @@ next-env.d.ts
 .idea/
 .claude/
 
+# Playwright local artifacts
+apps/web/playwright-report/
+apps/web/test-results/
+
 # Entrada e saída do protótipo (Python)
 docs/demo/in/
 docs/demo/out/

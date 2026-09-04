@@ -1,0 +1,44 @@
+name: Supabase Migrations Deploy
+
+on:
+  push:
+    branches:
+      - master
+      - release
+    paths:
+      - 'apps/api/prisma/**'
+      - 'apps/api/prisma.config.ts'
+      - 'apps/api/package.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/supabase-migrations.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/master' && 'Production' || 'Preview' }}
+    env:
+      DIRECT_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Check required secret
+        run: test -n "$DIRECT_URL" || { echo "Missing SUPABASE_DB_URL"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:deploy

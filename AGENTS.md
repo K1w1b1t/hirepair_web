@@ -54,7 +54,8 @@ hirepair_web/
 │   └── design/            # Brand manual & static visual prototype
 ├── .github/
 │   └── workflows/
-│       └── ci-pr.yml      # GitHub Actions CI for PR validation
+│       ├── ci.yml         # Quality, browser E2E and disposable-DB validation
+│       └── supabase-migrations.yml # Migrations after merge by environment
 ├── .husky/                # Git hooks (pre-commit, commit-msg)
 ├── commitlint.config.js   # Conventional commit rules
 ├── docker-compose.yml     # Local Postgres (5434:5432) + Redis (6379:6379)
