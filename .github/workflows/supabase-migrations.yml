@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   migrate:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/release'
