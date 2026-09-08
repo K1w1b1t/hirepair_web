@@ -266,7 +266,7 @@ migration — ou, em desenvolvimento e sabendo que vai perder os dados,
 
 ### O que o CI verifica
 
-O [workflow de PR](../../.github/workflows/ci-pr.yml) sobe um Postgres
+O [workflow de CI](../../.github/workflows/ci.yml) sobe um Postgres
 descartável (nunca o Supabase) e roda três coisas depois do gate de qualidade:
 
 - `db:deploy` — as migrations aplicam num banco **vazio**, na ordem. É o mesmo

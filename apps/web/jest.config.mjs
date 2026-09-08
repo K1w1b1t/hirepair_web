@@ -12,6 +12,7 @@ const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
   coverageDirectory: 'coverage',
+  testPathIgnorePatterns: ['<rootDir>/e2e/'],
 };
 
 export default createJestConfig(config);

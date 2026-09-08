@@ -54,7 +54,8 @@ hirepair_web/
 │   └── design/            # Brand manual & static visual prototype
 ├── .github/
 │   └── workflows/
-│       └── ci-pr.yml      # GitHub Actions CI for PR validation
+│       ├── ci.yml         # Quality, browser E2E and disposable-DB validation
+│       └── supabase-migrations.yml # Migrations after merge by environment
 ├── .husky/                # Git hooks (pre-commit, commit-msg)
 ├── commitlint.config.js   # Conventional commit rules
 ├── docker-compose.yml     # Local Postgres (5434:5432) + Redis (6379:6379)
@@ -129,6 +130,34 @@ npm run build
 
 No shortcuts to force a green pipeline: no `skip`, `only`, `--no-verify`, ad hoc
 disabled lint rules or commented-out tests.
+
+## 6.1 Test-Driven Development and Test Strategy
+
+Every behavior change follows strict TDD:
+
+1. Write the smallest unit test that describes the intended behavior.
+2. Run that test alone and confirm it fails for the expected missing behavior — a
+   failure caused by a typo, broken import, or invalid fixture is not evidence.
+3. Implement only what makes the test pass.
+4. Refactor while the test remains green, then run the relevant suite.
+
+Unit tests are the primary proof of correctness. All new or changed production
+code must have **100% unit coverage** of statements, branches, functions, and
+lines. Existing uncovered code is technical debt: do not lower the baseline, and
+cover it when touching the behavior; a dedicated coverage task must eliminate
+the remaining legacy gap before a repository-wide 100% threshold is enabled.
+
+E2E tests verify only the main user journeys and system boundaries:
+
+- Frontend browser flows use Playwright under `apps/web/e2e/` and are excluded
+  from Jest discovery.
+- Backend E2E flows, when introduced, must exercise real HTTP contracts and
+  disposable infrastructure; business rules remain covered by unit tests.
+- Do not duplicate unit-level permutations in E2E. Keep E2E scenarios focused
+  on critical happy paths and their essential failure/authorization boundaries.
+
+Never use `skip`, `only`, weakened coverage thresholds, mocks that bypass the
+behavior under test, or commented-out tests to make a pipeline pass.
 
 These five need no database — `npm ci` runs `prisma generate` via the `postinstall`
 of `apps/api`, so Prisma Client types exist without a live connection. CI adds
