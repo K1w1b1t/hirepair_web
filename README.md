@@ -42,6 +42,14 @@ RLS e do fluxo de migration em [`docs/database/`](./docs/database/README.md).
 
 ## 🚀 Execução do Monorepo
 
+### Deploy do frontend na Vercel
+
+O projeto pode ser conectado à Vercel pela raiz deste repositório. O
+[`vercel.json`](./vercel.json) restringe a instalação e o build ao workspace
+`@hirepair/web`, para que o deploy do frontend não execute o `postinstall` nem
+o build da API. Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SITE_URL` nas
+variáveis de ambiente do projeto Vercel para cada ambiente de deploy.
+
 ### Pré-requisitos
 
 - Node.js (v20 ou superior)
