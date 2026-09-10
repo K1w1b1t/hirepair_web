@@ -44,11 +44,26 @@ RLS e do fluxo de migration em [`docs/database/`](./docs/database/README.md).
 
 ### Deploy do frontend na Vercel
 
-O projeto pode ser conectado à Vercel pela raiz deste repositório. O
-[`vercel.json`](./vercel.json) restringe a instalação e o build ao workspace
-`@hirepair/web`, para que o deploy do frontend não execute o `postinstall` nem
-o build da API. Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SITE_URL` nas
-variáveis de ambiente do projeto Vercel para cada ambiente de deploy.
+Conecte o repositório a dois projetos Vercel e configure o **Root Directory** de
+cada um em _Settings → Build and Deployment_:
+
+| Projeto Vercel     | Root Directory | Framework                             |
+| :----------------- | :------------- | :------------------------------------ |
+| `hirepair-web-web` | `apps/web`     | Next.js                               |
+| `hirepair-web-api` | `apps/api`     | Detectado automaticamente como NestJS |
+
+O [`apps/web/vercel.json`](./apps/web/vercel.json) restringe a instalação e o
+build ao workspace `@hirepair/web`. A raiz do monorepo não deve ter um
+`vercel.json`: se tivesse, a configuração Next.js também seria aplicada ao
+projeto da API.
+
+No projeto da API, remova overrides de **Build Command** e **Output Directory**.
+A Vercel reconhece `apps/api/src/main.ts` e empacota o NestJS como uma Function;
+ela não deve procurar um diretório `.next` para esse projeto.
+
+Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SITE_URL` nas variáveis do projeto
+web para cada ambiente de deploy. As variáveis de banco, Redis e IA pertencem ao
+projeto API.
 
 ### Pré-requisitos
 
