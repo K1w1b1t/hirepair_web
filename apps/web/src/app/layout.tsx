@@ -1,11 +1,8 @@
 import type { Metadata } from 'next';
+import { createRootMetadata } from './search-indexing';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'HirePair — Candidate Assistant & ATS CV Builder',
-  description:
-    'Aplicativo mobile-first e offline-first para otimização de currículos para ATS no Brasil.',
-};
+export const metadata: Metadata = createRootMetadata();
 
 export default function RootLayout({
   children,
@@ -14,7 +11,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className="antialiased min-h-screen bg-slate-950 text-slate-100">{children}</body>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

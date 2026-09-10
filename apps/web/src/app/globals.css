@@ -1,13 +1,23 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #090d16;
-  --foreground: #f3f4f6;
+  --color-primary: #636fc1;
+  --color-primary-hover: #525eaf;
+  --color-navy: #333364;
+  --color-light: #a7bbe0;
+  --color-pink: #d3a4cf;
+  --color-creme: #f5eee2;
+  --color-creme-deep: #ede4d3;
+  --color-text-main: #252626;
+  --color-text-muted: #4a4643;
+  --color-success: #3d7a3d;
+  --color-success-bg: #d7eacd;
+  --font-heading: 'Arial Rounded MT Bold', 'Avenir Next', system-ui, sans-serif;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: var(--color-text-main);
+  background: var(--color-creme);
   font-family:
     system-ui,
     -apple-system,
