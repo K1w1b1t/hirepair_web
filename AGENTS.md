@@ -100,6 +100,12 @@ hirepair_web/
 - The Vercel frontend receives only `NEXT_PUBLIC_API_URL` and
   `NEXT_PUBLIC_SITE_URL`. Keep `DATABASE_URL`, `DIRECT_URL`, and `REDIS_URL`
   exclusively in the API host and GitHub Environment secrets.
+- Vercel uses two projects for this monorepo: `hirepair-web-web` has Root
+  Directory `apps/web`, while `hirepair-web-api` has Root Directory `apps/api`.
+  Keep the Next.js `vercel.json` inside `apps/web`; never add one to the
+  repository root, because it would also configure the NestJS deployment. The
+  API relies on Vercel's native NestJS detection and must not define a `.next`
+  Output Directory.
 - GitHub Environments for database migrations are `Production` for `master`
   and `Staging` for `release`. Each holds its own `SUPABASE_DB_URL` secret
   pointing to that environment's direct database connection.
