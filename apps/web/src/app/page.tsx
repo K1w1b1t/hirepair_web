@@ -67,15 +67,15 @@ function Brand({
 }
 
 function WhatsAppIcon() {
-  // Official Digital_Glyph_Green_RGB_2026 from Meta's WhatsApp Brand Resource Center.
+  // Official Digital_Glyph_White_RGB_2026 from Meta's WhatsApp Brand Resource Center.
   // https://www.meta.com/brand/resources/whatsapp/whatsapp-brand/
   return (
     <svg
       aria-hidden="true"
       focusable="false"
-      className="size-7 shrink-0 rounded-full bg-white p-1"
+      className="size-5 shrink-0"
       viewBox="0 0 720 720"
-      fill="#25d366"
+      fill="#fff"
     >
       <path d="M360,0C161.18,0,0,161.18,0,360c0,65.41,17.45,126.75,47.94,179.61L0,720l187.02-44.21c51.34,28.18,110.28,44.21,172.98,44.21,198.82,0,360-161.18,360-360S558.82,0,360,0ZM360,655.52c-60.17,0-116.13-17.98-162.82-48.87l-110.49,28.14,30.99-105.61c-33.53-47.93-53.2-106.26-53.2-169.19,0-163.21,132.31-295.52,295.52-295.52s295.52,132.31,295.52,295.52-132.31,295.52-295.52,295.52Z" />
       <path d="M444.35,407.52l87.1,41.06c4,1.88,6.56,5.94,6.2,10.34-.94,11.46-5.54,34.43-26.13,55.02-58.12,58.12-162.49-7.64-166.74-10.18-25.67-13.79-50.06-32.24-73.19-55.36-23.12-23.12-41.58-47.52-55.37-73.19-2.55-4.24-68.31-108.61-10.18-166.74,20.59-20.59,43.56-25.19,55.02-26.13,4.41-.36,8.46,2.2,10.34,6.2l41.07,87.1c1.94,4.12,1.09,9.02-2.13,12.24l-30.61,30.61c-6.62,6.62-8.56,16.93-4,25.11,11.17,20.03,26.19,39.32,43.59,57.07,17.75,17.4,37.04,32.43,57.07,43.59,8.18,4.56,18.48,2.62,25.11-4l30.61-30.61c3.22-3.22,8.12-4.08,12.24-2.13Z" />
@@ -105,7 +105,7 @@ function MailIcon() {
 export default function Home() {
   return (
     <main className="overflow-hidden">
-      <header className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
+      <header className="relative z-20 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-10">
         <a aria-label="HirePair — início" href="#inicio">
           <Brand />
         </a>
@@ -116,12 +116,9 @@ export default function Home() {
           <a className="nav-link" href="#para-quem">
             Para quem
           </a>
-          <a className="button button-small button-outline" href="#contato">
-            Fale com a gente
-          </a>
         </nav>
-        <a className="button button-small button-outline sm:hidden" href="#contato">
-          Contato
+        <a className="button button-small button-outline" href="#contato">
+          Fale com a gente
         </a>
       </header>
 
@@ -155,9 +152,6 @@ export default function Home() {
                 Enviar um e-mail <MailIcon />
               </a>
             </div>
-            <p className="mt-5 text-sm text-[var(--color-text-dim)]">
-              Sem cadastro agora. Fale diretamente com quem está construindo o HirePair.
-            </p>
           </div>
 
           <div className="relative mx-auto w-full max-w-md">
@@ -327,7 +321,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <a
-                className="button bg-white text-[var(--color-primary)] hover:bg-[var(--color-creme)]"
+                className="button bg-[var(--color-navy)] text-white hover:bg-[var(--color-navy)]/90"
                 href={whatsappUrl}
                 rel="noreferrer"
                 target="_blank"
