@@ -1,121 +1,337 @@
+import Image from 'next/image';
+import { Countdown } from './countdown';
+
+const launchDate = '2026-10-31T00:00:00-03:00';
+const whatsappUrl =
+  'https://wa.me/551191365266?text=Ol%C3%A1%21%20Quero%20saber%20mais%20sobre%20o%20HirePair.';
+const emailUrl = 'mailto:tech@kiwibit.com.br?subject=Quero%20conhecer%20o%20HirePair';
+
+const benefits = [
+  {
+    number: '01',
+    title: 'Passo a passo, sem complicação',
+    description:
+      'Perguntas claras ajudam a reunir experiências, competências e objetivos profissionais no seu ritmo.',
+  },
+  {
+    number: '02',
+    title: 'Feito para processos seletivos',
+    description:
+      'Uma estrutura simples para deixar as informações legíveis para pessoas e sistemas de seleção.',
+  },
+  {
+    number: '03',
+    title: 'Seu currículo pronto para compartilhar',
+    description:
+      'A proposta é facilitar a criação de um currículo que você possa enviar por WhatsApp ou e-mail com confiança.',
+  },
+];
+
+const steps = [
+  [
+    'Conte sua trajetória',
+    'Você responde perguntas simples sobre experiências, estudos e objetivos.',
+  ],
+  [
+    'Organize o que importa',
+    'O HirePair ajuda a transformar suas respostas em informações claras e relevantes.',
+  ],
+  [
+    'Prepare-se para enviar',
+    'Você revisa e gera um currículo limpo, pensado para processos seletivos.',
+  ],
+];
+
+function Brand({
+  compact = false,
+  decorative = false,
+}: {
+  compact?: boolean;
+  decorative?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center gap-3">
+      <Image
+        alt={decorative ? '' : 'HirePair'}
+        height={compact ? 42 : 52}
+        priority={!compact}
+        src="/hirepair-logo.svg"
+        width={compact ? 42 : 52}
+      />
+      <span className="font-[family-name:var(--font-heading)] text-xl font-extrabold tracking-tight text-[var(--color-navy)]">
+        Hire<span className="text-[var(--color-primary)]">Pair</span>
+      </span>
+    </span>
+  );
+}
+
+function WhatsAppIcon() {
+  return <span aria-hidden="true">↗</span>;
+}
+
+function MailIcon() {
+  return <span aria-hidden="true">✉</span>;
+}
+
 export default function Home() {
   return (
-    <main>
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
-        <a
-          className="font-[family-name:var(--font-heading)] text-xl font-extrabold tracking-tight text-[var(--color-navy)]"
-          href="#inicio"
-        >
-          Hire<span className="text-[var(--color-primary)]">Pair</span>
+    <main className="overflow-hidden">
+      <header className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
+        <a aria-label="HirePair — início" href="#inicio">
+          <Brand />
         </a>
-        <a
-          className="text-sm font-semibold text-[var(--color-navy)] underline-offset-4 hover:underline"
-          href="#como-funciona"
-        >
-          Conheça a proposta
+        <nav aria-label="Navegação principal" className="hidden items-center gap-7 sm:flex">
+          <a className="nav-link" href="#como-funciona">
+            Como funciona
+          </a>
+          <a className="nav-link" href="#para-quem">
+            Para quem
+          </a>
+          <a className="button button-small button-outline" href="#contato">
+            Fale com a gente
+          </a>
+        </nav>
+        <a className="button button-small button-outline sm:hidden" href="#contato">
+          Contato
         </a>
       </header>
 
-      <section
-        className="mx-auto grid max-w-6xl gap-12 px-6 pb-20 pt-12 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:pb-28 lg:pt-20"
-        id="inicio"
-      >
-        <div>
-          <p className="mb-5 inline-flex rounded-full bg-[var(--color-success-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-success)]">
-            Estamos preparando o lançamento
-          </p>
-          <h1 className="max-w-3xl font-[family-name:var(--font-heading)] text-4xl font-extrabold leading-[1.08] tracking-tight text-[var(--color-navy)] sm:text-6xl">
-            Um currículo claro para abrir portas.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--color-text-muted)]">
-            O HirePair está construindo uma forma simples de organizar suas experiências e
-            transformar sua história profissional em um currículo pronto para novas oportunidades.
-          </p>
-          <a
-            className="mt-8 inline-flex rounded-full bg-[var(--color-primary)] px-6 py-3 font-[family-name:var(--font-heading)] text-sm font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-[var(--color-primary-hover)]"
-            href="#como-funciona"
-          >
-            Veja o que estamos criando
-          </a>
-        </div>
+      <section className="relative" id="inicio">
+        <div aria-hidden="true" className="hero-orb hero-orb-left" />
+        <div aria-hidden="true" className="hero-orb hero-orb-right" />
+        <div className="relative mx-auto grid max-w-6xl gap-12 px-6 pb-20 pt-12 sm:px-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:pb-28 lg:pt-20">
+          <div>
+            <p className="eyebrow">
+              <span className="status-dot" />
+              Lançamento em 31 de outubro
+            </p>
+            <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-heading)] text-4xl font-extrabold leading-[1.06] tracking-[-0.04em] text-[var(--color-navy)] sm:text-6xl lg:text-7xl">
+              Um currículo claro para{' '}
+              <span className="text-[var(--color-primary)]">abrir portas.</span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--color-text-muted)] sm:text-xl">
+              Organize sua história profissional com orientação simples e prepare um currículo
+              legível para recrutadores e sistemas de seleção.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                className="button button-primary"
+                href={whatsappUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Conversar pelo WhatsApp <WhatsAppIcon />
+              </a>
+              <a className="button button-secondary" href={emailUrl}>
+                Enviar um e-mail <MailIcon />
+              </a>
+            </div>
+            <p className="mt-5 text-sm text-[var(--color-text-dim)]">
+              Sem cadastro agora. Fale diretamente com quem está construindo o HirePair.
+            </p>
+          </div>
 
-        <div
-          aria-hidden="true"
-          className="rounded-[2rem] border border-[rgba(37,38,38,0.12)] bg-white p-5 shadow-[0_24px_60px_-24px_rgba(51,51,100,0.35)] sm:p-7"
-        >
-          <div className="rounded-2xl border border-[rgba(37,38,38,0.12)] bg-[var(--color-creme)] p-6">
-            <div className="flex items-center justify-between">
-              <div className="h-3 w-28 rounded-full bg-[var(--color-light)]" />
-              <div className="h-8 w-8 rounded-full bg-[var(--color-pink)]" />
-            </div>
-            <div className="mt-8 space-y-4">
-              <div className="h-4 w-3/4 rounded-full bg-[var(--color-navy)]" />
-              <div className="h-3 w-full rounded-full bg-[var(--color-creme-deep)]" />
-              <div className="h-3 w-5/6 rounded-full bg-[var(--color-creme-deep)]" />
-            </div>
-            <div className="mt-8 border-l-2 border-[var(--color-primary)] pl-4">
-              <div className="h-3 w-32 rounded-full bg-[var(--color-primary)]" />
-              <div className="mt-3 h-3 w-full rounded-full bg-[var(--color-creme-deep)]" />
-              <div className="mt-2 h-3 w-4/5 rounded-full bg-[var(--color-creme-deep)]" />
+          <div className="relative mx-auto w-full max-w-md">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-5 rotate-3 rounded-[2.5rem] bg-[var(--color-pink)]/35"
+            />
+            <div className="animate-float relative rounded-[2rem] border border-[rgba(37,38,38,0.12)] bg-white p-5 shadow-[0_30px_80px_-28px_rgba(51,51,100,0.5)] sm:p-7">
+              <div className="flex items-center justify-between border-b border-[rgba(37,38,38,0.1)] pb-5">
+                <Brand compact decorative />
+                <span className="rounded-full bg-[var(--color-success-bg)] px-3 py-1 text-xs font-bold text-[var(--color-success)]">
+                  Em preparação
+                </span>
+              </div>
+              <div className="mt-6">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                  Seu currículo
+                </p>
+                <div className="mt-3 h-5 w-3/4 rounded-full bg-[var(--color-navy)]" />
+                <div className="mt-3 h-3 w-full rounded-full bg-[var(--color-creme-deep)]" />
+                <div className="mt-2 h-3 w-5/6 rounded-full bg-[var(--color-creme-deep)]" />
+              </div>
+              <div className="mt-7 rounded-2xl bg-[var(--color-creme)] p-5">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
+                    ✓
+                  </span>
+                  <div className="flex-1">
+                    <div className="h-3 w-28 rounded-full bg-[var(--color-primary)]" />
+                    <div className="mt-2 h-2 w-full rounded-full bg-[var(--color-light)]/60" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <span className="h-2 flex-1 rounded-full bg-[var(--color-primary)]" />
+                <span className="h-2 flex-1 rounded-full bg-[var(--color-primary)]" />
+                <span className="h-2 flex-1 rounded-full bg-[var(--color-light)]" />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <section
-        className="border-y border-[rgba(37,38,38,0.12)] bg-[var(--color-creme-deep)]"
-        id="como-funciona"
+        aria-label="Diferenciais do HirePair"
+        className="border-y border-[rgba(37,38,38,0.1)] bg-white/60"
       >
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:px-10 lg:py-20">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-primary)]">
-            O que estamos criando
-          </p>
-          <h2 className="mt-3 max-w-2xl font-[family-name:var(--font-heading)] text-3xl font-extrabold tracking-tight text-[var(--color-navy)] sm:text-4xl">
-            Menos confusão para contar bem a sua trajetória.
-          </h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            <article className="rounded-3xl border border-[rgba(37,38,38,0.12)] bg-white p-6">
-              <p className="text-2xl" aria-hidden="true">
-                01
+        <div className="mx-auto grid max-w-6xl gap-4 px-6 py-6 text-center text-sm font-semibold text-[var(--color-navy)] sm:grid-cols-3 sm:px-10">
+          <p>Feito para a realidade brasileira</p>
+          <p>Linguagem simples e acolhedora</p>
+          <p>Estrutura pensada para seleção</p>
+        </div>
+      </section>
+
+      <section className="bg-[var(--color-navy)] text-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-light)]">
+              Marque na agenda
+            </p>
+            <h2 className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-extrabold sm:text-4xl">
+              A contagem para uma nova fase já começou.
+            </h2>
+            <p className="mt-4 leading-7 text-white/70">
+              Volte em 31 de outubro de 2026 para acompanhar o lançamento do HirePair.
+            </p>
+          </div>
+          <Countdown deadline={launchDate} initialNow={Date.now()} />
+        </div>
+      </section>
+
+      <section className="section-shell" id="como-funciona">
+        <p className="section-kicker">O que estamos criando</p>
+        <h2 className="section-title">Menos confusão para contar bem a sua trajetória.</h2>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {benefits.map((benefit) => (
+            <article className="feature-card" key={benefit.number}>
+              <span className="feature-number" aria-hidden="true">
+                {benefit.number}
+              </span>
+              <h3 className="mt-5 font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-navy)]">
+                {benefit.title}
+              </h3>
+              <p className="mt-3 leading-7 text-[var(--color-text-muted)]">{benefit.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white">
+        <div className="section-shell grid gap-12 lg:grid-cols-[0.75fr_1.25fr]">
+          <div>
+            <p className="section-kicker">Como vai funcionar</p>
+            <h2 className="section-title">Da sua história ao currículo, em três momentos.</h2>
+            <p className="mt-5 leading-7 text-[var(--color-text-muted)]">
+              Sem telas confusas e sem exigir que você saiba escrever como um profissional de RH.
+            </p>
+          </div>
+          <ol className="space-y-5">
+            {steps.map(([title, description], index) => (
+              <li
+                className="flex gap-5 rounded-3xl border border-[rgba(37,38,38,0.1)] bg-[var(--color-creme)] p-5 sm:p-6"
+                key={title}
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] font-bold text-white">
+                  {index + 1}
+                </span>
+                <div>
+                  <h3 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-navy)]">
+                    {title}
+                  </h3>
+                  <p className="mt-2 leading-7 text-[var(--color-text-muted)]">{description}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="section-shell" id="para-quem">
+        <div className="rounded-[2rem] bg-[var(--color-creme-deep)] p-7 sm:p-10 lg:p-12">
+          <p className="section-kicker">Para quem é o HirePair</p>
+          <h2 className="section-title">Sua experiência merece ser entendida.</h2>
+          <div className="mt-9 grid gap-5 md:grid-cols-2">
+            <article className="rounded-3xl bg-white p-6 sm:p-8">
+              <p className="text-sm font-bold text-[var(--color-primary)]">
+                PRIMEIRO EMPREGO E RECOLOCAÇÃO
               </p>
-              <h2 className="mt-5 font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-navy)]">
-                Passo a passo, sem complicação
-              </h2>
+              <h3 className="mt-3 font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-navy)]">
+                Para começar com segurança
+              </h3>
               <p className="mt-3 leading-7 text-[var(--color-text-muted)]">
-                Perguntas claras ajudam a reunir experiências, competências e objetivos
-                profissionais.
+                Orientação clara para reconhecer habilidades e montar um currículo mesmo quando você
+                não sabe por onde começar.
               </p>
             </article>
-            <article className="rounded-3xl border border-[rgba(37,38,38,0.12)] bg-white p-6">
-              <p className="text-2xl" aria-hidden="true">
-                02
-              </p>
-              <h2 className="mt-5 font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-navy)]">
-                Feito para processos seletivos
-              </h2>
+            <article className="rounded-3xl bg-white p-6 sm:p-8">
+              <p className="text-sm font-bold text-[var(--color-primary)]">TRANSIÇÃO DE CARREIRA</p>
+              <h3 className="mt-3 font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-navy)]">
+                Para mostrar o que se conecta
+              </h3>
               <p className="mt-3 leading-7 text-[var(--color-text-muted)]">
-                Uma estrutura simples para deixar as informações legíveis para pessoas e sistemas de
-                seleção.
-              </p>
-            </article>
-            <article className="rounded-3xl border border-[rgba(37,38,38,0.12)] bg-white p-6">
-              <p className="text-2xl" aria-hidden="true">
-                03
-              </p>
-              <h2 className="mt-5 font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-navy)]">
-                Seu currículo pronto para compartilhar
-              </h2>
-              <p className="mt-3 leading-7 text-[var(--color-text-muted)]">
-                A proposta é facilitar a criação de um currículo que você possa enviar com
-                confiança.
+                Uma forma de reorganizar experiências anteriores e destacar competências que fazem
+                sentido para o próximo passo.
               </p>
             </article>
           </div>
         </div>
       </section>
 
-      <footer className="mx-auto max-w-6xl px-6 py-10 text-sm text-[var(--color-text-muted)] sm:px-10">
-        <p>HirePair · Construindo caminhos mais claros para o próximo trabalho.</p>
+      <section className="px-6 pb-20 sm:px-10" id="contato">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-[var(--color-primary)] px-6 py-12 text-center text-white shadow-[0_28px_70px_-30px_rgba(51,51,100,0.7)] sm:px-12 sm:py-16">
+          <div
+            aria-hidden="true"
+            className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[var(--color-pink)]/30 blur-2xl"
+          />
+          <div className="relative mx-auto max-w-2xl">
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-white/70">
+              Vamos conversar?
+            </p>
+            <h2 className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-extrabold sm:text-5xl">
+              Quer conhecer ou contribuir com o HirePair?
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-white/80">
+              Estamos ouvindo candidatos, profissionais em transição e recrutadores enquanto
+              construímos o produto.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <a
+                className="button bg-white text-[var(--color-primary)] hover:bg-[var(--color-creme)]"
+                href={whatsappUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Conversar pelo WhatsApp <WhatsAppIcon />
+              </a>
+              <a
+                className="button border border-white/35 text-white hover:bg-white/10"
+                href={emailUrl}
+              >
+                Enviar um e-mail <MailIcon />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-[rgba(37,38,38,0.1)] bg-white/45">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-10">
+          <Brand compact />
+          <div className="text-sm text-[var(--color-text-muted)]">
+            <p>Construindo caminhos mais claros para o próximo trabalho.</p>
+            <p className="mt-1">
+              Contato:{' '}
+              <a
+                className="font-semibold underline underline-offset-4"
+                href="mailto:tech@kiwibit.com.br"
+              >
+                tech@kiwibit.com.br
+              </a>
+            </p>
+          </div>
+        </div>
       </footer>
     </main>
   );

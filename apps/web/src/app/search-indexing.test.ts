@@ -1,4 +1,16 @@
-import { createRootMetadata, isSearchIndexingEnabled } from './search-indexing';
+import {
+  createRootMetadata,
+  currentSearchEnvironment,
+  isSearchIndexingEnabled,
+} from './search-indexing';
+
+function restoreEnvironment(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}
 
 describe('isSearchIndexingEnabled', () => {
   it.each([
@@ -8,6 +20,32 @@ describe('isSearchIndexingEnabled', () => {
     ['invalid', false],
   ])('returns %s for %s', (value, expected) => {
     expect(isSearchIndexingEnabled(value)).toBe(expected);
+  });
+
+  it('reads the default value from the server environment', () => {
+    const previous = process.env.SEARCH_INDEXING_ENABLED;
+    process.env.SEARCH_INDEXING_ENABLED = 'true';
+
+    expect(isSearchIndexingEnabled()).toBe(true);
+
+    restoreEnvironment('SEARCH_INDEXING_ENABLED', previous);
+  });
+});
+
+describe('currentSearchEnvironment', () => {
+  it('selects only the variables used by search metadata', () => {
+    const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const previousIndexing = process.env.SEARCH_INDEXING_ENABLED;
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://hirepair.com.br';
+    process.env.SEARCH_INDEXING_ENABLED = 'true';
+
+    expect(currentSearchEnvironment()).toEqual({
+      NEXT_PUBLIC_SITE_URL: 'https://hirepair.com.br',
+      SEARCH_INDEXING_ENABLED: 'true',
+    });
+
+    restoreEnvironment('NEXT_PUBLIC_SITE_URL', previousSiteUrl);
+    restoreEnvironment('SEARCH_INDEXING_ENABLED', previousIndexing);
   });
 });
 
