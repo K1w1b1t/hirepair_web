@@ -34,7 +34,7 @@ export function createRootMetadata(
     description:
       'O HirePair está construindo uma forma simples de organizar experiências e criar um currículo claro, pronto para processos seletivos.',
     alternates: { canonical: '/' },
-    icons: { icon: '/hirepair-logo.svg' },
+    icons: { icon: '/hirepair-logo.png' },
     robots: { index: canIndex, follow: canIndex },
     openGraph: {
       title: 'HirePair | Currículos claros para novas oportunidades',

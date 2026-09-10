@@ -53,24 +53,55 @@ function Brand({
     <span className="inline-flex items-center gap-3">
       <Image
         alt={decorative ? '' : 'HirePair'}
-        height={compact ? 42 : 52}
+        className="h-auto shrink-0"
+        height={compact ? 41 : 52}
         priority={!compact}
-        src="/hirepair-logo.svg"
-        width={compact ? 42 : 52}
+        src="/hirepair-logo.png"
+        width={compact ? 34 : 43}
       />
-      <span className="font-[family-name:var(--font-heading)] text-xl font-extrabold tracking-tight text-[var(--color-navy)]">
-        Hire<span className="text-[var(--color-primary)]">Pair</span>
+      <span className="font-[family-name:var(--font-heading)] text-xl font-medium tracking-[0.01em] text-[var(--color-navy)]">
+        hire<span className="font-extrabold text-[var(--color-primary)]">pair</span>
       </span>
     </span>
   );
 }
 
 function WhatsAppIcon() {
-  return <span aria-hidden="true">↗</span>;
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="size-5 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 11.5a9 9 0 0 1-13.4 7.84L3 21l1.66-4.6A9 9 0 1 1 21 11.5Z" />
+      <path d="m8.3 7.2 1.4 2.1-.9 1.2a8 8 0 0 0 3.7 3.7l1.2-.9 2.1 1.4c.3.2.4.6.2.9-.5 1-1.4 1.5-2.5 1.1a11.1 11.1 0 0 1-6.2-6.2c-.4-1.1.1-2 1.1-2.5Z" />
+    </svg>
+  );
 }
 
 function MailIcon() {
-  return <span aria-hidden="true">✉</span>;
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="size-5 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="m4 7 6.75 5.4a2 2 0 0 0 2.5 0L20 7" />
+    </svg>
+  );
 }
 
 export default function Home() {
