@@ -85,7 +85,28 @@ hirepair_web/
 
 ---
 
-## 5. Database & Prisma Migrations
+## 5. Deployment Environments
+
+- **Production**: branch `master`, served from the production domain. It is
+  indexable by search engines.
+- **Staging**: branch `release`, served publicly at
+  `https://stg.hirepair.com.br`. It exists for sharing demos with people who do
+  not have a Vercel account; do not enable access/password protection for it.
+- Staging must never be indexed: set `SEARCH_INDEXING_ENABLED=false` in the
+  Vercel environment variables scoped to the `release` branch, and make the
+  Next.js metadata emit `noindex, nofollow` when that variable is false. Do not
+  rely only on `robots.txt`, and do not add staging URLs to a sitemap or Google
+  Search Console.
+- The Vercel frontend receives only `NEXT_PUBLIC_API_URL` and
+  `NEXT_PUBLIC_SITE_URL`. Keep `DATABASE_URL`, `DIRECT_URL`, and `REDIS_URL`
+  exclusively in the API host and GitHub Environment secrets.
+- GitHub Environments for database migrations are `Production` for `master`
+  and `Staging` for `release`. Each holds its own `SUPABASE_DB_URL` secret
+  pointing to that environment's direct database connection.
+
+---
+
+## 6. Database & Prisma Migrations
 
 Full reference: [`docs/database/README.md`](./docs/database/README.md).
 
@@ -115,7 +136,7 @@ npm run db:migrate        # prisma migrate dev
 
 ---
 
-## 6. Mandatory Quality Gate
+## 7. Mandatory Quality Gate
 
 All five commands must pass before delivering any change (same gate declared in
 `.codex/instructions.md`):
@@ -131,7 +152,7 @@ npm run build
 No shortcuts to force a green pipeline: no `skip`, `only`, `--no-verify`, ad hoc
 disabled lint rules or commented-out tests.
 
-## 6.1 Test-Driven Development and Test Strategy
+## 7.1 Test-Driven Development and Test Strategy
 
 Every behavior change follows strict TDD:
 
