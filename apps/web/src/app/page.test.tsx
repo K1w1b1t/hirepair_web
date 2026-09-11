@@ -28,7 +28,7 @@ describe('Home', () => {
     render(<Home />);
 
     for (const link of screen.getAllByRole('link', { name: /conversar pelo whatsapp/i })) {
-      expect(link).toHaveAttribute('href', expect.stringContaining('https://wa.me/551191365266'));
+      expect(link).toHaveAttribute('href', expect.stringContaining('https://wa.me/5511913165266'));
     }
     for (const link of screen.getAllByRole('link', { name: /enviar um e-mail/i })) {
       expect(link).toHaveAttribute(

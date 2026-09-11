@@ -3,7 +3,7 @@ import { Countdown } from './countdown';
 
 const launchDate = '2026-10-31T00:00:00-03:00';
 const whatsappUrl =
-  'https://wa.me/551191365266?text=Ol%C3%A1%21%20Quero%20saber%20mais%20sobre%20o%20HirePair.';
+  'https://wa.me/5511913165266?text=Ol%C3%A1%21%20Quero%20saber%20mais%20sobre%20o%20HirePair.';
 const emailUrl = 'mailto:tech@kiwibit.com.br?subject=Quero%20conhecer%20o%20HirePair';
 
 const benefits = [
