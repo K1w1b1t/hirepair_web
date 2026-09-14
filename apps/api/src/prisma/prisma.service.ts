@@ -1,59 +1,56 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
+import {
+  type DbRequestMetrics,
+  REQUEST_CONTEXT_KEYS,
+} from '../common/request-context/request-context.constants';
 
-/**
- * Pool padrao. Dez conexoes cabem folgadas no limite do Free Tier do Supabase
- * (que compartilha um pooler entre projetos) e ainda absorvem rajada de HTTP.
- * Ajustavel por `PRISMA_CONNECTION_LIMIT` quando o plano mudar.
- */
 const DEFAULT_POOL_SIZE = 10;
-
 function resolvePoolSize(): number {
   const parsed = Number(process.env['PRISMA_CONNECTION_LIMIT']);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_POOL_SIZE;
 }
 
-/**
- * Cliente Prisma da aplicacao.
- *
- * `DATABASE_URL` (e nao `DIRECT_URL`) de proposito: em runtime queremos o pooler,
- * porque uma funcao serverless abrindo conexao direta esgota o Postgres. A
- * conexao direta so interessa a `prisma migrate`.
- */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-
-  constructor() {
+  constructor(@Optional() private cls?: ClsService) {
     const connectionString = process.env['DATABASE_URL'];
-
-    if (!connectionString) {
-      // Alcancavel apenas se o ConfigModule for removido do AppModule; a
-      // validacao de ambiente ja teria barrado o boot antes daqui.
+    if (!connectionString)
       throw new Error('DATABASE_URL ausente: nao e possivel conectar ao banco.');
-    }
-
     super({
-      adapter: new PrismaPg({
-        connectionString,
-        max: resolvePoolSize(),
-      }),
-      // O hash de senha e retirado de TODA leitura, para que nao escape por
-      // resposta de controller, log ou payload de fila. Para conferir a senha no
-      // login, o caso que precisa dela, peca explicitamente na consulta:
-      // `omit: { passwordHash: false }`.
-      omit: {
-        user: { passwordHash: true },
-      },
+      adapter: new PrismaPg({ connectionString, max: resolvePoolSize() }),
+      omit: { user: { passwordHash: true } },
+      log: [{ emit: 'event', level: 'query' }],
     });
+    (this as unknown as PrismaClient<{ log: [{ emit: 'event'; level: 'query' }] }>).$on(
+      'query',
+      (event) => this.countStatement(event.duration),
+    );
   }
-
+  private countStatement(duration: number): void {
+    try {
+      if (!this.cls?.isActive()) return;
+      const metrics = this.cls.get<DbRequestMetrics | undefined>(REQUEST_CONTEXT_KEYS.DB_METRICS);
+      if (metrics) {
+        metrics.statementCount += 1;
+        metrics.totalMs += duration;
+        return;
+      }
+      this.cls.set<DbRequestMetrics>(REQUEST_CONTEXT_KEYS.DB_METRICS, {
+        statementCount: 1,
+        totalMs: duration,
+      });
+    } catch {
+      /* Instrumentation must never fail a query. */
+    }
+  }
   async onModuleInit(): Promise<void> {
     await this.$connect();
     this.logger.log('Conectado ao Postgres.');
   }
-
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
   }

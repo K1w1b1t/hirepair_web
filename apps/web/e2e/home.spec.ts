@@ -10,5 +10,5 @@ test('renders the HirePair landing page', async ({ page }) => {
   await expect(page.getByRole('timer')).toBeVisible();
   await expect(
     page.getByRole('link', { name: /conversar pelo whatsapp/i }).first(),
-  ).toHaveAttribute('href', /wa\.me\/551191365266/);
+  ).toHaveAttribute('href', /wa\.me\/5511913165266/);
 });
