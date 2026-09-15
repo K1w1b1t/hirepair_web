@@ -8,11 +8,13 @@ import { CoreModule } from './core/core.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueuesModule } from './queues/queues.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'], validate }),
     CoreModule,
+    TelemetryModule,
     AiModule,
     PrismaModule,
     QueuesModule,

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Public_Sans } from 'next/font/google';
+import { AnalyticsConsentControl } from '../analytics/consent-control';
 import { createRootMetadata } from './search-indexing';
 import './globals.css';
+import '../analytics/consent-control.css';
 
 const heading = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-heading' });
 const body = Public_Sans({ subsets: ['latin'], variable: '--font-body' });
@@ -13,6 +15,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="pt-BR">
       <body className={`${heading.variable} ${body.variable} min-h-screen antialiased`}>
         {children}
+        <AnalyticsConsentControl />
       </body>
     </html>
   );

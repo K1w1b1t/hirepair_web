@@ -77,6 +77,22 @@ export class EnvironmentVariables {
   @IsUrl({ protocols: ['https'], require_protocol: true })
   DISCORD_WEBHOOK_URL?: string;
 
+  /** Token opcional do projeto PostHog para telemetria operacional. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  POSTHOG_PROJECT_TOKEN?: string;
+
+  /** Host de ingestao do PostHog Cloud US. */
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  POSTHOG_HOST?: string;
+
+  /** Ambiente obrigatorio em cada evento quando a telemetria esta configurada. */
+  @IsOptional()
+  @IsIn(['development', 'staging', 'production'])
+  POSTHOG_ENVIRONMENT?: 'development' | 'staging' | 'production';
+
   /** URL TCP do Redis gerenciado; `rediss://` ativa TLS no Upstash. */
   @IsOptional()
   @IsString()

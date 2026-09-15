@@ -1,8 +1,12 @@
 import { BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { AiService } from './ai.service';
+import type { AiFallbackTelemetry } from '../telemetry/telemetry.service';
 
 const fetchMock: jest.MockedFunction<typeof fetch> = jest.fn();
 const originalFetch = global.fetch;
+const captureAiFallback: jest.MockedFunction<(payload: AiFallbackTelemetry) => Promise<void>> = jest
+  .fn()
+  .mockResolvedValue(undefined);
 
 function response(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status });
@@ -49,7 +53,7 @@ describe('AiService', () => {
         );
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
-      const result = await new AiService().generateText({
+      const result = await new AiService(undefined, { captureAiFallback } as never).generateText({
         systemInstruction: 'Seja objetivo.',
         prompt: 'Descreva minha experiencia.',
         temperature: 0.2,
@@ -75,6 +79,17 @@ describe('AiService', () => {
         }),
       );
       expect(warn).toHaveBeenCalledTimes(1);
+      expect(captureAiFallback).toHaveBeenCalledTimes(1);
+      const [telemetryPayload] = captureAiFallback.mock.calls[0];
+      expect(telemetryPayload).toEqual({
+        fromProvider: 'gemini',
+        fromModel: 'gemini-2.5-flash',
+        toProvider: 'groq-70b',
+        toModel: 'llama-3.3-70b-versatile',
+        status,
+        traceId: telemetryPayload.traceId,
+      });
+      expect(telemetryPayload.traceId).toMatch(/^[0-9a-f-]{36}/);
     },
   );
 

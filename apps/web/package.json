@@ -15,7 +15,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@posthog/nextjs-config": "^1.7.6",
     "next": "^15.2.0",
+    "posthog-js": "^1.433.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

@@ -245,3 +245,14 @@ to prove idempotency. When you change the schema, run these locally too:
 ```bash
 npm run db:up && npm run db:migrate && npm run db:seed && npm run db:seed
 ```
+
+---
+
+## 8. Analytics e telemetria PostHog
+
+- Todo evento inclui app=hirepair, environment e telemetry_source; nunca envie PII, curriculo, prompt, respostas, corpo, headers, query strings ou tokens.
+- Analytics, Error Tracking e Session Replay do navegador exigem consentimento explicito. A revogacao interrompe a coleta. Preserve maskAllInputs=true, maskTextSelector=* e a remocao de query strings.
+- A telemetria operacional anonima do servidor independe do consentimento e permanece fail-open.
+- A taxonomia e session_started, facts_confirmed, resume_generated, whatsapp_shared e ai_fallback_triggered. Os quatro eventos do funil compartilham funnel_session_id.
+- session_started pertence a entrada real em /conversa. Os hooks futuros ficam na confirmacao efetiva dos fatos, no sucesso da geracao do curriculo e na confirmacao do compartilhamento por WhatsApp; nao emita acoes artificiais.
+- Valide em staging a separacao por app/ambiente, ausencia de coleta antes do opt-in, replay mascarado, source maps e destinos Discord conforme docs/analytics/posthog-runbook.md.
