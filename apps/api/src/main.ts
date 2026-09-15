@@ -1,18 +1,21 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { configureApp } from './app.setup';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.enableShutdownHooks();
-  const port = process.env.PORT || 3001;
-  app.enableCors({
-    origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
-    credentials: true,
+export async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    bodyParser: false,
   });
-  // Traduz violacao de unique em 409 em vez de deixar virar 500.
-  app.useGlobalFilters(new PrismaExceptionFilter());
-  await app.listen(port);
-  console.log(`🚀 HirePair API is running on http://localhost:${port}`);
+  configureApp(app);
+  app.useLogger(app.get(Logger));
+  app.useGlobalInterceptors(new LoggerErrorInterceptor());
+  await app.listen(process.env.PORT ?? 3001);
 }
-void bootstrap();
+
+void bootstrap().catch((caught: unknown) => {
+  console.error(caught);
+  process.exitCode = 1;
+});

@@ -74,6 +74,56 @@ hirepair_web/
 
 ---
 
+## 3.1 Pull Request Description Standard
+
+Every pull request description must be in Portuguese, use clear Markdown headings, and include only claims verified by the diff and tests. Use this template:
+
+```md
+## Objetivo
+
+<problema resolvido e resultado esperado>
+
+## Alterações
+
+- <mudança por domínio/arquivo, com efeito observável>
+
+## Decisões e compatibilidade
+
+- <contratos, configuração, migrações, acessibilidade ou segurança afetados>
+
+## Validação
+
+- [x] `<comando executado>` — <resultado>
+- [ ] `<comando não executado>` — <motivo objetivo>
+
+## Risco e rollback
+
+- <risco residual, impacto de deploy e como reverter, ou "Nenhum identificado.">
+
+## Evidências visuais
+
+<screenshots/GIF para alterações de UI; "Não se aplica" quando não houver UI>
+```
+
+- Do not use generic statements such as "tests passed"; name each command and its result.
+- Keep lists concise, use links to issues/docs when relevant, and call out required environment-variable or migration steps explicitly.
+- For UI work, document accessibility changes and attach before/after evidence when practical.
+
+---
+
+## 3.2 Required Domain References
+
+Consult the relevant source before changing its domain and cite it in the PR description when it materially guided the decision:
+
+- [`docs/database/README.md`](./docs/database/README.md): data model, Prisma migrations, RLS, database validation, and deployment workflow.
+- [`docs/demo/README.md`](./docs/demo/README.md): changes to the Python demo/prototype or behavior it documents.
+- [`docs/design/web/README.md`](./docs/design/web/README.md): web prototype flows, screens, and frontend interaction decisions.
+- [`docs/business/proximos-passos-mvp.md`](./docs/business/proximos-passos-mvp.md): MVP scope, product priorities, and business-rule decisions.
+- [`docs/design/Hirepair_Brand_Manual.html`](./docs/design/Hirepair_Brand_Manual.html): brand, visual language, copy tone, logo use, and accessibility decisions involving the identity.
+- [`docs/backend/operational-foundation.md`](./docs/backend/operational-foundation.md): API operational configuration, CORS, rate limiting, observability, and deployment safeguards.
+
+---
+
 ## 4. Local Environment Setup
 
 - **Configure**: `cp .env.example .env` (defaults already work locally).

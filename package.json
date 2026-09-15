@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build": "npm run build --workspaces --if-present",
@@ -41,5 +41,6 @@
     "lint-staged": "^16.0.0",
     "prettier": "^3.8.1",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "npm@11.6.0"
 }

@@ -2,9 +2,12 @@ import {
   BadGatewayException,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiProvider, AiTextGenerationRequest, AiTextGenerationResult } from './ai.types';
+import { GLOBAL_TRACE_ID_HEADER } from '../common/request-context/request-context.constants';
+import { RequestContextService } from '../common/request-context/request-context.service';
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
@@ -39,6 +42,8 @@ class AiProviderError extends Error {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+
+  constructor(@Optional() private readonly requestContext?: RequestContextService) {}
 
   /**
    * Gera texto sem expor a troca de provedores a quem controla a conversa.
@@ -188,7 +193,15 @@ export class AiService {
     const timeout = setTimeout(controller.abort.bind(controller), this.timeoutMs());
 
     try {
-      const response = await fetch(url, { ...init, method: 'POST', signal: controller.signal });
+      const headers = new Headers(init.headers);
+      const traceId = this.requestContext?.getTraceId();
+      if (traceId) headers.set(GLOBAL_TRACE_ID_HEADER, traceId);
+      const response = await fetch(url, {
+        ...init,
+        headers,
+        method: 'POST',
+        signal: controller.signal,
+      });
       if (!response.ok) {
         throw new AiProviderError(provider.provider, provider.model, response.status);
       }

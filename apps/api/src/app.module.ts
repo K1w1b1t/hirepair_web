@@ -4,19 +4,15 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AiModule } from './ai/ai.module';
 import { validate } from './config/env.validation';
+import { CoreModule } from './core/core.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      // O `.env` deste monorepo vive na raiz; `apps/api/.env` e opcional e, se
-      // existir, sobrepoe (o primeiro arquivo a definir a variavel ganha).
-      envFilePath: ['.env', '../../.env'],
-      validate,
-    }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'], validate }),
+    CoreModule,
     AiModule,
     PrismaModule,
     QueuesModule,
