@@ -63,10 +63,8 @@ function safeHeaders(headers: Request['headers']): Record<string, unknown> {
 @Injectable()
 export class HttpLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(HttpLoggingInterceptor.name);
-  constructor(
-    private readonly cls: ClsService,
-    private readonly isProduction = process.env.NODE_ENV === 'production',
-  ) {}
+  private readonly isProduction = process.env.NODE_ENV === 'production';
+  constructor(private readonly cls: ClsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== 'http') return next.handle();

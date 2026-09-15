@@ -25,10 +25,22 @@ export function WizardShell({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link aria-label="Voltar para o início" className="wizard-icon-button" href="/">
-              ←
+              <svg
+                aria-hidden="true"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                width="20"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
             </Link>
             <Image
-              alt="Pair"
+              alt=""
               className="h-9 w-auto"
               height={41}
               priority

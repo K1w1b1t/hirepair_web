@@ -107,11 +107,14 @@
   min-height: 44px;
   min-width: 44px;
   place-items: center;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
   border-radius: 999px;
   color: var(--color-navy);
-  font-size: 1.25rem;
 }
 .wizard-icon-button:hover {
+  transform: translateX(-1px);
   background: rgb(51 51 100 / 8%);
 }
 .wizard-sheet {

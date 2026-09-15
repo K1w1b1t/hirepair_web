@@ -8,11 +8,11 @@ describe('ConversationPage', () => {
       screen.getByRole('heading', { level: 1, name: /vamos montar seu currículo/i }),
     ).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 5')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
-    expect(screen.getByRole('link', { name: /voltar para o início/i })).toHaveAttribute(
-      'href',
-      '/',
-    );
+    const backLink = screen.getByRole('link', { name: /voltar para o início/i });
+    expect(backLink).toHaveAttribute('href', '/');
+    expect(backLink).not.toHaveTextContent('←');
+    expect(backLink.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Pair' })).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/talent acquisition|pipeline|ATS/i);
   });
 

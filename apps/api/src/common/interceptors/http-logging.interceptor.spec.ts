@@ -6,6 +6,11 @@ import { REQUEST_CONTEXT_KEYS } from '../request-context/request-context.constan
 describe('HttpLoggingInterceptor', () => {
   const store: Record<string, unknown> = { [REQUEST_CONTEXT_KEYS.GLOBAL_TRACE_ID]: 'trace-1' };
   const cls = { get: (key: string) => store[key] } as never;
+  const createInterceptor = (isProduction: boolean) => {
+    const interceptor = new HttpLoggingInterceptor(cls);
+    Object.defineProperty(interceptor, 'isProduction', { value: isProduction });
+    return interceptor;
+  };
   const context = (request: object, statusCode = 200) =>
     ({
       getType: () => 'http',
@@ -23,7 +28,7 @@ describe('HttpLoggingInterceptor', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('logs only metadata in production', (done) => {
-    const interceptor = new HttpLoggingInterceptor(cls, true);
+    const interceptor = createInterceptor(true);
     interceptor
       .intercept(
         context({
@@ -53,7 +58,7 @@ describe('HttpLoggingInterceptor', () => {
   });
 
   it('redacts and bounds development payloads', (done) => {
-    const interceptor = new HttpLoggingInterceptor(cls, false);
+    const interceptor = createInterceptor(false);
     interceptor
       .intercept(
         context({
@@ -81,7 +86,7 @@ describe('HttpLoggingInterceptor', () => {
   });
 
   it('skips OPTIONS/non-http and classifies errors', (done) => {
-    const interceptor = new HttpLoggingInterceptor(cls, true);
+    const interceptor = createInterceptor(true);
     interceptor
       .intercept(context({ method: 'OPTIONS', url: '/', headers: {}, body: null }), {
         handle: () => of(null),

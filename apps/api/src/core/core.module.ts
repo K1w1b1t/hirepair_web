@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from '../auth/auth.module';
@@ -23,6 +23,7 @@ import { RequestContextModule } from '../common/request-context/request-context.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
   ],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
