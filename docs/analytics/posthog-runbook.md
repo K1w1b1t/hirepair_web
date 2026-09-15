@@ -22,6 +22,19 @@ Sem o token correspondente, cada integração é no-op. O upload de source maps 
 4. Crie outro destino Discord para `ai_fallback_triggered`, filtrado por `environment=production`.
 5. Crie o funil `session_started → facts_confirmed → resume_generated → whatsapp_shared`. Somente `session_started` tem hook atualmente; não simule os demais.
 
+## Cadastro na Vercel
+
+Use o mesmo Project API Key (token phc_...) do projeto compartilhado, obtido em **PostHog > Project settings**, nos campos de SDK. Use o host de ingestão US **https://us.i.posthog.com** (ou o host EU equivalente se o projeto estiver na região EU). **POSTHOG_API_KEY** é uma Personal API Key administrativa, obtida em **Personal API Keys**, e **POSTHOG_PROJECT_ID** vem de **Project settings**; ambos servem somente ao build de source maps.
+
+| Projeto Vercel   | Ambiente                   | Variáveis                                                                                                                     |
+| ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| hirepair-web-web | Preview (branch release)   | NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, NEXT_PUBLIC_POSTHOG_HOST, NEXT_PUBLIC_APP_ENV=staging, POSTHOG_API_KEY, POSTHOG_PROJECT_ID |
+| hirepair-web-web | Production (branch master) | mesmas variáveis, com NEXT_PUBLIC_APP_ENV=production                                                                          |
+| hirepair-web-api | Preview (branch release)   | POSTHOG_PROJECT_TOKEN, POSTHOG_HOST, POSTHOG_ENVIRONMENT=staging                                                              |
+| hirepair-web-api | Production (branch master) | mesmas variáveis, com POSTHOG_ENVIRONMENT=production                                                                          |
+
+Não cadastre esses segredos no GitHub Actions: os deploys são executados pela integração Git da Vercel.
+
 ## Operação e diagnóstico
 
 Após cada deploy de staging, aceite o aviso e confirme Live Events com `app=hirepair` e `environment=staging`. Confirme que nenhum evento surge após recusar/revogar, que inputs/textos estão mascarados e que URLs não têm query. Provoque uma exceção controlada, confira o stack trace simbolizado e o Discord. Provoque um fallback real e confirme que o payload contém somente provedores, modelos, status e trace ID.

@@ -5,6 +5,7 @@ jest.mock('posthog-js', () => ({
     captureException: jest.fn(),
     init: jest.fn(),
     opt_out_capturing: jest.fn(),
+    register: jest.fn(),
     reset: jest.fn(),
     stopSessionRecording: jest.fn(),
   },
@@ -40,7 +41,8 @@ describe('analytics', () => {
         api_host: 'https://us.i.posthog.com',
         autocapture: true,
         capture_exceptions: true,
-        capture_pageview: true,
+        capture_pageview: 'history_change',
+        loaded: expect.any(Function),
         sanitize_properties: expect.any(Function),
         session_recording: expect.objectContaining({
           maskAllInputs: true,
@@ -50,6 +52,13 @@ describe('analytics', () => {
         }),
       }),
     );
+    const loaded = jest.mocked(posthog.init).mock.calls[0][1]?.loaded;
+    loaded?.(posthog);
+    expect(posthog.register).toHaveBeenCalledWith({
+      app: 'hirepair',
+      environment: 'staging',
+      telemetry_source: 'browser',
+    });
     expect(posthog.capture).toHaveBeenCalledWith('session_started', {
       app: 'hirepair',
       environment: 'staging',

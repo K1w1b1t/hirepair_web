@@ -37,7 +37,10 @@ function initialize(): void {
       api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
       autocapture: true,
       capture_exceptions: true,
-      capture_pageview: true,
+      capture_pageview: 'history_change',
+      loaded: (client) => {
+        client.register(fixedProperties());
+      },
       sanitize_properties: (properties) => {
         for (const key of ['$current_url', '$referrer', '$prev_pageview_pathname']) {
           const value = properties[key];
