@@ -7,13 +7,13 @@ jest.mock('./analytics', () => ({
   setAnalyticsConsent: (value: string) => setConsent(value),
 }));
 describe('AnalyticsConsentControl', () => {
-  it('offers equivalent accept and deny actions and a permanent preferences control', () => {
+  it('uses reassuring copy and provides clear consent choices', () => {
     initialize.mockReturnValue(undefined);
     render(<AnalyticsConsentControl />);
-    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Agora não' }));
     expect(setConsent).toHaveBeenCalledWith('denied');
     fireEvent.click(screen.getByRole('button', { name: 'Preferências de cookies' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar cookies' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sim, quero ajudar' }));
     expect(setConsent).toHaveBeenCalledWith('granted');
   });
 });

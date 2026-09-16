@@ -25,28 +25,36 @@ export function AnalyticsConsentControl() {
           aria-describedby="analytics-description"
           className="analytics-consent__dialog"
         >
-          <strong id="analytics-title">Cookies opcionais</strong>
-          <p id="analytics-description">
-            Usamos cookies opcionais para entender o que funciona no site e corrigir problemas. Você
-            pode aceitar ou recusar; os recursos essenciais continuam funcionando.
-          </p>
-          <a className="analytics-consent__policy" href="/legal#cookies">
-            Leia nossa Política de Cookies
-          </a>
+          <div className="analytics-consent__content">
+            <span className="analytics-consent__icon" aria-hidden="true">
+              🍪
+            </span>
+            <div>
+              <strong id="analytics-title">Quer ajudar a melhorar sua experiência?</strong>
+              <p id="analytics-description">
+                Com sua permissão, usamos cookies opcionais para entender o que funciona bem e
+                corrigir problemas. Eles não são usados para publicidade, e o Hirepair continua
+                funcionando normalmente se você recusar.
+              </p>
+              <a className="analytics-consent__policy" href="/legal#cookies">
+                Como usamos cookies
+              </a>
+            </div>
+          </div>
           <div className="analytics-consent__actions">
             <button
               type="button"
-              className="button button-primary button-small"
+              className="analytics-consent__action analytics-consent__action--accept"
               onClick={() => choose('granted')}
             >
-              Aceitar cookies
+              Sim, quero ajudar
             </button>
             <button
               type="button"
-              className="button button-outline button-small"
+              className="analytics-consent__action analytics-consent__action--decline"
               onClick={() => choose('denied')}
             >
-              Recusar
+              Agora não
             </button>
           </div>
         </div>
