@@ -1,9 +1,11 @@
 name: Supabase Migrations Deploy
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - master
+      - main
       - release
     paths:
       - 'apps/api/prisma/**'
@@ -17,14 +19,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: migrations-${{ github.ref }}
+  group: migrations-${{ github.event.pull_request.base.ref }}
   cancel-in-progress: false
 
 jobs:
   migrate:
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/release'
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/master' && 'Production' || 'Preview' }}
+    environment: ${{ github.event.pull_request.base.ref == 'release' && 'Preview' || 'Production' }}
     env:
       DIRECT_URL: ${{ secrets.SUPABASE_DB_URL }}
 
