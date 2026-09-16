@@ -245,3 +245,22 @@ to prove idempotency. When you change the schema, run these locally too:
 ```bash
 npm run db:up && npm run db:migrate && npm run db:seed && npm run db:seed
 ```
+
+---
+
+## 8. Analytics e telemetria PostHog
+
+- Todo evento inclui app=hirepair, environment e telemetry_source; nunca envie PII, curriculo, prompt, respostas, corpo, headers, query strings ou tokens.
+- Analytics, Error Tracking e Session Replay do navegador exigem consentimento explicito. A revogacao interrompe a coleta. Preserve maskAllInputs=true, maskTextSelector=* e a remocao de query strings.
+- A telemetria operacional anonima do servidor independe do consentimento e permanece fail-open.
+- A taxonomia e session_started, facts_confirmed, resume_generated, whatsapp_shared e ai_fallback_triggered. Os quatro eventos do funil compartilham funnel_session_id.
+- session_started pertence a entrada real em /conversa. Os hooks futuros ficam na confirmacao efetiva dos fatos, no sucesso da geracao do curriculo e na confirmacao do compartilhamento por WhatsApp; nao emita acoes artificiais.
+- Valide em staging a separacao por app/ambiente, ausencia de coleta antes do opt-in, replay mascarado, source maps e destinos Discord conforme docs/analytics/posthog-runbook.md.
+
+### Uso no codigo
+
+- Importe `captureAnalyticsEvent` de `apps/web/src/analytics/analytics.ts` somente em uma transicao de negocio concluida. Eventos do funil: `session_started` ao entrar de verdade em `/conversa`; `facts_confirmed` ao confirmar fatos; `resume_generated` quando a geracao termina com sucesso; `whatsapp_shared` quando o compartilhamento e confirmado. Todos carregam o mesmo `funnel_session_id`.
+- Nao emita eventos para placeholders, renderizacao, cliques antes de sucesso, validacao ou tentativas falhas. Os tres eventos futuros continuam proibidos enquanto os respectivos passos nao existirem no produto.
+- Eventos automaticos usam as propriedades registradas no SDK. Para eventos manuais, nao acrescente PII nem propriedades livres; o helper fornece `app=hirepair`, `environment` e `telemetry_source=browser`.
+- Replay e sampling sao configurados no dashboard do projeto compartilhado: trigger group de 10% geral consentido e outro de 100% quando ocorre `$exception`.
+- Preview/release usa `NEXT_PUBLIC_APP_ENV=staging` e Production/master usa `NEXT_PUBLIC_APP_ENV=production`; consulte o runbook para a matriz Vercel e nunca ponha tokens em Actions ou codigo.

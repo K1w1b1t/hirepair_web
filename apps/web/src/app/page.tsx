@@ -349,6 +349,12 @@ export default function Home() {
               </a>
             </p>
           </div>
+          <a
+            className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4"
+            href="/legal"
+          >
+            Privacidade, cookies e termos
+          </a>
         </div>
       </footer>
     </main>
