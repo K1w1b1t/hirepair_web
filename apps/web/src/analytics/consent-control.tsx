@@ -17,7 +17,7 @@ export function AnalyticsConsentControl() {
     setOpen(false);
   };
   return (
-    <div className="analytics-consent" aria-label="Preferências de privacidade">
+    <div className="analytics-consent" aria-label="Preferências de cookies">
       {decision === undefined || open ? (
         <div
           role="dialog"
@@ -25,10 +25,10 @@ export function AnalyticsConsentControl() {
           aria-describedby="analytics-description"
           className="analytics-consent__dialog"
         >
-          <strong id="analytics-title">Analytics e reprodução de sessão</strong>
+          <strong id="analytics-title">Cookies opcionais</strong>
           <p id="analytics-description">
-            Com sua permissão, usamos o PostHog para entender o uso e corrigir erros. Textos e
-            campos são mascarados. Você pode mudar esta escolha quando quiser.
+            Usamos cookies opcionais para entender o que funciona no site e corrigir problemas. Você
+            pode aceitar ou recusar; os recursos essenciais continuam funcionando.
           </p>
           <div className="analytics-consent__actions">
             <button
@@ -36,7 +36,7 @@ export function AnalyticsConsentControl() {
               className="button button-primary button-small"
               onClick={() => choose('granted')}
             >
-              Aceitar
+              Aceitar cookies
             </button>
             <button
               type="button"
@@ -53,7 +53,7 @@ export function AnalyticsConsentControl() {
           className="analytics-consent__preferences"
           onClick={() => setOpen(true)}
         >
-          Preferências de privacidade
+          Preferências de cookies
         </button>
       )}
     </div>

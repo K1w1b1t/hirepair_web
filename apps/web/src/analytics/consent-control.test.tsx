@@ -12,8 +12,8 @@ describe('AnalyticsConsentControl', () => {
     render(<AnalyticsConsentControl />);
     fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
     expect(setConsent).toHaveBeenCalledWith('denied');
-    fireEvent.click(screen.getByRole('button', { name: 'Preferências de privacidade' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preferências de cookies' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar cookies' }));
     expect(setConsent).toHaveBeenCalledWith('granted');
   });
 });

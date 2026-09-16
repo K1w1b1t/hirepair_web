@@ -38,6 +38,14 @@ describe('Home', () => {
     }
   });
 
+  it('links to the legal information', () => {
+    render(<Home />);
+    expect(screen.getByRole('link', { name: 'Privacidade, cookies e termos' })).toHaveAttribute(
+      'href',
+      '/legal',
+    );
+  });
+
   it('renders the official HirePair logo', () => {
     render(<Home />);
 
