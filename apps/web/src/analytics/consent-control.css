@@ -32,9 +32,15 @@
   display: flex;
   flex: 0 0 auto;
   font-size: 1.15rem;
+  color: var(--color-success);
   height: 2.5rem;
   justify-content: center;
   width: 2.5rem;
+}
+
+.analytics-consent__icon svg {
+  height: 1.35rem;
+  width: 1.35rem;
 }
 
 .analytics-consent__dialog strong {

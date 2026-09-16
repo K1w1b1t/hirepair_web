@@ -27,7 +27,23 @@ export function AnalyticsConsentControl() {
         >
           <div className="analytics-consent__content">
             <span className="analytics-consent__icon" aria-hidden="true">
-              🍪
+              <svg
+                aria-hidden="true"
+                fill="none"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-4-4 4 4 0 0 1-4-4"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+                <circle cx="8" cy="13" r="1" fill="currentColor" />
+                <circle cx="12" cy="17" r="1" fill="currentColor" />
+                <circle cx="16" cy="14" r="1" fill="currentColor" />
+              </svg>
             </span>
             <div>
               <strong id="analytics-title">Quer ajudar a melhorar sua experiência?</strong>
