@@ -62,7 +62,8 @@
   font-family: var(--font-heading);
   font-size: 0.75rem;
   font-weight: 650;
-  margin-top: 0.8rem;
+  margin-right: auto;
+  margin-top: 0;
   padding: 0.42rem 0.7rem;
   text-decoration: none;
 }

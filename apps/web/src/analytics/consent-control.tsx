@@ -36,25 +36,25 @@ export function AnalyticsConsentControl() {
                 corrigir problemas. Eles não são usados para publicidade, e o Hirepair continua
                 funcionando normalmente se você recusar.
               </p>
-              <a className="analytics-consent__policy" href="/legal#cookies">
-                Como usamos cookies
-              </a>
             </div>
           </div>
           <div className="analytics-consent__actions">
-            <button
-              type="button"
-              className="analytics-consent__action analytics-consent__action--accept"
-              onClick={() => choose('granted')}
-            >
-              Sim, quero ajudar
-            </button>
+            <a className="analytics-consent__policy" href="/legal#cookies">
+              Como usamos cookies
+            </a>
             <button
               type="button"
               className="analytics-consent__action analytics-consent__action--decline"
               onClick={() => choose('denied')}
             >
               Agora não
+            </button>
+            <button
+              type="button"
+              className="analytics-consent__action analytics-consent__action--accept"
+              onClick={() => choose('granted')}
+            >
+              Sim, quero ajudar
             </button>
           </div>
         </div>
