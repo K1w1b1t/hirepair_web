@@ -7,13 +7,6 @@ on:
       - master
       - main
       - release
-    paths:
-      - 'apps/api/prisma/**'
-      - 'apps/api/prisma.config.ts'
-      - 'apps/api/package.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/supabase-migrations.yml'
 
 permissions:
   contents: read
@@ -26,13 +19,15 @@ jobs:
   migrate:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    environment: ${{ github.event.pull_request.base.ref == 'release' && 'Preview' || 'Production' }}
+    environment: ${{ github.event.pull_request.base.ref == 'release' && 'Staging' || 'Production' }}
     env:
-      DIRECT_URL: ${{ secrets.SUPABASE_DB_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout destination branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -41,7 +36,7 @@ jobs:
           cache: npm
 
       - name: Check required secret
-        run: test -n "$DIRECT_URL" || { echo "Missing SUPABASE_DB_URL"; exit 1; }
+        run: test -n "$DATABASE_URL" || { echo "Missing DATABASE_URL"; exit 1; }
 
       - name: Install dependencies
         run: npm ci
