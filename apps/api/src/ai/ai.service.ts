@@ -2,9 +2,14 @@ import {
   BadGatewayException,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { AiProvider, AiTextGenerationRequest, AiTextGenerationResult } from './ai.types';
+import { GLOBAL_TRACE_ID_HEADER } from '../common/request-context/request-context.constants';
+import { RequestContextService } from '../common/request-context/request-context.service';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
@@ -40,6 +45,11 @@ class AiProviderError extends Error {
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
+  constructor(
+    @Optional() private readonly requestContext?: RequestContextService,
+    @Optional() private readonly telemetry?: TelemetryService,
+  ) {}
+
   /**
    * Gera texto sem expor a troca de provedores a quem controla a conversa.
    * Apenas indisponibilidade temporaria (429/503) avanca pela cadeia; os demais
@@ -53,7 +63,7 @@ export class AiService {
 
     let lastError: AiProviderError | undefined;
 
-    for (const provider of providers) {
+    for (const [index, provider] of providers.entries()) {
       try {
         const text = await this.generateWithProvider(provider, request);
         return { text, provider: provider.provider, model: provider.model };
@@ -71,6 +81,15 @@ export class AiService {
         }
 
         lastError = error;
+        const nextProvider = providers[index + 1];
+        await this.telemetry?.captureAiFallback({
+          fromProvider: provider.provider,
+          fromModel: provider.model,
+          toProvider: nextProvider.provider,
+          toModel: nextProvider.model,
+          status: error.status ?? 503,
+          traceId: this.requestContext?.getTraceId() ?? randomUUID(),
+        });
         this.logger.warn(
           `IA temporariamente indisponivel em ${provider.provider} (${provider.model}, HTTP ${error.status}); alternando provedor.`,
         );
@@ -188,7 +207,15 @@ export class AiService {
     const timeout = setTimeout(controller.abort.bind(controller), this.timeoutMs());
 
     try {
-      const response = await fetch(url, { ...init, method: 'POST', signal: controller.signal });
+      const headers = new Headers(init.headers);
+      const traceId = this.requestContext?.getTraceId();
+      if (traceId) headers.set(GLOBAL_TRACE_ID_HEADER, traceId);
+      const response = await fetch(url, {
+        ...init,
+        headers,
+        method: 'POST',
+        signal: controller.signal,
+      });
       if (!response.ok) {
         throw new AiProviderError(provider.provider, provider.model, response.status);
       }

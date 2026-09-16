@@ -1,9 +1,11 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsIn,
+  IsBooleanString,
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   Max,
   Min,
   MinLength,
@@ -58,6 +60,38 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   NEXT_PUBLIC_SITE_URL?: string;
+
+  /** Lista JSON de origens permitidas pelo CORS. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  CORS_ORIGIN?: string;
+
+  /** Expõe o Swagger em produção somente por opt-in. */
+  @IsOptional()
+  @IsBooleanString()
+  API_DOCS_ENABLED?: string;
+
+  /** Webhook opcional para alertas operacionais 500 e jobs esgotados. */
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  DISCORD_WEBHOOK_URL?: string;
+
+  /** Token opcional do projeto PostHog para telemetria operacional. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  POSTHOG_PROJECT_TOKEN?: string;
+
+  /** Host de ingestao do PostHog Cloud US. */
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  POSTHOG_HOST?: string;
+
+  /** Ambiente obrigatorio em cada evento quando a telemetria esta configurada. */
+  @IsOptional()
+  @IsIn(['development', 'staging', 'production'])
+  POSTHOG_ENVIRONMENT?: 'development' | 'staging' | 'production';
 
   /** URL TCP do Redis gerenciado; `rediss://` ativa TLS no Upstash. */
   @IsOptional()

@@ -140,13 +140,8 @@ export default function Home() {
               legível para recrutadores e sistemas de seleção.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                className="button button-primary"
-                href={whatsappUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Conversar pelo WhatsApp <WhatsAppIcon />
+              <a className="button button-primary" href="/conversa">
+                Começar a conversa
               </a>
               <a className="button button-secondary" href={emailUrl}>
                 Enviar um e-mail <MailIcon />
@@ -354,6 +349,12 @@ export default function Home() {
               </a>
             </p>
           </div>
+          <a
+            className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4"
+            href="/legal"
+          >
+            Privacidade, cookies e termos
+          </a>
         </div>
       </footer>
     </main>
