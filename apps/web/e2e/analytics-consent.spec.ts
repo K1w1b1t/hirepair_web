@@ -11,15 +11,15 @@ test('persiste recusa, permite revogação e não contacta PostHog antes do opt-
   await page.goto('/conversa?email=private@example.com');
   expect(postHogRequests).toBe(0);
   await page.getByRole('button', { name: 'Recusar' }).click();
-  await expect(page.getByRole('button', { name: 'Preferências de privacidade' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Preferências de privacidade' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
   expect(postHogRequests).toBe(0);
 
-  await page.getByRole('button', { name: 'Preferências de privacidade' }).click();
-  await page.getByRole('button', { name: 'Aceitar' }).click();
+  await page.getByRole('button', { name: 'Preferências de cookies' }).click();
+  await page.getByRole('button', { name: 'Aceitar cookies' }).click();
   await expect.poll(() => postHogRequests).toBeGreaterThan(0);
-  await page.getByRole('button', { name: 'Preferências de privacidade' }).click();
+  await page.getByRole('button', { name: 'Preferências de cookies' }).click();
   await page.getByRole('button', { name: 'Recusar' }).click();
-  await expect(page.getByRole('button', { name: 'Preferências de privacidade' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
 });

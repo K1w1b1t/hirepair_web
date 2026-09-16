@@ -30,6 +30,9 @@ export function AnalyticsConsentControl() {
             Usamos cookies opcionais para entender o que funciona no site e corrigir problemas. Você
             pode aceitar ou recusar; os recursos essenciais continuam funcionando.
           </p>
+          <a className="analytics-consent__policy" href="/legal#cookies">
+            Leia nossa Política de Cookies
+          </a>
           <div className="analytics-consent__actions">
             <button
               type="button"
