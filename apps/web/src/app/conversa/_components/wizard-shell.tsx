@@ -48,7 +48,7 @@ export function WizardShell({
               width={34}
             />
             <span className="font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]">
-              Pair
+              Hire<span className="text-[var(--color-primary)]">Pair</span>
             </span>
           </div>
           <span className="text-xs text-[var(--color-text-dim)]">
