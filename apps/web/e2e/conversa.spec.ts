@@ -28,4 +28,15 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByRole('complementary')).toBeVisible();
     await expect(page.getByRole('button', { name: /ver currículo/i })).toBeHidden();
   });
+
+  test('extrai um currículo PDF selecionado pelo usuário', async ({ page }) => {
+    await page.goto('/conversa');
+
+    await page.getByLabel('Enviar currículo').setInputFiles('e2e/fixtures/mock-resume.pdf');
+
+    await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
+    await expect(page.getByText('Gabriel Rodrigues')).toBeVisible();
+    await expect(page.getByText('Engenheiro de software')).toBeVisible();
+    await expect(page.getByText(/currículo disponível/i)).toBeVisible();
+  });
 });
