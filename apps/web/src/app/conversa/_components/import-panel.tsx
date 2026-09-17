@@ -1,68 +1,120 @@
 'use client';
 
-import { useState } from 'react';
-import { diagnoseResumeText, type DiagnosticFinding } from '../_lib/diagnostic';
+import { useEffect, useRef, useState } from 'react';
+import { diagnoseResumeText, sortDiagnosticFindings } from '../_lib/diagnostic';
 import {
   extractTextFromFile,
   extractedTextFromPaste,
   type ExtractedText,
 } from '../_lib/extract-text';
+import {
+  deleteStoredResume,
+  listStoredResumes,
+  saveStoredResume,
+  toStoredResume,
+  type StoredResume,
+} from '../_lib/resume-storage';
 import { DiagnosticFindings } from './diagnostic-findings';
 import { ExtractedTextView } from './extracted-text-view';
 import { FileDropzone } from './file-dropzone';
 
 export interface ImportPanelProps {
   onDocumentChange?: (document: ExtractedText | null) => void;
+  onDocumentsChange?: (documents: StoredResume[]) => void;
 }
 
 type PanelView = 'findings' | 'text';
 
-export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
-  const [document, setDocument] = useState<ExtractedText | null>(null);
-  const [findings, setFindings] = useState<DiagnosticFinding[]>([]);
+export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanelProps) {
+  const [documents, setDocuments] = useState<StoredResume[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [view, setView] = useState<PanelView>('findings');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLocalChanges = useRef(false);
 
-  const setExtractedDocument = (nextDocument: ExtractedText) => {
-    setDocument(nextDocument);
-    setFindings(diagnoseResumeText(nextDocument.text));
+  useEffect(() => {
+    let mounted = true;
+    void listStoredResumes().then((storedResumes) => {
+      if (!mounted) return;
+      if (!hasLocalChanges.current) {
+        setDocuments(storedResumes);
+        setActiveId(storedResumes[0]?.id ?? null);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const activeDocument = documents.find((item) => item.id === activeId) ?? documents[0] ?? null;
+  const allFindings = sortDiagnosticFindings(documents.flatMap((document) => document.findings));
+
+  useEffect(() => {
+    onDocumentsChange?.(documents);
+    onDocumentChange?.(activeDocument);
+  }, [activeDocument, documents, onDocumentChange, onDocumentsChange]);
+
+  const addDocument = async (document: ExtractedText) => {
+    hasLocalChanges.current = true;
+    const storedDocument = toStoredResume(document, diagnoseResumeText(document.text));
+    await saveStoredResume(storedDocument);
+    setDocuments((current) => [...current, storedDocument]);
+    setActiveId(storedDocument.id);
     setView('findings');
     setIsConfirmed(false);
-    setError(null);
-    onDocumentChange?.(nextDocument);
   };
 
-  const handleFile = async (file: File) => {
+  const handleFiles = async (files: File[]) => {
     setIsProcessing(true);
     setError(null);
-    setIsConfirmed(false);
-    try {
-      setExtractedDocument(await extractTextFromFile(file));
-    } catch (caught) {
-      setDocument(null);
-      setFindings([]);
-      setError(caught instanceof Error ? caught.message : 'Não foi possível ler esse arquivo.');
-      onDocumentChange?.(null);
-    } finally {
-      setIsProcessing(false);
+    const errors: string[] = [];
+    for (const file of files) {
+      try {
+        await addDocument(await extractTextFromFile(file));
+      } catch (caught) {
+        errors.push(
+          `${file.name}: ${caught instanceof Error ? caught.message : 'não foi possível ler.'}`,
+        );
+      }
     }
+    if (errors.length > 0) setError(errors.join(' '));
+    setIsProcessing(false);
   };
 
   const handlePaste = (value: string) => {
-    if (!value.trim()) {
-      setDocument(null);
-      setFindings([]);
-      setError(null);
-      onDocumentChange?.(null);
-      return;
-    }
+    if (!value.trim()) return;
     try {
-      setExtractedDocument(extractedTextFromPaste(value));
+      hasLocalChanges.current = true;
+      const document = extractedTextFromPaste(value);
+      const findings = diagnoseResumeText(document.text);
+      const previous = documents.find((item) => item.source === 'pasted');
+      const storedDocument = previous
+        ? { ...previous, text: document.text, findings }
+        : toStoredResume(document, findings);
+      void saveStoredResume(storedDocument);
+      setDocuments((current) =>
+        previous
+          ? current.map((item) => (item.id === previous.id ? storedDocument : item))
+          : [...current, storedDocument],
+      );
+      setActiveId(storedDocument.id);
+      setView('findings');
+      setIsConfirmed(false);
+      setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Não encontramos texto nesse arquivo.');
     }
+  };
+
+  const removeActiveDocument = async () => {
+    if (!activeDocument) return;
+    await deleteStoredResume(activeDocument.id);
+    const remaining = documents.filter((item) => item.id !== activeDocument.id);
+    setDocuments(remaining);
+    setActiveId(remaining[0]?.id ?? null);
+    setIsConfirmed(false);
   };
 
   return (
@@ -70,17 +122,24 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
       <div>
         <p className="section-kicker">Etapa 1 · trazer o que você já tem</p>
         <h1 className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-medium leading-tight tracking-[-0.025em] text-[var(--color-navy)] sm:text-5xl">
-          Vamos começar pelo seu currículo antigo.
+          Vamos começar pela sua jornada profissional.
         </h1>
         <p className="mt-4 max-w-xl text-lg leading-8 text-[var(--color-text-muted)]">
-          A gente lê o documento como os sistemas de triagem leem e mostra o que merece atenção, sem
-          julgamento.
+          Você pode trazer um ou mais currículos. A gente lê tudo como os sistemas de triagem leem e
+          mostra o que merece atenção, sem julgamento.
         </p>
       </div>
 
-      {!document && !isProcessing ? (
-        <FileDropzone disabled={isProcessing} onFile={handleFile} />
-      ) : null}
+      {!isProcessing ? <FileDropzone disabled={false} onFiles={handleFiles} /> : null}
+
+      <div aria-label="Outras formas de começar" className="import-path-options">
+        <button className="button button-outline" disabled type="button">
+          Escrever do zero · em breve
+        </button>
+        <button className="button button-outline" disabled type="button">
+          Falar sobre minha jornada · em breve
+        </button>
+      </div>
 
       <div className="import-paste-block">
         <label
@@ -102,7 +161,7 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
       {isProcessing ? (
         <div aria-live="polite" className="import-processing" role="status">
           <span className="import-processing-dot" />
-          Lendo seu currículo em ordem, como uma máquina faria...
+          Lendo seus currículos em ordem, como uma máquina faria...
         </div>
       ) : null}
 
@@ -120,16 +179,46 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
         </div>
       ) : null}
 
-      {document && !isProcessing ? (
+      {documents.length > 0 && !isProcessing && activeDocument ? (
         <section aria-live="polite" className="import-result">
+          <div className="import-collection-summary">
+            <strong>
+              {documents.length}{' '}
+              {documents.length === 1 ? 'currículo disponível' : 'currículos disponíveis'}
+            </strong>
+            <span>Todos serão considerados juntos no começo do processo.</span>
+          </div>
+          <div aria-label="Currículos adicionados" className="import-document-list" role="list">
+            {documents.map((document) => (
+              <button
+                aria-pressed={document.id === activeDocument.id}
+                className={`import-document-item ${document.id === activeDocument.id ? 'is-active' : ''}`}
+                key={document.id}
+                onClick={() => {
+                  setActiveId(document.id);
+                  setView('findings');
+                }}
+                type="button"
+              >
+                <span>
+                  <strong>{document.fileName}</strong>
+                  <small>
+                    {document.findings.length}{' '}
+                    {document.findings.length === 1 ? 'achado' : 'achados'}
+                  </small>
+                </span>
+                <span className="import-document-type">{document.fileType}</span>
+              </button>
+            ))}
+          </div>
           <div className="import-document-heading">
             <div>
-              <p className="text-sm text-[var(--color-text-dim)]">Documento analisado</p>
+              <p className="text-sm text-[var(--color-text-dim)]">Documento em visualização</p>
               <h2 className="mt-1 font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]">
-                {document.fileName}
+                {activeDocument.fileName}
               </h2>
             </div>
-            <span className="import-document-type">{document.fileType}</span>
+            <span className="import-document-type">{activeDocument.fileType}</span>
           </div>
           <div className="import-tabs" role="tablist" aria-label="Resultado da leitura">
             <button
@@ -139,7 +228,7 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
               role="tab"
               type="button"
             >
-              Diagnóstico
+              Diagnóstico agregado
             </button>
             <button
               aria-selected={view === 'text'}
@@ -152,17 +241,19 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
             </button>
           </div>
           <p aria-live="polite" className="sr-only" role="status">
-            {findings.length} {findings.length === 1 ? 'achado encontrado' : 'achados encontrados'}
+            {allFindings.length}{' '}
+            {allFindings.length === 1 ? 'achado encontrado' : 'achados encontrados'} em todos os
+            currículos
           </p>
           {view === 'findings' ? (
-            <DiagnosticFindings findings={findings} />
+            <DiagnosticFindings findings={allFindings} />
           ) : (
-            <ExtractedTextView text={document.text} />
+            <ExtractedTextView text={activeDocument.text} />
           )}
           <div className="import-actions">
             {isConfirmed ? (
               <p className="import-confirmed" role="status">
-                Currículo confirmado. Vamos continuar a partir dele.
+                Currículos prontos para o começo do processo.
               </p>
             ) : (
               <button
@@ -170,20 +261,15 @@ export function ImportPanel({ onDocumentChange }: ImportPanelProps) {
                 onClick={() => setIsConfirmed(true)}
                 type="button"
               >
-                Continuar com este currículo
+                Continuar com estes currículos
               </button>
             )}
             <button
               className="button button-outline button-small"
-              onClick={() => {
-                setDocument(null);
-                setFindings([]);
-                setIsConfirmed(false);
-                onDocumentChange?.(null);
-              }}
+              onClick={() => void removeActiveDocument()}
               type="button"
             >
-              Trocar de arquivo
+              Remover este currículo
             </button>
           </div>
         </section>

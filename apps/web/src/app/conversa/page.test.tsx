@@ -5,7 +5,7 @@ describe('ConversationPage', () => {
   it('presents the old resume import step without HR jargon', () => {
     render(<ConversationPage />);
     expect(
-      screen.getByRole('heading', { level: 1, name: /currículo antigo/i }),
+      screen.getByRole('heading', { level: 1, name: /jornada profissional/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();

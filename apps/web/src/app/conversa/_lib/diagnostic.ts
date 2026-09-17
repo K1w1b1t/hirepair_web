@@ -140,8 +140,12 @@ function sensitiveFindings(text: string): DiagnosticFinding[] {
   ];
 }
 
-export function diagnoseResumeText(text: string): DiagnosticFinding[] {
-  return [...parsingFindings(text), ...sensitiveFindings(text)].sort(
+export function sortDiagnosticFindings(findings: DiagnosticFinding[]): DiagnosticFinding[] {
+  return [...findings].sort(
     (first, second) => severityOrder[first.severity] - severityOrder[second.severity],
   );
+}
+
+export function diagnoseResumeText(text: string): DiagnosticFinding[] {
+  return sortDiagnosticFindings([...parsingFindings(text), ...sensitiveFindings(text)]);
 }

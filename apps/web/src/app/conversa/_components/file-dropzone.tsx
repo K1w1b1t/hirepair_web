@@ -3,24 +3,24 @@
 import { useRef, type DragEvent, type ChangeEvent } from 'react';
 
 interface FileDropzoneProps {
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
   disabled?: boolean;
 }
 
-export function FileDropzone({ onFile, disabled = false }: FileDropzoneProps) {
+export function FileDropzone({ onFiles, disabled = false }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) onFile(file);
+    const files = Array.from(event.target.files ?? []);
+    if (files.length > 0) onFiles(files);
     event.target.value = '';
   };
 
   const dropFile = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (!disabled) {
-      const file = event.dataTransfer.files[0];
-      if (file) onFile(file);
+      const files = Array.from(event.dataTransfer.files);
+      if (files.length > 0) onFiles(files);
     }
   };
 
@@ -38,13 +38,14 @@ export function FileDropzone({ onFile, disabled = false }: FileDropzoneProps) {
         className="sr-only"
         disabled={disabled}
         onChange={selectFile}
+        multiple
         type="file"
       />
       <span aria-hidden="true" className="import-file-icon">
         ↑
       </span>
       <p className="font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]">
-        Solte seu currículo aqui
+        Solte seus currículos aqui
       </p>
       <p className="mt-1 text-sm text-[var(--color-text-muted)]">
         PDF, DOCX, TXT ou MD · até 10 MB

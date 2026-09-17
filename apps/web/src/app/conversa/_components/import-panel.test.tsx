@@ -1,17 +1,23 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { clearStoredResumes } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 
 describe('ImportPanel', () => {
-  it('renders an accessible empty state with upload and paste options', () => {
-    render(<ImportPanel />);
-
-    expect(screen.getByRole('heading', { name: /currículo antigo/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
-    expect(screen.getByText(/pdf, docx, txt ou md/i)).toBeInTheDocument();
+  beforeEach(async () => {
+    await clearStoredResumes();
   });
 
-  it('diagnoses pasted text and lets the user switch to the extracted view', async () => {
+  it('renders an accessible empty state with upload, paste, and future paths', () => {
+    render(<ImportPanel />);
+
+    expect(screen.getByRole('heading', { name: /jornada profissional/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /escrever do zero/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /falar sobre minha jornada/i })).toBeDisabled();
+  });
+
+  it('diagnoses pasted text and exposes the aggregated findings and extracted view', async () => {
     render(<ImportPanel />);
     const textarea = screen.getByLabelText(/colar o texto/i);
 
@@ -28,23 +34,26 @@ describe('ImportPanel', () => {
     expect(screen.getByText(/Experiênciade atendimento/)).toBeInTheDocument();
   });
 
-  it('accepts a text file and confirms the document', async () => {
-    const onDocumentChange = jest.fn();
-    render(<ImportPanel onDocumentChange={onDocumentChange} />);
+  it('keeps multiple uploaded documents and removes only the active one', async () => {
+    render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
-    const file = new File(['Atendimento ao cliente'], 'curriculo.txt', { type: 'text/plain' });
+    const first = new File(['Atendimento ao cliente'], 'curriculo.txt', { type: 'text/plain' });
+    const second = new File(['Analista de suporte'], 'perfil.md', { type: 'text/markdown' });
 
-    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.change(input, { target: { files: [first, second] } });
 
-    expect(await screen.findByText('curriculo.txt')).toBeInTheDocument();
-    expect(onDocumentChange).toHaveBeenCalledWith(
-      expect.objectContaining({ fileName: 'curriculo.txt' }),
+    expect(await screen.findByText('2 currículos disponíveis')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /curriculo.txt/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /perfil.md/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /remover este currículo/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByText('2 currículos disponíveis')).not.toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole('button', { name: /continuar com este currículo/i }));
-    await waitFor(() => expect(screen.getByText(/currículo confirmado/i)).toBeInTheDocument());
+    expect(screen.getByText('1 currículo disponível')).toBeInTheDocument();
   });
 
-  it('shows a friendly error for invalid files and allows replacing them', async () => {
+  it('shows a friendly error for invalid files', async () => {
     render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
     const file = new File(['conteúdo'], 'curriculo.rtf', { type: 'application/rtf' });
@@ -52,6 +61,5 @@ describe('ImportPanel', () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/formato ainda não pode ser lido/i);
-    expect(screen.getByRole('button', { name: /trocar de arquivo/i })).toBeInTheDocument();
   });
 });
