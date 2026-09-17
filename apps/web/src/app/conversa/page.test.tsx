@@ -2,11 +2,13 @@ import { render, screen } from '@testing-library/react';
 import ConversationPage, { metadata } from './page';
 
 describe('ConversationPage', () => {
-  it('presents a welcoming first wizard step without HR jargon', () => {
+  it('presents the old resume import step without HR jargon', () => {
     render(<ConversationPage />);
     expect(
-      screen.getByRole('heading', { level: 1, name: /vamos montar seu currículo/i }),
+      screen.getByRole('heading', { level: 1, name: /currículo antigo/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 5')).toBeInTheDocument();
     const backLink = screen.getByRole('link', { name: /voltar para o início/i });
     expect(backLink).toHaveAttribute('href', '/');

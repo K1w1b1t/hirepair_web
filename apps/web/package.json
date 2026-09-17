@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@posthog/nextjs-config": "^1.7.6",
+    "mammoth": "^1.12.3",
     "next": "^15.2.0",
+    "pdfjs-dist": "^6.3.289",
     "posthog-js": "^1.433.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
