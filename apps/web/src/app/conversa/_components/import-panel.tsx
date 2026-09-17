@@ -132,12 +132,25 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
 
       {!isProcessing ? <FileDropzone disabled={false} onFiles={handleFiles} /> : null}
 
-      <div aria-label="Outras formas de começar" className="import-path-options">
-        <button className="button button-outline" disabled type="button">
-          Escrever do zero · em breve
-        </button>
-        <button className="button button-outline" disabled type="button">
-          Falar sobre minha jornada · em breve
+      <div aria-label="Jornada falada" className="import-voice-option">
+        <button className="button button-outline import-voice-button" disabled type="button">
+          <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+            <path
+              d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.8"
+            />
+            <path
+              d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.8"
+            />
+          </svg>
+          <span>Falar sobre minha jornada · em breve</span>
         </button>
       </div>
 

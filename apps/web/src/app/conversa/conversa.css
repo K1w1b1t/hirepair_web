@@ -178,12 +178,22 @@
   flex-direction: column;
   gap: 1rem;
 }
-.import-path-options {
+.import-voice-option {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.25rem 0;
 }
-.import-path-options button:disabled {
+.import-voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-color: rgb(99 111 193 / 38%);
+  color: var(--color-navy);
+}
+.import-voice-button svg {
+  color: var(--color-primary);
+}
+.import-voice-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }

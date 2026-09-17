@@ -7,14 +7,16 @@ describe('ImportPanel', () => {
     await clearStoredResumes();
   });
 
-  it('renders an accessible empty state with upload, paste, and future paths', () => {
+  it('renders an accessible empty state with upload, paste, and future voice path', () => {
     render(<ImportPanel />);
 
     expect(screen.getByRole('heading', { name: /jornada profissional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /escrever do zero/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /falar sobre minha jornada/i })).toBeDisabled();
+    const voiceButton = screen.getByRole('button', { name: /falar sobre minha jornada/i });
+    expect(voiceButton).toBeDisabled();
+    expect(voiceButton.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /escrever do zero/i })).not.toBeInTheDocument();
   });
 
   it('diagnoses pasted text and exposes the aggregated findings and extracted view', async () => {
