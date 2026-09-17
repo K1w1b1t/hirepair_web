@@ -7,7 +7,9 @@ test.describe('wizard acolhedor', () => {
     await page.getByRole('link', { name: 'Começar a conversa' }).click();
 
     await expect(page).toHaveURL(/\/conversa$/);
-    await expect(page.getByRole('heading', { name: /vamos montar seu currículo/i })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /vamos começar pelo seu currículo antigo/i }),
+    ).toBeVisible();
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
     await expect(page.getByRole('complementary')).toBeHidden();
     await page.getByRole('button', { name: 'Agora não' }).click();
