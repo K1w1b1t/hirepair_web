@@ -2,6 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 
+function textFile(content: string, name: string, type: string): File {
+  const file = new File([content], name, { type });
+  Object.defineProperty(file, 'text', { value: () => Promise.resolve(content) });
+  return file;
+}
+
 describe('ImportPanel', () => {
   beforeEach(async () => {
     await clearStoredResumes();
@@ -29,7 +35,7 @@ describe('ImportPanel', () => {
 
     expect(await screen.findByText(/palavras coladas/i)).toBeInTheDocument();
     expect(screen.getByText(/dado pessoal desnecessário/i)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/2 achados/i);
+    expect(screen.getByText(/2 achados encontrados em todos os currículos/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /texto como a máquina lê/i }));
     expect(screen.getByText(/o robô do ats enxerga/i)).toBeInTheDocument();
@@ -39,8 +45,8 @@ describe('ImportPanel', () => {
   it('keeps multiple uploaded documents and removes only the active one', async () => {
     render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
-    const first = new File(['Atendimento ao cliente'], 'curriculo.txt', { type: 'text/plain' });
-    const second = new File(['Analista de suporte'], 'perfil.md', { type: 'text/markdown' });
+    const first = textFile('Atendimento ao cliente', 'curriculo.txt', 'text/plain');
+    const second = textFile('Analista de suporte', 'perfil.md', 'text/markdown');
 
     fireEvent.change(input, { target: { files: [first, second] } });
 
@@ -58,7 +64,7 @@ describe('ImportPanel', () => {
   it('shows a friendly error for invalid files', async () => {
     render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
-    const file = new File(['conteúdo'], 'curriculo.rtf', { type: 'application/rtf' });
+    const file = textFile('conteúdo', 'curriculo.rtf', 'application/rtf');
 
     fireEvent.change(input, { target: { files: [file] } });
 

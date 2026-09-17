@@ -52,8 +52,9 @@ const camelLegitimate = new Set([
   'ios',
 ]);
 
-const camelPattern = /[A-Za-zÀ-ÿ]*[a-zà-ÿ]{2}[A-ZÀ-Þ][a-zà-ÿ][A-Za-zÀ-ÿ]*/g;
-const repeatedPattern = /\b([A-Za-zÀ-ÿ]{2,})\s+\1\b/gi;
+const wordPattern = /\b\p{L}+\b/gu;
+const camelWordPattern = /\p{Ll}{2}\p{Lu}\p{Ll}/u;
+const repeatedPattern = /\b(\p{L}{2,})\s+\1\b/giu;
 const gluedFunctionalPattern = /(?:de|da|do|dos|das|em|no|na|com|para|e)[A-ZÀ-Þ]/;
 const nominalSuffixes = [
   'ção',
@@ -87,7 +88,10 @@ function appearsGlued(token: string): boolean {
 }
 
 function parsingFindings(text: string): DiagnosticFinding[] {
-  const glued = [...text.matchAll(camelPattern)].map((match) => match[0]).filter(appearsGlued);
+  const glued = [...text.matchAll(wordPattern)]
+    .map((match) => match[0])
+    .filter((token) => camelWordPattern.test(token))
+    .filter(appearsGlued);
 
   for (const token of text.match(/\b[A-Za-zÀ-ÿ]{8,}\b/g) ?? []) {
     const lower = token.toLowerCase();

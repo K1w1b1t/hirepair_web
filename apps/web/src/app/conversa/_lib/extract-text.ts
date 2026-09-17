@@ -62,13 +62,7 @@ async function extractDocx(file: File): Promise<string> {
 }
 
 async function readPlainText(file: File): Promise<string> {
-  if (typeof file.text === 'function') return file.text();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(String(reader.result ?? '')));
-    reader.addEventListener('error', () => reject(reader.error));
-    reader.readAsText(file);
-  });
+  return file.text();
 }
 
 export async function extractTextFromFile(file: File): Promise<ExtractedText> {

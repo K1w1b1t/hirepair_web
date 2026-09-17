@@ -3,8 +3,8 @@
 import { useRef, type DragEvent, type ChangeEvent } from 'react';
 
 interface FileDropzoneProps {
-  onFiles: (files: File[]) => void;
-  disabled?: boolean;
+  readonly onFiles: (files: File[]) => void;
+  readonly disabled?: boolean;
 }
 
 export function FileDropzone({ onFiles, disabled = false }: FileDropzoneProps) {
@@ -25,9 +25,9 @@ export function FileDropzone({ onFiles, disabled = false }: FileDropzoneProps) {
   };
 
   return (
-    <div
+    <section
+      aria-label="Área para anexar currículos"
       className="import-dropzone"
-      role="region"
       onDragOver={(event) => event.preventDefault()}
       onDrop={dropFile}
     >
@@ -58,6 +58,6 @@ export function FileDropzone({ onFiles, disabled = false }: FileDropzoneProps) {
       >
         Escolher arquivo
       </button>
-    </div>
+    </section>
   );
 }

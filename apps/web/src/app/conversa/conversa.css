@@ -171,7 +171,7 @@
 .import-error {
   border: 1px solid rgb(166 56 56 / 24%);
   background: rgb(166 56 56 / 8%);
-  color: #7e2929;
+  color: #641b1b;
 }
 .import-result {
   display: flex;
@@ -214,6 +214,9 @@
 .import-document-list {
   display: grid;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .import-document-item {
   display: flex;

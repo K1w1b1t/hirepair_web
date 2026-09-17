@@ -10,8 +10,8 @@ function ResumePreview({
   document,
   documentCount,
 }: {
-  document: ExtractedText | null;
-  documentCount: number;
+  readonly document: ExtractedText | null;
+  readonly documentCount: number;
 }) {
   if (!document) {
     return (

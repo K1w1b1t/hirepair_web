@@ -1,4 +1,4 @@
-export function ExtractedTextView({ text }: { text: string }) {
+export function ExtractedTextView({ text }: { readonly text: string }) {
   return (
     <section aria-labelledby="extracted-text-title" className="import-extracted-text">
       <p className="section-kicker">Visão linear</p>

@@ -4,6 +4,7 @@ import type { ExtractedText } from './extract-text';
 const DATABASE_NAME = 'hirepair-resumes';
 const STORE_NAME = 'resumes';
 const DATABASE_VERSION = 1;
+let fallbackId = 0;
 
 export type StoredResume = ExtractedText & {
   id: string;
@@ -39,7 +40,7 @@ function runTransaction<T>(
   operation: (
     store: IDBObjectStore,
     resolve: (value: T) => void,
-    reject: (reason?: unknown) => void,
+    reject: (reason: Error) => void,
   ) => void,
 ): Promise<T> {
   return openDatabase().then(
@@ -48,8 +49,12 @@ function runTransaction<T>(
         const transaction = database.transaction(STORE_NAME, mode);
         operation(transaction.objectStore(STORE_NAME), resolve, reject);
         transaction.addEventListener('complete', () => database.close());
-        transaction.addEventListener('error', () => reject(transaction.error));
-        transaction.addEventListener('abort', () => reject(transaction.error));
+        transaction.addEventListener('error', () =>
+          reject(transaction.error ?? new Error('IndexedDB transaction failed.')),
+        );
+        transaction.addEventListener('abort', () =>
+          reject(transaction.error ?? new Error('IndexedDB transaction aborted.')),
+        );
       }),
   );
 }
@@ -61,7 +66,9 @@ export async function listStoredResumes(): Promise<StoredResume[]> {
       await runTransaction<StoredResume[]>('readonly', (store, resolve, reject) => {
         const request = store.getAll();
         request.addEventListener('success', () => resolve(request.result as StoredResume[]));
-        request.addEventListener('error', () => reject(request.error));
+        request.addEventListener('error', () =>
+          reject(request.error ?? new Error('Could not list stored resumes.')),
+        );
       }),
     );
     return storedResumes.length > 0 ? storedResumes : sortResumes(fallbackResumes);
@@ -80,7 +87,9 @@ export async function saveStoredResume(resume: StoredResume): Promise<void> {
     await runTransaction<void>('readwrite', (store, resolve, reject) => {
       const request = store.put(resume);
       request.addEventListener('success', () => resolve());
-      request.addEventListener('error', () => reject(request.error));
+      request.addEventListener('error', () =>
+        reject(request.error ?? new Error('Could not save the resume.')),
+      );
     });
   } catch {
     return;
@@ -94,7 +103,9 @@ export async function deleteStoredResume(id: string): Promise<void> {
     await runTransaction<void>('readwrite', (store, resolve, reject) => {
       const request = store.delete(id);
       request.addEventListener('success', () => resolve());
-      request.addEventListener('error', () => reject(request.error));
+      request.addEventListener('error', () =>
+        reject(request.error ?? new Error('Could not delete the resume.')),
+      );
     });
   } catch {
     return;
@@ -108,7 +119,9 @@ export async function clearStoredResumes(): Promise<void> {
     await runTransaction<void>('readwrite', (store, resolve, reject) => {
       const request = store.clear();
       request.addEventListener('success', () => resolve());
-      request.addEventListener('error', () => reject(request.error));
+      request.addEventListener('error', () =>
+        reject(request.error ?? new Error('Could not clear stored resumes.')),
+      );
     });
   } catch {
     return;
@@ -121,7 +134,7 @@ export function toStoredResume(
 ): StoredResume {
   return {
     ...document,
-    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${fallbackId++}`,
     findings,
     createdAt: Date.now(),
   };
