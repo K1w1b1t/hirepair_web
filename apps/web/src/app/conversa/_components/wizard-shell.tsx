@@ -8,6 +8,9 @@ export interface WizardShellProps {
   totalSteps: number;
   children: ReactNode;
   preview: ReactNode;
+  previewLabel?: string;
+  previewTitle?: string;
+  previewTriggerLabel?: string;
   footer?: ReactNode;
 }
 
@@ -16,6 +19,9 @@ export function WizardShell({
   totalSteps,
   children,
   preview,
+  previewLabel = 'Prévia do currículo',
+  previewTitle = 'Seu currículo',
+  previewTriggerLabel = 'Ver currículo',
   footer,
 }: WizardShellProps) {
   const progress = `${(currentStep / totalSteps) * 100}%`;
@@ -68,12 +74,18 @@ export function WizardShell({
       </header>
       <div className="wizard-layout">
         <main className="wizard-conversation">{children}</main>
-        <aside aria-label="Prévia do currículo" className="wizard-preview-desktop">
+        <aside aria-label={previewLabel} className="wizard-preview-desktop">
           {preview}
         </aside>
       </div>
       <footer className="wizard-footer">
-        <ResumePreviewPanel>{preview}</ResumePreviewPanel>
+        <ResumePreviewPanel
+          dialogLabel={previewLabel}
+          title={previewTitle}
+          triggerLabel={previewTriggerLabel}
+        >
+          {preview}
+        </ResumePreviewPanel>
         {footer}
       </footer>
     </div>

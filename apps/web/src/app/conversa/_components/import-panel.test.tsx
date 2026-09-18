@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 
@@ -13,8 +13,9 @@ describe('ImportPanel', () => {
     await clearStoredResumes();
   });
 
-  it('renders an accessible empty state with upload, paste, and future voice path', () => {
+  it('renders an accessible empty state with upload, paste, and future voice path', async () => {
     render(<ImportPanel />);
+    await act(async () => undefined);
 
     expect(screen.getByRole('heading', { name: /jornada profissional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
@@ -25,7 +26,7 @@ describe('ImportPanel', () => {
     expect(screen.queryByRole('button', { name: /escrever do zero/i })).not.toBeInTheDocument();
   });
 
-  it('diagnoses pasted text and exposes the aggregated findings and extracted view', async () => {
+  it('lists pasted text as material without exposing extracted content or diagnostics', async () => {
     render(<ImportPanel />);
     const textarea = screen.getByLabelText(/colar o texto/i);
 
@@ -33,16 +34,15 @@ describe('ImportPanel', () => {
       target: { value: 'Experiênciade atendimento. CPF 12345678909.' },
     });
 
-    expect(await screen.findByText(/palavras coladas/i)).toBeInTheDocument();
-    expect(screen.getByText(/dado pessoal desnecessário/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 achados encontrados em todos os currículos/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: /texto como a máquina lê/i }));
-    expect(screen.getByText(/o robô do ats enxerga/i)).toBeInTheDocument();
-    expect(screen.getByText(/Experiênciade atendimento/)).toBeInTheDocument();
+    expect(await screen.findByText(/texto colado/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 material pronto para análise/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/pronto para análise/i)).toHaveLength(2);
+    expect(screen.queryByText(/dado pessoal desnecessário/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Experiênciade atendimento/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 
-  it('keeps multiple uploaded documents and removes only the active one', async () => {
+  it('presents multiple documents with equal importance and removes the chosen one', async () => {
     render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
     const first = textFile('Atendimento ao cliente', 'curriculo.txt', 'text/plain');
@@ -50,24 +50,35 @@ describe('ImportPanel', () => {
 
     fireEvent.change(input, { target: { files: [first, second] } });
 
-    expect(await screen.findByText('2 currículos disponíveis')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /curriculo.txt/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /perfil.md/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /remover este currículo/i }));
+    expect(await screen.findByText('2 materiais prontos para análise')).toBeInTheDocument();
+    expect(screen.getByText('curriculo.txt')).toBeInTheDocument();
+    expect(screen.getByText('perfil.md')).toBeInTheDocument();
+    expect(screen.getAllByText(/pronto para análise/i)).toHaveLength(2);
+    expect(screen.queryByText(/documento em visualização/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/achados/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /remover curriculo.txt/i }));
 
     await waitFor(() =>
-      expect(screen.queryByText('2 currículos disponíveis')).not.toBeInTheDocument(),
+      expect(screen.queryByText('2 materiais prontos para análise')).not.toBeInTheDocument(),
     );
-    expect(screen.getByText('1 currículo disponível')).toBeInTheDocument();
+    expect(screen.getByText('1 material pronto para análise')).toBeInTheDocument();
+    expect(screen.queryByText('curriculo.txt')).not.toBeInTheDocument();
+    expect(screen.getByText('perfil.md')).toBeInTheDocument();
   });
 
   it('shows a friendly error for invalid files', async () => {
     render(<ImportPanel />);
     const input = screen.getByLabelText(/enviar currículo/i);
-    const file = textFile('conteúdo', 'curriculo.rtf', 'application/rtf');
+    const first = textFile('conteúdo', 'curriculo.rtf', 'application/rtf');
+    const second = textFile('imagem', 'foto.png', 'image/png');
 
-    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.change(input, { target: { files: [first, second] } });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/formato ainda não pode ser lido/i);
+    const errorList = screen.getByRole('list', { name: 'Arquivos não lidos' });
+    expect(errorList.children).toHaveLength(2);
+    expect(errorList).toHaveTextContent('curriculo.rtf');
+    expect(errorList).toHaveTextContent('foto.png');
   });
 });

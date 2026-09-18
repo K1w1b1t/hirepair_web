@@ -13,7 +13,7 @@ describe('AnalyticsConsentControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agora não' }));
     expect(setConsent).toHaveBeenCalledWith('denied');
     fireEvent.click(screen.getByRole('button', { name: 'Preferências de cookies' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sim, quero ajudar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceito' }));
     expect(setConsent).toHaveBeenCalledWith('granted');
   });
 });

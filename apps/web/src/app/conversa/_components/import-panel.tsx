@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { diagnoseResumeText, sortDiagnosticFindings } from '../_lib/diagnostic';
+import { diagnoseResumeText } from '../_lib/diagnostic';
 import {
   extractTextFromFile,
   extractedTextFromPaste,
@@ -14,16 +14,11 @@ import {
   toStoredResume,
   type StoredResume,
 } from '../_lib/resume-storage';
-import { DiagnosticFindings } from './diagnostic-findings';
-import { ExtractedTextView } from './extracted-text-view';
 import { FileDropzone } from './file-dropzone';
 
 export interface ImportPanelProps {
-  readonly onDocumentChange?: (document: ExtractedText | null) => void;
   readonly onDocumentsChange?: (documents: StoredResume[]) => void;
 }
-
-type PanelView = 'findings' | 'text';
 
 function createPastedResume(value: string, documents: StoredResume[]): StoredResume {
   const document = extractedTextFromPaste(value);
@@ -33,13 +28,11 @@ function createPastedResume(value: string, documents: StoredResume[]): StoredRes
   return toStoredResume(document, findings);
 }
 
-export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanelProps) {
+export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const [documents, setDocuments] = useState<StoredResume[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [view, setView] = useState<PanelView>('findings');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string[]>([]);
   const hasLocalChanges = useRef(false);
 
   useEffect(() => {
@@ -48,7 +41,6 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
       if (!mounted) return;
       if (!hasLocalChanges.current) {
         setDocuments(storedResumes);
-        setActiveId(storedResumes[0]?.id ?? null);
       }
     });
     return () => {
@@ -56,27 +48,21 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
     };
   }, []);
 
-  const activeDocument = documents.find((item) => item.id === activeId) ?? documents[0] ?? null;
-  const allFindings = sortDiagnosticFindings(documents.flatMap((document) => document.findings));
-
   useEffect(() => {
     onDocumentsChange?.(documents);
-    onDocumentChange?.(activeDocument);
-  }, [activeDocument, documents, onDocumentChange, onDocumentsChange]);
+  }, [documents, onDocumentsChange]);
 
   const addDocument = async (document: ExtractedText) => {
     hasLocalChanges.current = true;
     const storedDocument = toStoredResume(document, diagnoseResumeText(document.text));
     await saveStoredResume(storedDocument);
     setDocuments((current) => [...current, storedDocument]);
-    setActiveId(storedDocument.id);
-    setView('findings');
     setIsConfirmed(false);
   };
 
   const handleFiles = async (files: File[]) => {
     setIsProcessing(true);
-    setError(null);
+    setError([]);
     const errors: string[] = [];
     for (const file of files) {
       try {
@@ -87,7 +73,7 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
         );
       }
     }
-    if (errors.length > 0) setError(errors.join(' '));
+    if (errors.length > 0) setError(errors);
     setIsProcessing(false);
   };
 
@@ -102,21 +88,16 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
           ? current.map((item) => (item.id === storedDocument.id ? storedDocument : item))
           : [...current, storedDocument],
       );
-      setActiveId(storedDocument.id);
-      setView('findings');
       setIsConfirmed(false);
-      setError(null);
+      setError([]);
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : 'Não encontramos texto nesse arquivo.');
+      setError([error_ instanceof Error ? error_.message : 'Não encontramos texto nesse arquivo.']);
     }
   };
 
-  const removeActiveDocument = async () => {
-    if (!activeDocument) return;
-    await deleteStoredResume(activeDocument.id);
-    const remaining = documents.filter((item) => item.id !== activeDocument.id);
-    setDocuments(remaining);
-    setActiveId(remaining[0]?.id ?? null);
+  const removeDocument = async (id: string) => {
+    await deleteStoredResume(id);
+    setDocuments((current) => current.filter((item) => item.id !== id));
     setIsConfirmed(false);
   };
 
@@ -128,8 +109,7 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
           Vamos começar pela sua jornada profissional.
         </h1>
         <p className="mt-4 max-w-xl text-lg leading-8 text-[var(--color-text-muted)]">
-          Você pode trazer um ou mais currículos. A gente lê tudo como os sistemas de triagem leem e
-          mostra o que merece atenção, sem julgamento.
+          Envie um ou mais currículos. Tudo o que você adicionar será considerado junto na análise.
         </p>
       </div>
 
@@ -181,13 +161,17 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
         </output>
       ) : null}
 
-      {error ? (
+      {error.length > 0 ? (
         <div aria-live="polite" className="import-error" role="alert">
-          <strong>Não conseguimos ler esse documento.</strong>
-          <span>{error}</span>
+          <strong>Não conseguimos ler alguns documentos.</strong>
+          <ul aria-label="Arquivos não lidos" className="import-error-list">
+            {error.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
           <button
             className="button button-outline button-small mt-3"
-            onClick={() => setError(null)}
+            onClick={() => setError([])}
             type="button"
           >
             Trocar de arquivo
@@ -195,82 +179,43 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
         </div>
       ) : null}
 
-      {documents.length > 0 && !isProcessing && activeDocument ? (
+      {documents.length > 0 && !isProcessing ? (
         <section aria-live="polite" className="import-result">
           <div className="import-collection-summary">
             <strong>
               {documents.length}{' '}
-              {documents.length === 1 ? 'currículo disponível' : 'currículos disponíveis'}
+              {documents.length === 1
+                ? 'material pronto para análise'
+                : 'materiais prontos para análise'}
             </strong>
-            <span>Todos serão considerados juntos no começo do processo.</span>
+            <span>Todos serão considerados juntos. Nenhum é tratado como principal.</span>
           </div>
-          <ul aria-label="Currículos adicionados" className="import-document-list">
+          <ul aria-label="Materiais adicionados" className="import-document-list">
             {documents.map((document) => (
-              <li key={document.id}>
+              <li className="import-document-item" key={document.id}>
+                <span aria-hidden="true" className="import-document-ready-icon">
+                  ✓
+                </span>
+                <span className="import-document-details">
+                  <strong>{document.fileName}</strong>
+                  <small>Pronto para análise</small>
+                </span>
+                <span className="import-document-type">{document.fileType}</span>
                 <button
-                  aria-pressed={document.id === activeDocument.id}
-                  className={`import-document-item ${document.id === activeDocument.id ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setActiveId(document.id);
-                    setView('findings');
-                  }}
+                  aria-label={'Remover ' + document.fileName}
+                  className="import-remove-button"
+                  onClick={() => void removeDocument(document.id)}
                   type="button"
                 >
-                  <span>
-                    <strong>{document.fileName}</strong>
-                    <small>
-                      {document.findings.length}{' '}
-                      {document.findings.length === 1 ? 'achado' : 'achados'}
-                    </small>
-                  </span>
-                  <span className="import-document-type">{document.fileType}</span>
+                  Remover
                 </button>
               </li>
             ))}
           </ul>
-          <div className="import-document-heading">
-            <div>
-              <p className="text-sm text-[var(--color-text-dim)]">Documento em visualização</p>
-              <h2 className="mt-1 font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]">
-                {activeDocument.fileName}
-              </h2>
-            </div>
-            <span className="import-document-type">{activeDocument.fileType}</span>
-          </div>
-          <div className="import-tabs" role="tablist" aria-label="Resultado da leitura">
-            <button
-              aria-selected={view === 'findings'}
-              className={view === 'findings' ? 'is-active' : ''}
-              onClick={() => setView('findings')}
-              role="tab"
-              type="button"
-            >
-              Diagnóstico agregado
-            </button>
-            <button
-              aria-selected={view === 'text'}
-              className={view === 'text' ? 'is-active' : ''}
-              onClick={() => setView('text')}
-              role="tab"
-              type="button"
-            >
-              Texto como a máquina lê
-            </button>
-          </div>
-          <output aria-live="polite" className="sr-only">
-            {allFindings.length}{' '}
-            {allFindings.length === 1 ? 'achado encontrado' : 'achados encontrados'} em todos os
-            currículos
-          </output>
-          {view === 'findings' ? (
-            <DiagnosticFindings findings={allFindings} />
-          ) : (
-            <ExtractedTextView text={activeDocument.text} />
-          )}
           <div className="import-actions">
             {isConfirmed ? (
               <output className="import-confirmed">
-                Currículos prontos para o começo do processo.
+                Materiais confirmados. Tudo vai entrar na análise.
               </output>
             ) : (
               <button
@@ -278,16 +223,9 @@ export function ImportPanel({ onDocumentChange, onDocumentsChange }: ImportPanel
                 onClick={() => setIsConfirmed(true)}
                 type="button"
               >
-                Continuar com estes currículos
+                Continuar com estes materiais
               </button>
             )}
-            <button
-              className="button button-outline button-small"
-              onClick={() => void removeActiveDocument()}
-              type="button"
-            >
-              Remover este currículo
-            </button>
           </div>
         </section>
       ) : null}

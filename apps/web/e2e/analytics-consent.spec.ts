@@ -17,7 +17,7 @@ test('persiste recusa, permite revogação e não contacta PostHog antes do opt-
   expect(postHogRequests).toBe(0);
 
   await page.getByRole('button', { name: 'Preferências de cookies' }).click();
-  await page.getByRole('button', { name: 'Sim, quero ajudar' }).click();
+  await page.getByRole('button', { name: 'Aceito' }).click();
   await expect.poll(() => postHogRequests).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Preferências de cookies' }).click();
   await page.getByRole('button', { name: 'Agora não' }).click();

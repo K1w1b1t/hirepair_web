@@ -14,10 +14,10 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByRole('complementary')).toBeHidden();
     await page.getByRole('button', { name: 'Agora não' }).click();
 
-    await page.getByRole('button', { name: /ver currículo/i }).click();
-    await expect(page.getByRole('dialog', { name: /prévia do currículo/i })).toBeVisible();
+    await page.getByRole('button', { name: /ver resumo/i }).click();
+    await expect(page.getByRole('dialog', { name: /resumo dos materiais/i })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: /prévia do currículo/i })).toBeHidden();
+    await expect(page.getByRole('dialog', { name: /resumo dos materiais/i })).toBeHidden();
   });
 
   test('mostra a conversa e a prévia lado a lado no desktop', async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe('wizard acolhedor', () => {
 
     await expect(page.getByRole('main')).toBeVisible();
     await expect(page.getByRole('complementary')).toBeVisible();
-    await expect(page.getByRole('button', { name: /ver currículo/i })).toBeHidden();
+    await expect(page.getByRole('button', { name: /ver resumo/i })).toBeHidden();
   });
 
   test('extrai um currículo PDF selecionado pelo usuário', async ({ page }) => {
@@ -35,8 +35,9 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel('Enviar currículo').setInputFiles('e2e/fixtures/mock-resume.pdf');
 
     await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
-    await expect(page.getByText('Gabriel Rodrigues')).toBeVisible();
-    await expect(page.getByText('Engenheiro de software')).toBeVisible();
-    await expect(page.getByText(/currículo disponível/i)).toBeVisible();
+    await expect(page.getByText(/1 material pronto para análise/i)).toBeVisible();
+    await expect(page.getByText(/tudo pronto para análise/i)).toBeVisible();
+    await expect(page.getByText('Gabriel Rodrigues')).toHaveCount(0);
+    await expect(page.getByText('Engenheiro de software')).toHaveCount(0);
   });
 });

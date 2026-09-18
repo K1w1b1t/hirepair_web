@@ -2,7 +2,19 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-export function ResumePreviewPanel({ children }: { children: ReactNode }) {
+interface ResumePreviewPanelProps {
+  readonly children: ReactNode;
+  readonly dialogLabel?: string;
+  readonly title?: string;
+  readonly triggerLabel?: string;
+}
+
+export function ResumePreviewPanel({
+  children,
+  dialogLabel = 'Prévia do currículo',
+  title = 'Seu currículo',
+  triggerLabel = 'Ver currículo',
+}: ResumePreviewPanelProps) {
   const [open, setOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
 
@@ -24,15 +36,10 @@ export function ResumePreviewPanel({ children }: { children: ReactNode }) {
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        Ver currículo
+        {triggerLabel}
       </button>
       {open ? (
-        <div
-          aria-label="Prévia do currículo"
-          aria-modal="true"
-          className="wizard-sheet"
-          role="dialog"
-        >
+        <div aria-label={dialogLabel} aria-modal="true" className="wizard-sheet" role="dialog">
           <button
             aria-label="Fechar ao tocar fora"
             className="wizard-sheet-backdrop"
@@ -42,7 +49,7 @@ export function ResumePreviewPanel({ children }: { children: ReactNode }) {
           <section className="wizard-sheet-content">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-navy)]">
-                Seu currículo
+                {title}
               </h2>
               <button
                 ref={closeButton}
