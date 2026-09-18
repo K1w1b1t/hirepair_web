@@ -20,19 +20,57 @@ export interface ImportPanelProps {
   readonly onDocumentsChange?: (documents: StoredResume[]) => void;
 }
 
-function createPastedResume(value: string, documents: StoredResume[]): StoredResume {
-  const document = extractedTextFromPaste(value);
-  const findings = diagnoseResumeText(document.text);
-  const previous = documents.find((item) => item.source === 'pasted');
-  if (previous) return { ...previous, text: document.text, findings };
-  return toStoredResume(document, findings);
+function createPastedResume(value: string): StoredResume {
+  const document = {
+    ...extractedTextFromPaste(value),
+    fileName: 'Adicionado manualmente',
+  };
+  return toStoredResume(document, diagnoseResumeText(document.text));
+}
+
+function ImportErrorToast({
+  messages,
+  onDismiss,
+}: {
+  readonly messages: string[];
+  readonly onDismiss: () => void;
+}) {
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const timeout = window.setTimeout(onDismiss, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [messages, onDismiss]);
+
+  if (messages.length === 0) return null;
+
+  return (
+    <div aria-live="assertive" className="import-toast" role="alert">
+      <div>
+        <strong>Não foi possível adicionar alguns arquivos.</strong>
+        <ul aria-label="Arquivos não lidos" className="import-error-list">
+          {messages.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      </div>
+      <button
+        aria-label="Fechar aviso"
+        className="import-toast-close"
+        onClick={onDismiss}
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
 export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const [documents, setDocuments] = useState<StoredResume[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
   const [error, setError] = useState<string[]>([]);
+  const [pastedText, setPastedText] = useState('');
   const hasLocalChanges = useRef(false);
 
   useEffect(() => {
@@ -57,7 +95,6 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     const storedDocument = toStoredResume(document, diagnoseResumeText(document.text));
     await saveStoredResume(storedDocument);
     setDocuments((current) => [...current, storedDocument]);
-    setIsConfirmed(false);
   };
 
   const handleFiles = async (files: File[]) => {
@@ -69,7 +106,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
         await addDocument(await extractTextFromFile(file));
       } catch (error_) {
         errors.push(
-          `${file.name}: ${error_ instanceof Error ? error_.message : 'não foi possível ler.'}`,
+          file.name + ': ' + (error_ instanceof Error ? error_.message : 'não foi possível ler.'),
         );
       }
     }
@@ -77,28 +114,26 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     setIsProcessing(false);
   };
 
-  const handlePaste = (value: string) => {
-    if (!value.trim()) return;
+  const handlePaste = () => {
+    if (!pastedText.trim()) return;
+
     try {
       hasLocalChanges.current = true;
-      const storedDocument = createPastedResume(value, documents);
+      const storedDocument = createPastedResume(pastedText);
       void saveStoredResume(storedDocument);
-      setDocuments((current) =>
-        current.some((item) => item.id === storedDocument.id)
-          ? current.map((item) => (item.id === storedDocument.id ? storedDocument : item))
-          : [...current, storedDocument],
-      );
-      setIsConfirmed(false);
+      setDocuments((current) => [...current, storedDocument]);
+      setPastedText('');
       setError([]);
     } catch (error_) {
-      setError([error_ instanceof Error ? error_.message : 'Não encontramos texto nesse arquivo.']);
+      setError([
+        error_ instanceof Error ? error_.message : 'Não encontramos texto nesse material.',
+      ]);
     }
   };
 
   const removeDocument = async (id: string) => {
     await deleteStoredResume(id);
     setDocuments((current) => current.filter((item) => item.id !== id));
-    setIsConfirmed(false);
   };
 
   return (
@@ -113,7 +148,12 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
         </p>
       </div>
 
-      {!isProcessing ? <FileDropzone disabled={false} onFiles={handleFiles} /> : null}
+      <FileDropzone
+        disabled={isProcessing}
+        documents={documents}
+        onFiles={handleFiles}
+        onRemove={(id) => void removeDocument(id)}
+      />
 
       <div aria-label="Jornada falada" className="import-voice-option">
         <button className="button button-outline import-voice-button" disabled type="button">
@@ -148,87 +188,24 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
           aria-label="Colar o texto do currículo"
           className="import-textarea"
           id="resume-paste"
-          onChange={(event) => handlePaste(event.target.value)}
+          onChange={(event) => setPastedText(event.target.value)}
           placeholder="Cole aqui o conteúdo do currículo"
           rows={5}
+          value={pastedText}
         />
-      </div>
-
-      {isProcessing ? (
-        <output aria-live="polite" className="import-processing">
-          <span className="import-processing-dot" />
-          {' Lendo seus currículos em ordem, como uma máquina faria...'}
-        </output>
-      ) : null}
-
-      {error.length > 0 ? (
-        <div aria-live="polite" className="import-error" role="alert">
-          <strong>Não conseguimos ler alguns documentos.</strong>
-          <ul aria-label="Arquivos não lidos" className="import-error-list">
-            {error.map((message) => (
-              <li key={message}>{message}</li>
-            ))}
-          </ul>
+        <div className="import-paste-actions">
           <button
-            className="button button-outline button-small mt-3"
-            onClick={() => setError([])}
+            className="button button-primary button-small"
+            disabled={!pastedText.trim()}
+            onClick={handlePaste}
             type="button"
           >
-            Trocar de arquivo
+            Adicionar material
           </button>
         </div>
-      ) : null}
+      </div>
 
-      {documents.length > 0 && !isProcessing ? (
-        <section aria-live="polite" className="import-result">
-          <div className="import-collection-summary">
-            <strong>
-              {documents.length}{' '}
-              {documents.length === 1
-                ? 'material pronto para análise'
-                : 'materiais prontos para análise'}
-            </strong>
-            <span>Todos serão considerados juntos. Nenhum é tratado como principal.</span>
-          </div>
-          <ul aria-label="Materiais adicionados" className="import-document-list">
-            {documents.map((document) => (
-              <li className="import-document-item" key={document.id}>
-                <span aria-hidden="true" className="import-document-ready-icon">
-                  ✓
-                </span>
-                <span className="import-document-details">
-                  <strong>{document.fileName}</strong>
-                  <small>Pronto para análise</small>
-                </span>
-                <span className="import-document-type">{document.fileType}</span>
-                <button
-                  aria-label={'Remover ' + document.fileName}
-                  className="import-remove-button"
-                  onClick={() => void removeDocument(document.id)}
-                  type="button"
-                >
-                  Remover
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="import-actions">
-            {isConfirmed ? (
-              <output className="import-confirmed">
-                Materiais confirmados. Tudo vai entrar na análise.
-              </output>
-            ) : (
-              <button
-                className="button button-primary"
-                onClick={() => setIsConfirmed(true)}
-                type="button"
-              >
-                Continuar com estes materiais
-              </button>
-            )}
-          </div>
-        </section>
-      ) : null}
+      <ImportErrorToast messages={error} onDismiss={() => setError([])} />
     </div>
   );
 }

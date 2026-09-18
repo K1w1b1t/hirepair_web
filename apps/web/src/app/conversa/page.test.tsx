@@ -25,7 +25,7 @@ describe('ConversationPage', () => {
     expect(document.body.textContent).not.toMatch(/talent acquisition|pipeline|ATS/i);
   });
 
-  it('summarizes every imported material without exposing its contents', async () => {
+  it('prepares the next step after imports and keeps materials inspectable only on demand', async () => {
     render(<ConversationPage />);
     const input = screen.getByLabelText(/enviar currículo/i);
 
@@ -38,12 +38,17 @@ describe('ConversationPage', () => {
       },
     });
 
-    expect(await screen.findByText('2 materiais prontos para análise')).toBeInTheDocument();
-    expect(await screen.findByText(/tudo pronto para análise/i)).toBeInTheDocument();
+    expect(await screen.findByText('curriculo.txt')).toBeInTheDocument();
     const summary = screen.getByRole('complementary', { name: 'Resumo dos materiais' });
-    expect(summary).toHaveTextContent(/tudo pronto para análise/i);
-    expect(summary).toHaveTextContent(/considerar juntos 2 materiais/i);
-    expect(summary).toHaveTextContent(/nenhum deles é tratado como principal/i);
+    expect(await screen.findByRole('button', { name: /^iniciar$/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Iniciar' })).toBeInTheDocument();
+    expect(summary.querySelector('.wizard-journey-check svg')).toBeInTheDocument();
+    expect(summary.querySelector('.wizard-materials-mark')).not.toBeInTheDocument();
+    expect(summary).not.toHaveTextContent(/nenhum deles é tratado como principal/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^iniciar$/i }));
+    await act(async () => undefined);
+    expect(summary).toHaveTextContent(/sua jornada está pronta para começar/i);
     expect(screen.queryByText('Atendimento ao cliente')).not.toBeInTheDocument();
     expect(screen.queryByText('Analista de suporte')).not.toBeInTheDocument();
   });

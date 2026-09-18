@@ -35,8 +35,8 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel('Enviar currículo').setInputFiles('e2e/fixtures/mock-resume.pdf');
 
     await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
-    await expect(page.getByText(/1 material pronto para análise/i)).toBeVisible();
-    await expect(page.getByText(/tudo pronto para análise/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Iniciar' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Iniciar' })).toBeVisible();
     await expect(page.getByText('Gabriel Rodrigues')).toHaveCount(0);
     await expect(page.getByText('Engenheiro de software')).toHaveCount(0);
   });
