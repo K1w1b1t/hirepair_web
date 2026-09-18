@@ -70,7 +70,7 @@ export function AnalyticsConsentControl() {
               className="analytics-consent__action analytics-consent__action--accept"
               onClick={() => choose('granted')}
             >
-              Sim, quero ajudar
+              Aceito
             </button>
           </div>
         </div>

@@ -16,4 +16,21 @@ describe('ResumePreviewPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /fechar prévia/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('uses journey-specific accessible labels when provided', () => {
+    render(
+      <ResumePreviewPanel
+        dialogLabel="Resumo dos materiais"
+        title="Materiais para análise"
+        triggerLabel="Ver resumo"
+      >
+        <p>Tudo pronto para análise</p>
+      </ResumePreviewPanel>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver resumo' }));
+    expect(screen.getByRole('dialog', { name: 'Resumo dos materiais' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Materiais para análise' })).toBeInTheDocument();
+    expect(screen.getByText('Tudo pronto para análise')).toBeInTheDocument();
+  });
 });
