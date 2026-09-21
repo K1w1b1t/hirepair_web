@@ -20,6 +20,33 @@ type Result = {
   reason: string;
 };
 const ANALYSIS_KEY = 'hirepair_job_analysis';
+
+function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(onDismiss, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [message, onDismiss]);
+
+  if (!message) return null;
+
+  return (
+    <div aria-live="assertive" className="import-toast" role="alert">
+      <div>
+        <strong>Não foi possível analisar a vaga.</strong>
+        <p>{message}</p>
+      </div>
+      <button
+        aria-label="Fechar aviso"
+        className="import-toast-close"
+        onClick={onDismiss}
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 function visitorId() {
   const key = 'hirepair_guest_id';
   const current = localStorage.getItem(key);
@@ -64,7 +91,7 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
   const [jobText, setJobText] = useState('');
   const [targetRole, setTargetRole] = useState('');
   const [result, setResult] = useState<Result>();
-  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [archetype, setArchetype] = useState<Archetype>('D_SAME_FIELD_RETURN');
@@ -94,7 +121,7 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
   }, [archetype, objective, result, tone]);
   const analyze = async () => {
     setLoading(true);
-    setError('');
+    setNotice('');
     try {
       const root = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
       const visitor = visitorId();
@@ -125,7 +152,11 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
       setObjective(next.suggestedObjective);
       setTone(next.suggestedTone);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'A análise está indisponível.');
+      setNotice(
+        caught instanceof Error && caught.message.includes('24 horas')
+          ? caught.message
+          : 'Verifique sua conexão e tente novamente em alguns instantes.',
+      );
     } finally {
       setLoading(false);
     }
@@ -159,16 +190,20 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
           value={targetRole}
         />
       )}
-      <label className="job-terms">
+      <div className="job-terms">
         <input
+          aria-describedby="job-terms-description"
           checked={accepted}
+          id="job-terms-accepted"
           onChange={(event) => setAccepted(event.target.checked)}
           type="checkbox"
-        />{' '}
-        Li e aceito os <a href="/legal#terms">Termos</a> e a{' '}
-        <a href="/legal#privacy">Política de Privacidade</a>. A análise usa IA para prestar este
-        serviço.
-      </label>
+        />
+        <label htmlFor="job-terms-accepted">Li e aceito os </label>
+        <a href="/legal#terms">Termos</a>
+        <span> e a </span>
+        <a href="/legal#privacy">Política de Privacidade</a>
+        <span id="job-terms-description">. A análise usa IA para prestar este serviço.</span>
+      </div>
       <button
         className="button button-primary"
         disabled={loading || !accepted || (hasJob ? !jobText.trim() : !targetRole.trim())}
@@ -177,7 +212,7 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
       >
         {loading ? 'Analisando…' : 'Analisar e sugerir'}
       </button>
-      {error ? <p role="alert">{error}</p> : null}
+      <AnalysisErrorToast message={notice} onDismiss={() => setNotice('')} />
       {result ? (
         <div className="job-result">
           <p className="section-kicker">Sugerido para você</p>
