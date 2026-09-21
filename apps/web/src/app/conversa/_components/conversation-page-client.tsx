@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import type { StoredResume } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
+import { JobExampleStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
 
 function JourneyCheck() {
@@ -84,14 +85,18 @@ export function ConversationPageClient() {
 
   return (
     <WizardShell
-      currentStep={1}
+      currentStep={hasStarted ? 2 : 1}
       preview={preview}
       previewLabel="Resumo dos materiais"
       previewTitle="Materiais para análise"
       previewTriggerLabel="Ver resumo"
       totalSteps={5}
     >
-      <ImportPanel onDocumentsChange={handleDocumentsChange} />
+      {hasStarted ? (
+        <JobExampleStep documents={documents} />
+      ) : (
+        <ImportPanel onDocumentsChange={handleDocumentsChange} />
+      )}
     </WizardShell>
   );
 }

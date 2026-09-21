@@ -88,7 +88,7 @@ fora da v1.
   (ver 2.3).
 
 **Could have (depois do MVP):**
-- Múltiplos templates visuais, análise de aderência a uma vaga específica,
+- Múltiplos templates visuais, análise aprofundada de aderência a uma vaga específica,
   histórico de versões, score de ATS.
 
 **Won't have (explicitamente fora da v1):**

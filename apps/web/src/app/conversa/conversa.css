@@ -4,6 +4,113 @@
   display: flex;
   flex-direction: column;
 }
+.job-example-step {
+  width: 100%;
+  max-width: 42rem;
+  margin: auto;
+}
+.job-example-step h1 {
+  margin-top: 0.75rem;
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--color-navy);
+}
+.job-example-step > p {
+  margin-top: 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+.job-example-step textarea,
+.job-example-step > input {
+  width: 100%;
+  margin-top: 1.5rem;
+  border: 1px solid rgb(51 51 100 / 25%);
+  border-radius: 1rem;
+  background: var(--color-creme);
+  padding: 1rem;
+  color: var(--color-text-main);
+}
+.job-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+.job-toggle button {
+  border: 1px solid rgb(51 51 100 / 25%);
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  color: var(--color-navy);
+}
+.job-toggle button[aria-pressed='true'] {
+  background: var(--color-primary);
+  color: white;
+}
+.job-terms {
+  display: block;
+  margin: 1rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.job-terms input {
+  margin-right: 0.5rem;
+}
+.job-result {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid rgb(51 51 100 / 15%);
+  border-radius: 1.5rem;
+  background: var(--color-creme);
+}
+.job-result h2 {
+  margin: 0.4rem 0;
+  font-family: var(--font-heading);
+  color: var(--color-navy);
+  font-size: 1.5rem;
+}
+.job-result ul {
+  margin: 1rem 0;
+  padding-left: 1.2rem;
+  color: var(--color-text-muted);
+}
+.job-choice {
+  margin-top: 1.5rem;
+  border: 0;
+  padding: 0;
+}
+.job-choice legend {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-navy);
+}
+.job-choice div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.job-choice label {
+  cursor: pointer;
+}
+.job-choice input {
+  position: absolute;
+  opacity: 0;
+}
+.job-choice span {
+  display: block;
+  border: 1px solid rgb(51 51 100 / 25%);
+  border-radius: 999px;
+  padding: 0.55rem 0.75rem;
+  color: var(--color-navy);
+  font-size: 0.85rem;
+}
+.job-choice input:checked + span {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
 .wizard-header {
   position: sticky;
   top: 0;

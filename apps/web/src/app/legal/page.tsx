@@ -38,6 +38,12 @@ export default function LegalPage() {
             serviço, sempre conforme a finalidade informada.
           </p>
           <p className="mt-3">
+            A análise de currículo e vaga usa provedores de inteligência artificial como parte do
+            serviço solicitado. Enviamos apenas o conteúdo necessário para essa análise; no modo
+            visitante, seus materiais permanecem no navegador e não criam uma conta ou histórico no
+            nosso banco de dados. O processamento pode ocorrer fora do Brasil.
+          </p>
+          <p className="mt-3">
             Você pode pedir confirmação, acesso, correção, anonimização, bloqueio, eliminação,
             portabilidade, informação sobre compartilhamentos ou revogação de consentimento. Para
             exercer esses direitos, escreva para{' '}

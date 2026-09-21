@@ -89,7 +89,7 @@ O arquétipo é **derivado**, não escolhido livremente pelo candidato: sai da l
 vínculo formal? há quanto tempo? na área-alvo?) mais a vaga-alvo declarada. Ele define a
 estrutura macro — e essa estrutura é **regra dura**.
 
-**Regra de interface e UX (Rodada 2): O candidato nunca é forçado a escolher o arquétipo em um menu (A, B, C, D, E).** Exibir códigos de arquétipo ou exigir que o usuário decida qual a melhor estrutura para si é um erro de experiência (feedback Pedro/Rodada 2). O sistema deriva a estrutura ideal a partir do perfil e da vaga-alvo e apenas informa a estrutura aplicada.
+**Regra de interface e UX:** o sistema sugere a estrutura a partir do perfil e da vaga-alvo, sem exibir códigos A/B/C/D/E. A pessoa vê os nomes claros das alternativas e pode trocar a sugestão; a escolha aplicada fica explícita antes da redação.
 
 ### 4.1 Matriz de estrutura por arquétipo
 
