@@ -57,6 +57,17 @@
 .job-terms input {
   margin-right: 0.5rem;
 }
+.job-terms-link {
+  color: var(--color-primary);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18rem;
+}
+.job-terms-link:hover {
+  color: var(--color-primary-hover);
+  text-decoration-thickness: 2px;
+}
 .job-result {
   margin-top: 2rem;
   padding: 1.5rem;

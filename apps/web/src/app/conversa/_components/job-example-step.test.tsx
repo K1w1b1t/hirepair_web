@@ -52,9 +52,13 @@ describe('JobExampleStep', () => {
       />,
     );
     expect(screen.getByRole('link', { name: 'Termos' })).toHaveAttribute('href', '/legal#terms');
+    expect(screen.getByRole('link', { name: 'Termos' })).toHaveClass('job-terms-link');
     expect(screen.getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute(
       'href',
       '/legal#privacy',
+    );
+    expect(screen.getByRole('link', { name: 'Política de Privacidade' })).toHaveClass(
+      'job-terms-link',
     );
     fireEvent.change(screen.getByLabelText(/requisitos da vaga/i), {
       target: { value: 'Engenheiro mecânico' },

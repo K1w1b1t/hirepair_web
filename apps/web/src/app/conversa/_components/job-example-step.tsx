@@ -209,9 +209,13 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
           type="checkbox"
         />
         <label htmlFor="job-terms-accepted">Li e aceito os </label>
-        <a href="/legal#terms">Termos</a>
+        <a className="job-terms-link" href="/legal#terms">
+          Termos
+        </a>
         <span> e a </span>
-        <a href="/legal#privacy">Política de Privacidade</a>
+        <a className="job-terms-link" href="/legal#privacy">
+          Política de Privacidade
+        </a>
         <span id="job-terms-description">. A análise usa IA para prestar este serviço.</span>
       </div>
       <button
