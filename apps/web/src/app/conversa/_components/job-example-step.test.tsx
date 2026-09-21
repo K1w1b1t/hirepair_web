@@ -20,6 +20,10 @@ describe('JobExampleStep', () => {
     );
     const button = screen.getByRole('button', { name: /analisar e sugerir/i });
     expect(button).toBeDisabled();
+    expect(button).toHaveAttribute(
+      'title',
+      'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.',
+    );
     fireEvent.change(screen.getByLabelText(/requisitos da vaga/i), {
       target: { value: 'Engenheiro mecânico' },
     });

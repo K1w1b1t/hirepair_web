@@ -119,6 +119,16 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
     if (result)
       localStorage.setItem(ANALYSIS_KEY, JSON.stringify({ result, archetype, objective, tone }));
   }, [archetype, objective, result, tone]);
+  const hasRequiredInput = hasJob ? Boolean(jobText.trim()) : Boolean(targetRole.trim());
+  const analysisDisabled = loading || !accepted || !hasRequiredInput;
+  const analysisDisabledMessage =
+    !hasRequiredInput && !accepted
+      ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
+      : !hasRequiredInput
+        ? 'Informe os requisitos da vaga para analisar.'
+        : !accepted
+          ? 'Aceite os Termos e a Política de Privacidade para analisar.'
+          : undefined;
   const analyze = async () => {
     setLoading(true);
     setNotice('');
@@ -206,8 +216,9 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
       </div>
       <button
         className="button button-primary"
-        disabled={loading || !accepted || (hasJob ? !jobText.trim() : !targetRole.trim())}
+        disabled={analysisDisabled}
         onClick={() => void analyze()}
+        title={analysisDisabledMessage}
         type="button"
       >
         {loading ? 'Analisando…' : 'Analisar e sugerir'}
