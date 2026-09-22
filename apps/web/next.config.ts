@@ -3,6 +3,13 @@ import { withPostHogConfig } from '@posthog/nextjs-config';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  webpack(config) {
+    config.module.rules.push({
+      test: /pdf\.worker\.mjs$/,
+      type: 'asset/resource',
+    });
+    return config;
+  },
 };
 
 const sourceMapsEnabled = Boolean(process.env.POSTHOG_API_KEY && process.env.POSTHOG_PROJECT_ID);

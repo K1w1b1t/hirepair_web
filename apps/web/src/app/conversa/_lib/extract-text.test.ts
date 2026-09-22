@@ -3,13 +3,14 @@ import { extractTextFromFile, extractedTextFromPaste } from './extract-text';
 const mockGetDocument = jest.fn();
 const mockExtractRawText = jest.fn();
 
-jest.mock('pdfjs-dist/legacy/build/pdf.worker.mjs', () => ({
+jest.mock('pdfjs-dist/legacy/build/pdf.worker.mjs?url', () => ({
   __esModule: true,
-  default: {},
+  default: '/pdf.worker.mjs',
 }));
 
 jest.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
   __esModule: true,
+  GlobalWorkerOptions: { workerSrc: '' },
   getDocument: (...args: unknown[]) => mockGetDocument(...args),
 }));
 
@@ -110,10 +111,7 @@ describe('extractTextFromFile', () => {
       source: 'file',
       fileType: 'PDF',
     });
-    expect(mockGetDocument).toHaveBeenCalledWith({
-      data: expect.anything(),
-      disableWorker: true,
-    });
+    expect(mockGetDocument).toHaveBeenCalledWith({ data: expect.anything() });
   });
 
   it('concatenates text from multiple PDF pages with line breaks', async () => {
