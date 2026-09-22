@@ -16,6 +16,22 @@ type ModelResult = {
 };
 const categories = new Set(['ELIMINATORY', 'NEGOTIABLE', 'DECORATIVE']);
 
+function parseModelResult(text: string): ModelResult {
+  const normalized = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '');
+  try {
+    return JSON.parse(normalized) as ModelResult;
+  } catch {
+    const start = normalized.indexOf('{');
+    const end = normalized.lastIndexOf('}');
+    if (start >= 0 && end > start)
+      return JSON.parse(normalized.slice(start, end + 1)) as ModelResult;
+    throw new Error('Resposta sem JSON válido.');
+  }
+}
+
 @Injectable()
 export class GuestAnalysisService {
   constructor(
@@ -41,7 +57,7 @@ export class GuestAnalysisService {
     });
     let parsed: ModelResult;
     try {
-      parsed = JSON.parse(generated.text) as ModelResult;
+      parsed = parseModelResult(generated.text);
     } catch {
       throw new BadGatewayException('A análise não pôde ser confirmada. Tente novamente.');
     }

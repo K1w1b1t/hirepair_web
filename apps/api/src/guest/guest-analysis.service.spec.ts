@@ -32,4 +32,18 @@ describe('GuestAnalysisService', () => {
       suggestedTone: 'CONSULTATIVE',
     });
   });
+
+  it('accepts JSON returned inside a markdown code fence', async () => {
+    quota.consumeAnalysis.mockResolvedValue(undefined);
+    ai.generateText.mockResolvedValue({
+      text: '```json\n{"targetKind":"different_track","targetRole":"Engenheiro mecânico","requirements":[]}\n```',
+    });
+
+    await expect(
+      service.analyze('token', {
+        documents: [{ id: 'resume', text: 'Mecânico de manutenção.' }],
+        jobText: 'Vaga para Engenheiro mecânico.',
+      }),
+    ).resolves.toMatchObject({ suggestedArchetype: 'B_CAREER_CHANGE' });
+  });
 });
