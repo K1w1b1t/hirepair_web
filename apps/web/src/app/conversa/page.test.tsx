@@ -12,6 +12,7 @@ describe('ConversationPage', () => {
   beforeEach(async () => {
     await clearStoredResumes();
     localStorage.clear();
+    window.history.replaceState({}, '', '/conversa');
   });
   it('presents the old resume import step without HR jargon', async () => {
     render(<ConversationPage />);
@@ -53,6 +54,7 @@ describe('ConversationPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^continuar$/i }));
     await act(async () => undefined);
+    expect(window.location.search).toBe('?etapa=job');
     expect(
       screen.queryByRole('complementary', { name: 'Resumo dos materiais' }),
     ).not.toBeInTheDocument();
@@ -94,6 +96,7 @@ describe('ConversationPage', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
     expect(await screen.findByRole('heading', { name: /sugerido para você/i })).toBeInTheDocument();
+    expect(window.location.search).toBe('?etapa=recommendations');
     expect(screen.getByText('Passo 3 de 5')).toBeInTheDocument();
     expect(screen.queryByLabelText(/requisitos da vaga/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();

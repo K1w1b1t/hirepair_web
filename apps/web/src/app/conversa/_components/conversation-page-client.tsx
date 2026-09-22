@@ -1,19 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ANALYSIS_KEY,
   type JobAnalysisResult,
   type JobDraft,
   type JobPreferences,
 } from '../_lib/job-analysis';
-import type { StoredResume } from '../_lib/resume-storage';
+import { listStoredResumes, type StoredResume } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
 
 type JourneyPhase = 'materials' | 'job' | 'recommendations';
+const PHASE_QUERY_PARAM = 'etapa';
 const initialDraft: JobDraft = { hasJob: true, jobText: '', targetRole: '', accepted: false };
+
+function phaseFromQuery(value: string | null): JourneyPhase {
+  return value === 'job' || value === 'recommendations' ? value : 'materials';
+}
 
 function JourneyCheck() {
   return (
@@ -88,37 +93,79 @@ export function ConversationPageClient() {
   const [draft, setDraft] = useState<JobDraft>(initialDraft);
   const [result, setResult] = useState<JobAnalysisResult>();
   const [preferences, setPreferences] = useState<JobPreferences>();
+  const hasUserNavigated = useRef(false);
+
+  const transitionTo = useCallback((nextPhase: JourneyPhase) => {
+    hasUserNavigated.current = true;
+    setPhase(nextPhase);
+    const url = new URL(window.location.href);
+    url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
+    window.history.replaceState(window.history.state, '', url);
+  }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(ANALYSIS_KEY);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as {
-        result: JobAnalysisResult;
-        archetype: JobPreferences['archetype'];
-        objective: JobPreferences['objective'];
-        tone: JobPreferences['tone'];
-      };
-      setResult(parsed.result);
-      setPreferences({
-        archetype: parsed.archetype,
-        objective: parsed.objective,
-        tone: parsed.tone,
-      });
-    } catch {
-      localStorage.removeItem(ANALYSIS_KEY);
-    }
-  }, []);
+    let mounted = true;
+    const restoreJourney = async () => {
+      const requestedPhase = phaseFromQuery(
+        new URLSearchParams(window.location.search).get(PHASE_QUERY_PARAM),
+      );
+      const storedResumes = await listStoredResumes();
+      if (!mounted) return;
+      setDocuments(storedResumes);
+
+      const saved = localStorage.getItem(ANALYSIS_KEY);
+      let hasAnalysis = false;
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as {
+            result: JobAnalysisResult;
+            archetype: JobPreferences['archetype'];
+            objective: JobPreferences['objective'];
+            tone: JobPreferences['tone'];
+          };
+          setResult(parsed.result);
+          setPreferences({
+            archetype: parsed.archetype,
+            objective: parsed.objective,
+            tone: parsed.tone,
+          });
+          hasAnalysis = true;
+        } catch {
+          localStorage.removeItem(ANALYSIS_KEY);
+        }
+      }
+
+      const restoredPhase =
+        requestedPhase === 'recommendations' && !hasAnalysis
+          ? 'materials'
+          : requestedPhase === 'job' && storedResumes.length === 0
+            ? 'materials'
+            : requestedPhase;
+      if (!hasUserNavigated.current) {
+        setPhase(restoredPhase);
+        const url = new URL(window.location.href);
+        url.searchParams.set(PHASE_QUERY_PARAM, restoredPhase);
+        window.history.replaceState(window.history.state, '', url);
+      }
+    };
+    void restoreJourney();
+    return () => {
+      mounted = false;
+    };
+  }, [transitionTo]);
 
   useEffect(() => {
     if (result && preferences)
       localStorage.setItem(ANALYSIS_KEY, JSON.stringify({ result, ...preferences }));
   }, [preferences, result]);
 
-  const handleDocumentsChange = useCallback((updatedDocuments: StoredResume[]) => {
-    setDocuments(updatedDocuments);
-    if (updatedDocuments.length === 0) setPhase('materials');
-  }, []);
+  const handleDocumentsChange = useCallback(
+    (updatedDocuments: StoredResume[]) => {
+      setDocuments(updatedDocuments);
+      if (updatedDocuments.length === 0) transitionTo('materials');
+    },
+    [transitionTo],
+  );
 
   const handleComplete = (analysis: JobAnalysisResult) => {
     setResult(analysis);
@@ -127,14 +174,14 @@ export function ConversationPageClient() {
       objective: analysis.suggestedObjective,
       tone: analysis.suggestedTone,
     });
-    setPhase('recommendations');
+    transitionTo('recommendations');
   };
 
   const preview =
     phase === 'materials' ? (
       <MaterialsSummary
         documentCount={documents.length}
-        onStart={() => setPhase(result && preferences ? 'recommendations' : 'job')}
+        onStart={() => transitionTo(result && preferences ? 'recommendations' : 'job')}
       />
     ) : phase === 'job' ? (
       <JobContextPreview />
@@ -142,9 +189,9 @@ export function ConversationPageClient() {
   const currentStep = phase === 'materials' ? 1 : phase === 'job' ? 2 : 3;
   const goBack =
     phase === 'job'
-      ? () => setPhase('materials')
+      ? () => transitionTo('materials')
       : phase === 'recommendations'
-        ? () => setPhase('job')
+        ? () => transitionTo('job')
         : undefined;
 
   return (
