@@ -77,7 +77,16 @@ export class AiService {
         }
 
         if (provider === providers.at(-1)) {
-          throw this.toServiceUnavailable(error);
+          if (error.status === 503) {
+            try {
+              const text = await this.generateWithProvider(provider, request);
+              return { text, provider: provider.provider, model: provider.model };
+            } catch (retryError) {
+              if (!(retryError instanceof AiProviderError)) throw retryError;
+              lastError = retryError;
+            }
+          }
+          throw this.toServiceUnavailable(lastError ?? error);
         }
 
         lastError = error;

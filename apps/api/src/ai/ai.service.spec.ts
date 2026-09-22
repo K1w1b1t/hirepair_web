@@ -137,6 +137,23 @@ describe('AiService', () => {
     expect(body.generationConfig?.responseMimeType).toBe('application/json');
   });
 
+  it('repete uma falha transitória do único provedor antes de ficar indisponível', async () => {
+    delete process.env.GROQ_API_KEY;
+    fetchMock
+      .mockResolvedValueOnce(response(503, { error: { message: 'temporario' } }))
+      .mockResolvedValueOnce(
+        response(200, {
+          candidates: [{ content: { parts: [{ text: '{"targetKind":"same_track"}' }] } }],
+        }),
+      );
+
+    await expect(new AiService().generateText({ prompt: 'Teste.' })).resolves.toMatchObject({
+      provider: 'gemini',
+      text: '{"targetKind":"same_track"}',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('informa indisponibilidade quando nenhuma chave foi configurada', async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GROQ_API_KEY;
