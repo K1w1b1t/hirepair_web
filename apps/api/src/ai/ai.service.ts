@@ -1,5 +1,7 @@
 import {
   BadGatewayException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   Optional,
@@ -73,10 +75,19 @@ export class AiService {
         }
 
         if (!this.shouldFallback(error)) {
+          this.logger.warn(
+            `IA recusou a requisição em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}).`,
+          );
           throw new BadGatewayException(`Falha no provedor de IA (${error.provider}).`);
         }
 
         if (provider === providers.at(-1)) {
+          if (error.status === 429) {
+            throw new HttpException(
+              'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
+              HttpStatus.TOO_MANY_REQUESTS,
+            );
+          }
           if (error.status === 503) {
             try {
               const text = await this.generateWithProvider(provider, request);

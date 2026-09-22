@@ -1,4 +1,9 @@
-import { BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  HttpStatus,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { AiService } from './ai.service';
 import type { AiFallbackTelemetry } from '../telemetry/telemetry.service';
 
@@ -152,6 +157,15 @@ describe('AiService', () => {
       text: '{"targetKind":"same_track"}',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('informa quando o único provedor atingiu o limite de uso', async () => {
+    delete process.env.GROQ_API_KEY;
+    fetchMock.mockResolvedValue(response(429, { error: { message: 'limite atingido' } }));
+
+    await expect(new AiService().generateText({ prompt: 'Teste.' })).rejects.toMatchObject({
+      status: HttpStatus.TOO_MANY_REQUESTS,
+    });
   });
 
   it('informa indisponibilidade quando nenhuma chave foi configurada', async () => {

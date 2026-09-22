@@ -94,6 +94,38 @@ describe('JobExampleStep', () => {
     expect(screen.getByTestId('analysis-spinner')).toBeInTheDocument();
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
+
+  it('explains when the AI provider has reached its temporary limit', async () => {
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: jest
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          json: async () => ({
+            message: 'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
+          }),
+        }),
+    });
+    render(
+      <JobExampleStep
+        documents={[document]}
+        draft={{ ...initialDraft, jobText: 'Engenheiro', accepted: true }}
+        onComplete={jest.fn()}
+        onDraftChange={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
+    );
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
+  });
 });
 
 describe('JobRecommendationsStep', () => {

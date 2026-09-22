@@ -99,16 +99,27 @@ export function JobExampleStep({
           ...(draft.hasJob ? { jobText: draft.jobText } : { targetRole: draft.targetRole }),
         }),
       });
-      if (!response.ok)
+      if (!response.ok) {
+        const failure = (await response.json().catch(() => undefined)) as
+          { message?: unknown } | undefined;
+        const providerLimitMessage =
+          typeof failure?.message === 'string' &&
+          failure.message ===
+            'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.'
+            ? failure.message
+            : undefined;
         throw new Error(
           response.status === 429
-            ? 'Sua análise gratuita volta em até 24 horas.'
+            ? (providerLimitMessage ?? 'Sua análise gratuita volta em até 24 horas.')
             : 'A análise está indisponível. Tente novamente.',
         );
+      }
       onComplete((await response.json()) as JobAnalysisResult);
     } catch (caught) {
       setNotice(
-        caught instanceof Error && caught.message.includes('24 horas')
+        caught instanceof Error &&
+          (caught.message.includes('24 horas') ||
+            caught.message.includes('limite temporário da IA'))
           ? caught.message
           : 'Verifique sua conexão e tente novamente em alguns instantes.',
       );
