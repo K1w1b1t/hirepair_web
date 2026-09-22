@@ -181,13 +181,27 @@ export function JobExampleStep({
       >
         {loading ? 'Analisando seu histórico…' : 'Analisar e sugerir'}
       </button>
-      {loading ? (
-        <p aria-live="polite" className="job-analysis-status">
-          Isso pode levar alguns segundos.
-        </p>
-      ) : null}
+      {loading ? <AnalysisTransition /> : null}
       <AnalysisErrorToast message={notice} onDismiss={() => setNotice('')} />
     </section>
+  );
+}
+
+function AnalysisTransition() {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Preparando suas sugestões"
+      aria-modal="true"
+      className="job-analysis-transition"
+      role="dialog"
+    >
+      <div className="job-analysis-transition-card">
+        <span aria-hidden="true" className="job-analysis-spinner" data-testid="analysis-spinner" />
+        <h2>Preparando suas sugestões</h2>
+        <p>Isso pode levar alguns segundos.</p>
+      </div>
+    </div>
   );
 }
 

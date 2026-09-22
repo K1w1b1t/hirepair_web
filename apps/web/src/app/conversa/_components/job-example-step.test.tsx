@@ -68,6 +68,32 @@ describe('JobExampleStep', () => {
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
     jest.useRealTimers();
   });
+
+  it('shows a blocking transition while the analysis is being prepared', () => {
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: jest.fn(() => new Promise(() => undefined)),
+    });
+    render(
+      <JobExampleStep
+        documents={[document]}
+        draft={{ ...initialDraft, jobText: 'Engenheiro', accepted: true }}
+        onComplete={jest.fn()}
+        onDraftChange={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+
+    expect(screen.getByRole('dialog', { name: /preparando suas sugestões/i })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    expect(screen.getByText(/isso pode levar alguns segundos/i)).toBeInTheDocument();
+    expect(screen.getByTestId('analysis-spinner')).toBeInTheDocument();
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
+  });
 });
 
 describe('JobRecommendationsStep', () => {

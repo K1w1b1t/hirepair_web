@@ -81,10 +81,51 @@
   color: var(--color-navy);
   font-size: 1.5rem;
 }
-.job-analysis-status {
-  margin-top: 0.75rem;
-  color: var(--color-text-dim);
-  font-size: 0.85rem;
+.job-analysis-transition {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(27 25 44 / 60%);
+  padding: 1.5rem;
+}
+.job-analysis-transition-card {
+  display: flex;
+  width: min(23rem, 100%);
+  flex-direction: column;
+  align-items: center;
+  border-radius: 1.25rem;
+  background: var(--color-creme);
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 24px 60px rgb(12 11 24 / 30%);
+}
+.job-analysis-spinner {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0.25rem solid rgb(89 56 184 / 20%);
+  border-top-color: var(--color-primary);
+  border-radius: 999px;
+  animation: job-analysis-spin 800ms linear infinite;
+}
+.job-analysis-transition-card h2 {
+  margin-top: 1.25rem;
+  color: var(--color-navy);
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.job-analysis-transition-card p {
+  margin-top: 0.5rem;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+@keyframes job-analysis-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .job-recommendations-step {
   width: 100%;
