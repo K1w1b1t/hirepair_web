@@ -1,9 +1,4 @@
-import {
-  BadGatewayException,
-  HttpStatus,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { HttpStatus, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { AiService } from './ai.service';
 import type { AiFallbackTelemetry } from '../telemetry/telemetry.service';
 
@@ -39,6 +34,8 @@ describe('AiService', () => {
     global.fetch = fetchMock;
     process.env.GEMINI_API_KEY = 'gemini-key';
     process.env.GROQ_API_KEY = 'groq-key';
+    process.env.GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+    process.env.AI_RETRY_BASE_MS = '0';
     delete process.env.GEMINI_MODEL;
     delete process.env.GROQ_70B_MODEL;
     delete process.env.GROQ_8B_MODEL;
@@ -52,6 +49,7 @@ describe('AiService', () => {
     'troca Gemini HTTP %i por Groq 70B sem alterar o contexto',
     async (status) => {
       fetchMock
+        .mockResolvedValueOnce(response(status, { error: { message: 'temporario' } }))
         .mockResolvedValueOnce(response(status, { error: { message: 'temporario' } }))
         .mockResolvedValueOnce(
           response(200, { choices: [{ message: { content: 'Resposta pronta' } }] }),
@@ -70,11 +68,13 @@ describe('AiService', () => {
         provider: 'groq-70b',
         model: 'llama-3.3-70b-versatile',
       });
-      expect(requestUrl(fetchMock.mock.calls[0][0])).toContain('gemini-2.5-flash:generateContent');
-      expect(requestUrl(fetchMock.mock.calls[1][0])).toBe(
+      expect(requestUrl(fetchMock.mock.calls[0][0])).toContain(
+        'gemini-3.5-flash-lite:generateContent',
+      );
+      expect(requestUrl(fetchMock.mock.calls[2][0])).toBe(
         'https://api.groq.com/openai/v1/chat/completions',
       );
-      expect(jsonBody(fetchMock.mock.calls[1][1])).toEqual(
+      expect(jsonBody(fetchMock.mock.calls[2][1])).toEqual(
         expect.objectContaining({
           model: 'llama-3.3-70b-versatile',
           messages: [
@@ -88,7 +88,7 @@ describe('AiService', () => {
       const [telemetryPayload] = captureAiFallback.mock.calls[0];
       expect(telemetryPayload).toEqual({
         fromProvider: 'gemini',
-        fromModel: 'gemini-2.5-flash',
+        fromModel: 'gemini-3.5-flash-lite',
         toProvider: 'groq-70b',
         toModel: 'llama-3.3-70b-versatile',
         status,
@@ -101,6 +101,8 @@ describe('AiService', () => {
   it('usa Groq 8B se Groq 70B tambem estiver temporariamente indisponivel', async () => {
     fetchMock
       .mockResolvedValueOnce(response(503, {}))
+      .mockResolvedValueOnce(response(503, {}))
+      .mockResolvedValueOnce(response(429, {}))
       .mockResolvedValueOnce(response(429, {}))
       .mockResolvedValueOnce(response(200, { choices: [{ message: { content: 'Plano B' } }] }));
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
@@ -111,8 +113,8 @@ describe('AiService', () => {
       model: 'llama-3.1-8b-instant',
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(jsonBody(fetchMock.mock.calls[2][1])).toEqual(
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(jsonBody(fetchMock.mock.calls[4][1])).toEqual(
       expect.objectContaining({
         model: 'llama-3.1-8b-instant',
         messages: [{ role: 'user', content: 'Continue a sessao.' }],
@@ -123,9 +125,10 @@ describe('AiService', () => {
   it('nao mascara erros que nao sao 429 ou 503', async () => {
     fetchMock.mockResolvedValue(response(401, {}));
 
-    await expect(new AiService().generateText({ prompt: 'Teste.' })).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
+    await expect(new AiService().generateText({ prompt: 'Teste.' })).rejects.toMatchObject({
+      status: HttpStatus.SERVICE_UNAVAILABLE,
+      response: expect.objectContaining({ code: 'AI_CONFIGURATION_ERROR' }) as unknown,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -164,7 +167,8 @@ describe('AiService', () => {
     fetchMock.mockResolvedValue(response(429, { error: { message: 'limite atingido' } }));
 
     await expect(new AiService().generateText({ prompt: 'Teste.' })).rejects.toMatchObject({
-      status: HttpStatus.TOO_MANY_REQUESTS,
+      status: HttpStatus.SERVICE_UNAVAILABLE,
+      response: expect.objectContaining({ code: 'AI_CAPACITY_EXHAUSTED' }) as unknown,
     });
   });
 

@@ -16,6 +16,10 @@ import { TelemetryService } from '../telemetry/telemetry.service';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const MAX_ATTEMPTS_PER_PROVIDER = 2;
+const MAX_RETRY_DELAY_MS = 8_000;
 
 interface AiProviderDefinition {
   provider: AiProvider;
@@ -24,9 +28,7 @@ interface AiProviderDefinition {
 }
 
 interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-  }>;
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
 }
 
 interface GroqResponse {
@@ -38,6 +40,7 @@ class AiProviderError extends Error {
     readonly provider: AiProvider,
     readonly model: string,
     readonly status?: number,
+    readonly retryAfterMs?: number,
   ) {
     super(`Falha no provedor ${provider} (${model})${status ? `: HTTP ${status}` : '.'}`);
   }
@@ -52,56 +55,44 @@ export class AiService {
     @Optional() private readonly telemetry?: TelemetryService,
   ) {}
 
-  /**
-   * Gera texto sem expor a troca de provedores a quem controla a conversa.
-   * Apenas indisponibilidade temporaria (429/503) avanca pela cadeia; os demais
-   * erros continuam visiveis para nao mascarar credencial ou requisicao invalida.
-   */
   async generateText(request: AiTextGenerationRequest): Promise<AiTextGenerationResult> {
     const providers = this.providers();
     if (providers.length === 0) {
       throw new ServiceUnavailableException('Nenhum provedor de IA foi configurado.');
     }
 
-    let lastError: AiProviderError | undefined;
-
+    const errors: AiProviderError[] = [];
     for (const [index, provider] of providers.entries()) {
-      try {
-        const text = await this.generateWithProvider(provider, request);
-        return { text, provider: provider.provider, model: provider.model };
-      } catch (error) {
-        if (!(error instanceof AiProviderError)) {
-          throw error;
-        }
-
-        if (!this.shouldFallback(error)) {
-          this.logger.warn(
-            `IA recusou a requisição em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}).`,
-          );
-          throw new BadGatewayException(`Falha no provedor de IA (${error.provider}).`);
-        }
-
-        if (provider === providers.at(-1)) {
-          if (error.status === 429) {
-            throw new HttpException(
-              'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
-              HttpStatus.TOO_MANY_REQUESTS,
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_PROVIDER; attempt += 1) {
+        try {
+          const text = await this.generateWithProvider(provider, request);
+          return { text, provider: provider.provider, model: provider.model };
+        } catch (error) {
+          if (!(error instanceof AiProviderError)) throw error;
+          errors.push(error);
+          if (!this.shouldRetry(error)) {
+            this.logger.warn(
+              `IA recusou a requisição em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}).`,
             );
-          }
-          if (error.status === 503) {
-            try {
-              const text = await this.generateWithProvider(provider, request);
-              return { text, provider: provider.provider, model: provider.model };
-            } catch (retryError) {
-              if (!(retryError instanceof AiProviderError)) throw retryError;
-              lastError = retryError;
+            if (error.status === 400 || error.status === 401 || error.status === 403) {
+              throw new HttpException(
+                {
+                  statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+                  code: 'AI_CONFIGURATION_ERROR',
+                  message: 'O provedor de IA está com uma configuração inválida.',
+                },
+                HttpStatus.SERVICE_UNAVAILABLE,
+              );
             }
+            throw new BadGatewayException(`Falha no provedor de IA (${error.provider}).`);
           }
-          throw this.toServiceUnavailable(lastError ?? error);
+          if (attempt < MAX_ATTEMPTS_PER_PROVIDER) await this.waitBeforeRetry(error, attempt);
         }
+      }
 
-        lastError = error;
-        const nextProvider = providers[index + 1];
+      const nextProvider = providers[index + 1];
+      if (nextProvider) {
+        const error = errors.at(-1)!;
         await this.telemetry?.captureAiFallback({
           fromProvider: provider.provider,
           fromModel: provider.model,
@@ -111,19 +102,34 @@ export class AiService {
           traceId: this.requestContext?.getTraceId() ?? randomUUID(),
         });
         this.logger.warn(
-          `IA temporariamente indisponivel em ${provider.provider} (${provider.model}, HTTP ${error.status}); alternando provedor.`,
+          `IA temporariamente indisponivel em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}); alternando provedor.`,
         );
       }
     }
 
-    throw this.toServiceUnavailable(lastError);
+    if (errors.length > 0 && errors.every((error) => error.status === 429)) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          code: 'AI_CAPACITY_EXHAUSTED',
+          message: 'A capacidade gratuita da IA foi atingida. Tente novamente mais tarde.',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    throw this.toServiceUnavailable(errors.at(-1));
   }
 
   private providers(): AiProviderDefinition[] {
     return [
       {
         provider: 'gemini',
-        model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+        model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
+        apiKey: process.env.GEMINI_API_KEY,
+      },
+      {
+        provider: 'gemini',
+        model: process.env.GEMINI_FALLBACK_MODEL ?? DEFAULT_GEMINI_FALLBACK_MODEL,
         apiKey: process.env.GEMINI_API_KEY,
       },
       {
@@ -136,8 +142,10 @@ export class AiService {
         model: process.env.GROQ_8B_MODEL ?? 'llama-3.1-8b-instant',
         apiKey: process.env.GROQ_API_KEY,
       },
-    ].filter((provider): provider is AiProviderDefinition & { apiKey: string } =>
-      Boolean(provider.apiKey),
+    ].filter(
+      (provider, index, all): provider is AiProviderDefinition & { apiKey: string } =>
+        Boolean(provider.apiKey) &&
+        all.findIndex((item) => item.model === provider.model) === index,
     );
   }
 
@@ -176,11 +184,7 @@ export class AiService {
       ?.map((part) => part.text ?? '')
       .join('')
       .trim();
-
-    if (!text) {
-      throw new AiProviderError(provider.provider, provider.model, response.status);
-    }
-
+    if (!text) throw new AiProviderError(provider.provider, provider.model, response.status);
     return text;
   }
 
@@ -213,11 +217,7 @@ export class AiService {
     );
     const payload = (await response.json()) as GroqResponse;
     const text = payload.choices?.[0]?.message?.content?.trim();
-
-    if (!text) {
-      throw new AiProviderError(provider.provider, provider.model, response.status);
-    }
-
+    if (!text) throw new AiProviderError(provider.provider, provider.model, response.status);
     return text;
   }
 
@@ -228,7 +228,6 @@ export class AiService {
   ): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(controller.abort.bind(controller), this.timeoutMs());
-
     try {
       const headers = new Headers(init.headers);
       const traceId = this.requestContext?.getTraceId();
@@ -240,14 +239,16 @@ export class AiService {
         signal: controller.signal,
       });
       if (!response.ok) {
-        throw new AiProviderError(provider.provider, provider.model, response.status);
+        throw new AiProviderError(
+          provider.provider,
+          provider.model,
+          response.status,
+          this.retryAfterMs(response.headers.get('retry-after')),
+        );
       }
       return response;
     } catch (error) {
-      if (error instanceof AiProviderError) {
-        throw error;
-      }
-      // Timeouts e falhas de rede sao indisponibilidade temporaria do provedor.
+      if (error instanceof AiProviderError) throw error;
       throw new AiProviderError(provider.provider, provider.model, 503);
     } finally {
       clearTimeout(timeout);
@@ -267,12 +268,32 @@ export class AiService {
     return Number(process.env.AI_REQUEST_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
   }
 
-  private shouldFallback(error: AiProviderError): boolean {
-    return error.status === 429 || error.status === 503;
+  private shouldRetry(error: AiProviderError): boolean {
+    return error.status === 408 || error.status === 429 || (error.status ?? 0) >= 500;
+  }
+
+  private async waitBeforeRetry(error: AiProviderError, attempt: number): Promise<void> {
+    const configuredBase = Number(process.env.AI_RETRY_BASE_MS);
+    const base = Number.isFinite(configuredBase) ? configuredBase : 1_000;
+    const exponential = Math.min(MAX_RETRY_DELAY_MS, base * 2 ** (attempt - 1));
+    const delay = Math.min(MAX_RETRY_DELAY_MS, error.retryAfterMs ?? exponential);
+    const jitter = Math.floor(Math.random() * 250);
+    await new Promise<void>((resolve) => setTimeout(resolve, delay + jitter));
+  }
+
+  private retryAfterMs(value: string | null): number | undefined {
+    if (!value) return undefined;
+    const seconds = Number(value);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+    const timestamp = Date.parse(value);
+    return Number.isNaN(timestamp) ? undefined : Math.max(0, timestamp - Date.now());
   }
 
   private toServiceUnavailable(error?: AiProviderError): ServiceUnavailableException {
     const provider = error ? ` (${error.provider})` : '';
-    return new ServiceUnavailableException(`Os provedores de IA estao indisponiveis${provider}.`);
+    return new ServiceUnavailableException({
+      code: 'AI_TEMPORARILY_UNAVAILABLE',
+      message: `Os provedores de IA estao indisponiveis${provider}.`,
+    });
   }
 }

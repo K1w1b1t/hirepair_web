@@ -22,21 +22,35 @@ export class GuestQuotaService implements OnApplicationShutdown {
           maxRetriesPerRequest: 1,
         });
   }
-  async consumeAnalysis(visitorId: string, ip = 'unknown'): Promise<void> {
-    const key = createHmac('sha256', process.env.GUEST_ACCESS_SECRET ?? 'local-guest-access-secret')
-      .update(`${visitorId}:${ip}`)
-      .digest('hex');
+  async reserveAnalysis(visitorId: string, ip = 'unknown'): Promise<void> {
+    const key = this.key(visitorId, ip);
     try {
       const allowed = await this.redis.set(`guest-analysis:${key}`, '1', 'EX', DAY_SECONDS, 'NX');
       if (allowed !== 'OK')
         throw new HttpException(
-          'Sua análise gratuita volta em até 24 horas.',
-          HttpStatus.TOO_MANY_REQUESTS,
+          {
+            statusCode: HttpStatus.BAD_REQUEST,
+            code: 'GUEST_ANALYSIS_LIMIT_REACHED',
+            message: 'Sua análise gratuita volta em até 24 horas.',
+          },
+          HttpStatus.BAD_REQUEST,
         );
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new ServiceUnavailableException('A análise está temporariamente indisponível.');
     }
+  }
+  async releaseAnalysis(visitorId: string, ip = 'unknown'): Promise<void> {
+    try {
+      await this.redis.del(`guest-analysis:${this.key(visitorId, ip)}`);
+    } catch {
+      // A reserva permanece como proteção conservadora se o Redis cair durante a liberação.
+    }
+  }
+  private key(visitorId: string, ip: string): string {
+    return createHmac('sha256', process.env.GUEST_ACCESS_SECRET ?? 'local-guest-access-secret')
+      .update(`${visitorId}:${ip}`)
+      .digest('hex');
   }
   onApplicationShutdown(): Promise<'OK'> {
     return this.redis.quit();

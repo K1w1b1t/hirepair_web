@@ -104,9 +104,10 @@ describe('JobExampleStep', () => {
         .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
         .mockResolvedValueOnce({
           ok: false,
-          status: 429,
+          status: 503,
           json: async () => ({
-            message: 'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
+            code: 'AI_CAPACITY_EXHAUSTED',
+            message: 'A capacidade gratuita da IA foi atingida. Tente novamente mais tarde.',
           }),
         }),
     });
@@ -122,7 +123,7 @@ describe('JobExampleStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.',
+      'A capacidade gratuita da IA foi atingida. Tente novamente mais tarde.',
     );
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });

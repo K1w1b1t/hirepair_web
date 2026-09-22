@@ -2,7 +2,7 @@ import { GuestAnalysisService } from './guest-analysis.service';
 
 describe('GuestAnalysisService', () => {
   const ai = { generateText: jest.fn() };
-  const quota = { consumeAnalysis: jest.fn() };
+  const quota = { reserveAnalysis: jest.fn(), releaseAnalysis: jest.fn() };
   const access = { verify: jest.fn(() => ({ visitorId: 'visitor-1' })) };
   const service = new GuestAnalysisService(ai as never, quota as never, access as never);
 
@@ -12,7 +12,7 @@ describe('GuestAnalysisService', () => {
   });
 
   it('preselects a career transition for maintenance experience targeting engineering', async () => {
-    quota.consumeAnalysis.mockResolvedValue(undefined);
+    quota.reserveAnalysis.mockResolvedValue(undefined);
     ai.generateText.mockResolvedValue({
       text: JSON.stringify({
         targetKind: 'different_track',
@@ -35,7 +35,7 @@ describe('GuestAnalysisService', () => {
   });
 
   it('accepts JSON returned inside a markdown code fence', async () => {
-    quota.consumeAnalysis.mockResolvedValue(undefined);
+    quota.reserveAnalysis.mockResolvedValue(undefined);
     ai.generateText.mockResolvedValue({
       text: '```json\n{"targetKind":"different_track","targetRole":"Engenheiro mecânico","requirements":[]}\n```',
     });
@@ -49,7 +49,7 @@ describe('GuestAnalysisService', () => {
   });
 
   it('uses the plural form when the analysis finds multiple requirements', async () => {
-    quota.consumeAnalysis.mockResolvedValue(undefined);
+    quota.reserveAnalysis.mockResolvedValue(undefined);
     ai.generateText.mockResolvedValue({
       text: JSON.stringify({
         targetKind: 'same_track',
@@ -69,5 +69,19 @@ describe('GuestAnalysisService', () => {
     ).resolves.toMatchObject({
       summary: 'Encontramos 2 requisitos principais para orientar seu currículo.',
     });
+  });
+
+  it('releases the reservation when the AI fails so a transient error does not consume the quota', async () => {
+    quota.reserveAnalysis.mockResolvedValue(undefined);
+    quota.releaseAnalysis.mockResolvedValue(undefined);
+    ai.generateText.mockRejectedValue(new Error('temporarily unavailable'));
+
+    await expect(
+      service.analyze('token', {
+        documents: [{ id: 'resume', text: 'Experiência profissional.' }],
+        jobText: 'Vaga de teste.',
+      }),
+    ).rejects.toThrow('temporarily unavailable');
+    expect(quota.releaseAnalysis).toHaveBeenCalledWith('visitor-1', undefined);
   });
 });

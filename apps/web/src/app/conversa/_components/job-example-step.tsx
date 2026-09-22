@@ -101,17 +101,22 @@ export function JobExampleStep({
       });
       if (!response.ok) {
         const failure = (await response.json().catch(() => undefined)) as
-          { message?: unknown } | undefined;
+          { code?: unknown; message?: unknown } | undefined;
+        const failureCode = typeof failure?.code === 'string' ? failure.code : undefined;
         const providerLimitMessage =
-          typeof failure?.message === 'string' &&
-          failure.message ===
-            'O limite temporário da IA foi atingido. Tente novamente em alguns minutos.'
+          typeof failure?.message === 'string' && failureCode === 'AI_CAPACITY_EXHAUSTED'
+            ? failure.message
+            : undefined;
+        const guestLimitMessage =
+          failureCode === 'GUEST_ANALYSIS_LIMIT_REACHED' && typeof failure?.message === 'string'
             ? failure.message
             : undefined;
         throw new Error(
-          response.status === 429
-            ? (providerLimitMessage ?? 'Sua análise gratuita volta em até 24 horas.')
-            : 'A análise está indisponível. Tente novamente.',
+          response.status === 400
+            ? (guestLimitMessage ?? 'Sua análise gratuita volta em até 24 horas.')
+            : response.status === 503
+              ? (providerLimitMessage ?? 'A análise está temporariamente indisponível.')
+              : 'A análise está indisponível. Tente novamente.',
         );
       }
       onComplete((await response.json()) as JobAnalysisResult);
@@ -119,7 +124,8 @@ export function JobExampleStep({
       setNotice(
         caught instanceof Error &&
           (caught.message.includes('24 horas') ||
-            caught.message.includes('limite temporário da IA'))
+            caught.message.includes('capacidade gratuita da IA') ||
+            caught.message.includes('temporariamente indisponível'))
           ? caught.message
           : 'Verifique sua conexão e tente novamente em alguns instantes.',
       );
