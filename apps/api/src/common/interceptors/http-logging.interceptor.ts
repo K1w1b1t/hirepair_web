@@ -18,7 +18,7 @@ import { normalizeRoutePath } from '../request-context/route-path.util';
 
 const SENSITIVE_HEADER = /api.?key|authorization|x-access-token|cookie|^auth$/i;
 const SENSITIVE_FIELD =
-  /password|secret|token|api.?key|cookie|email|phone|cpf|address|ipAddress|content|markdown|transcript|prompt|audio|file|buffer|rawText/i;
+  /password|secret|token|api.?key|cookie|email|phone|cpf|address|ipAddress|content|markdown|transcript|prompt|audio|file|buffer|rawText|documents|jobText|targetRole/i;
 const MAX_DEPTH = 4;
 const MAX_ARRAY_ITEMS = 10;
 const MAX_OBJECT_KEYS = 50;
