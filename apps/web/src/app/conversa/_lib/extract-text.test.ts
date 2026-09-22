@@ -110,6 +110,10 @@ describe('extractTextFromFile', () => {
       source: 'file',
       fileType: 'PDF',
     });
+    expect(mockGetDocument).toHaveBeenCalledWith({
+      data: expect.anything(),
+      disableWorker: true,
+    });
   });
 
   it('concatenates text from multiple PDF pages with line breaks', async () => {

@@ -38,12 +38,12 @@ function ensureText(text: string): string {
 }
 
 async function extractPdf(file: File): Promise<string> {
-  const [pdfjs] = await Promise.all([
-    import('pdfjs-dist/legacy/build/pdf.mjs'),
-    import('pdfjs-dist/legacy/build/pdf.worker.mjs'),
-  ]);
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const data = await file.arrayBuffer();
-  const document = await pdfjs.getDocument({ data }).promise;
+  const documentOptions = { data, disableWorker: true } as unknown as Parameters<
+    typeof pdfjs.getDocument
+  >[0];
+  const document = await pdfjs.getDocument(documentOptions).promise;
   const pages: string[] = [];
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
     const page = await document.getPage(pageNumber);
