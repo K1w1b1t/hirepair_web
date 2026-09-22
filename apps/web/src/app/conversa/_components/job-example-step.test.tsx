@@ -153,7 +153,7 @@ describe('JobRecommendationsStep', () => {
       />,
     );
     expect(screen.getByText('Engenheiro mecânico')).toBeInTheDocument();
-    expect(screen.getAllByText('Recomendado')).toHaveLength(3);
+    expect(screen.getAllByText('Recomendado!')).toHaveLength(3);
     expect(screen.getByRole('radio', { name: /especialista/i })).not.toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /especialista/i }));
     expect(onPreferencesChange).toHaveBeenCalledWith(

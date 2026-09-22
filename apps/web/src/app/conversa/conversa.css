@@ -201,6 +201,11 @@
   margin-top: 0.6rem;
 }
 .job-choice label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 1.2rem;
   cursor: pointer;
 }
 .job-choice input {
@@ -215,15 +220,15 @@
   color: var(--color-navy);
   font-size: 0.85rem;
 }
-.job-choice span small {
-  display: block;
-  margin-top: 0.15rem;
-  color: inherit;
+.job-choice label > small {
+  position: absolute;
+  top: 0;
+  left: 0.75rem;
+  color: var(--color-primary);
   font-size: 0.68rem;
   font-weight: 700;
-  opacity: 0.78;
 }
-.job-choice input:checked + span {
+.job-choice input:checked ~ span {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: white;

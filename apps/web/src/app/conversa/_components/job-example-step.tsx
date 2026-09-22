@@ -248,10 +248,8 @@ function Choice<T extends string>({
               type="radio"
               value={item.value}
             />
-            <span>
-              {item.label}
-              {item.value === suggested ? <small>Recomendado</small> : null}
-            </span>
+            {item.value === suggested ? <small>Recomendado!</small> : null}
+            <span>{item.label}</span>
           </label>
         ))}
       </div>
