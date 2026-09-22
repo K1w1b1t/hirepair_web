@@ -88,7 +88,9 @@ export class GuestAnalysisService {
           ? 'Seu histórico e o cargo desejado apontam para uma mudança de trilha.'
           : 'A estrutura foi sugerida a partir do seu histórico e do cargo desejado.',
       summary: requirements.length
-        ? `Encontramos ${requirements.length} requisito${requirements.length === 1 ? '' : 's'} principal${requirements.length === 1 ? '' : 'is'} para orientar seu currículo.`
+        ? requirements.length === 1
+          ? 'Encontramos 1 requisito principal para orientar seu currículo.'
+          : `Encontramos ${requirements.length} requisitos principais para orientar seu currículo.`
         : 'Vamos organizar seu currículo para o cargo que você quer buscar.',
     };
     await this.quota.consumeAnalysis(guest.visitorId, ip);

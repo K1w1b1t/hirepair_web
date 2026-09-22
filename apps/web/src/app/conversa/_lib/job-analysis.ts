@@ -4,6 +4,32 @@ export type Objective =
   'ENTER_FAST' | 'MAXIMIZE_SALARY' | 'CHANGE_FIELD' | 'WORK_REMOTE' | 'BALANCE_STUDY_FAMILY';
 export type Tone = 'DIRECT' | 'NEUTRAL' | 'CONSULTATIVE' | 'TECHNICAL' | 'WELCOMING';
 
+export interface JobAnalysisResult {
+  targetRole: string;
+  summary: string;
+  requirements: Array<{ text: string; category: string }>;
+  suggestedArchetype: Archetype;
+  suggestedObjective: Objective;
+  suggestedTone: Tone;
+  reason: string;
+}
+
+export interface JobPreferences {
+  archetype: Archetype;
+  objective: Objective;
+  tone: Tone;
+}
+
+export interface JobDraft {
+  hasJob: boolean;
+  jobText: string;
+  targetRole: string;
+  accepted: boolean;
+}
+
+export const ANALYSIS_KEY = 'hirepair_job_analysis';
+export const GUEST_ID_KEY = 'hirepair_guest_id';
+
 export interface AnalysisSignal {
   targetKind?: string;
   targetRole?: string;

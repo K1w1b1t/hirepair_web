@@ -1,25 +1,19 @@
 'use client';
+
 import { useEffect, useState } from 'react';
-import { clearStoredResumes, type StoredResume } from '../_lib/resume-storage';
 import {
   archetypes,
+  GUEST_ID_KEY,
   objectives,
   tones,
   type Archetype,
+  type JobAnalysisResult,
+  type JobDraft,
+  type JobPreferences,
   type Objective,
   type Tone,
 } from '../_lib/job-analysis';
-
-type Result = {
-  targetRole: string;
-  summary: string;
-  requirements: Array<{ text: string; category: string }>;
-  suggestedArchetype: Archetype;
-  suggestedObjective: Objective;
-  suggestedTone: Tone;
-  reason: string;
-};
-const ANALYSIS_KEY = 'hirepair_job_analysis';
+import type { StoredResume } from '../_lib/resume-storage';
 
 function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   useEffect(() => {
@@ -27,9 +21,7 @@ function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss
     const timeout = window.setTimeout(onDismiss, 5000);
     return () => window.clearTimeout(timeout);
   }, [message, onDismiss]);
-
   if (!message) return null;
-
   return (
     <div aria-live="assertive" className="import-toast" role="alert">
       <div>
@@ -47,98 +39,55 @@ function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss
     </div>
   );
 }
+
 function visitorId() {
-  const key = 'hirepair_guest_id';
-  const current = localStorage.getItem(key);
+  const current = localStorage.getItem(GUEST_ID_KEY);
   if (current) return current;
   const next = crypto.randomUUID();
-  localStorage.setItem(key, next);
+  localStorage.setItem(GUEST_ID_KEY, next);
   return next;
 }
-function Choice<T extends string>({
-  title,
-  values,
-  value,
-  onChange,
+
+export function JobExampleStep({
+  documents,
+  draft,
+  onDraftChange,
+  onComplete,
 }: {
-  title: string;
-  values: Array<{ value: T; label: string }>;
-  value: T;
-  onChange: (value: T) => void;
+  documents: StoredResume[];
+  draft: JobDraft;
+  onDraftChange: (draft: JobDraft) => void;
+  onComplete: (result: JobAnalysisResult) => void;
 }) {
-  return (
-    <fieldset className="job-choice">
-      <legend>{title}</legend>
-      <div>
-        {values.map((item) => (
-          <label key={item.value}>
-            <input
-              checked={value === item.value}
-              name={title}
-              onChange={() => onChange(item.value)}
-              type="radio"
-              value={item.value}
-            />
-            <span>{item.label}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
-  const [hasJob, setHasJob] = useState(true);
-  const [jobText, setJobText] = useState('');
-  const [targetRole, setTargetRole] = useState('');
-  const [result, setResult] = useState<Result>();
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
-  const [accepted, setAccepted] = useState(false);
-  const [archetype, setArchetype] = useState<Archetype>('D_SAME_FIELD_RETURN');
-  const [objective, setObjective] = useState<Objective>('ENTER_FAST');
-  const [tone, setTone] = useState<Tone>('NEUTRAL');
-  useEffect(() => {
-    const saved = localStorage.getItem(ANALYSIS_KEY);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as {
-        result: Result;
-        archetype: Archetype;
-        objective: Objective;
-        tone: Tone;
-      };
-      setResult(parsed.result);
-      setArchetype(parsed.archetype);
-      setObjective(parsed.objective);
-      setTone(parsed.tone);
-    } catch {
-      localStorage.removeItem(ANALYSIS_KEY);
-    }
-  }, []);
-  useEffect(() => {
-    if (result)
-      localStorage.setItem(ANALYSIS_KEY, JSON.stringify({ result, archetype, objective, tone }));
-  }, [archetype, objective, result, tone]);
-  const hasRequiredInput = hasJob ? Boolean(jobText.trim()) : Boolean(targetRole.trim());
-  const analysisDisabled = loading || !accepted || !hasRequiredInput;
+  const hasRequiredInput = draft.hasJob
+    ? Boolean(draft.jobText.trim())
+    : Boolean(draft.targetRole.trim());
+  const analysisDisabled = loading || !draft.accepted || !hasRequiredInput;
   const analysisDisabledMessage =
-    !hasRequiredInput && !accepted
+    !hasRequiredInput && !draft.accepted
       ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
       : !hasRequiredInput
         ? 'Informe os requisitos da vaga para analisar.'
-        : !accepted
+        : !draft.accepted
           ? 'Aceite os Termos e a Política de Privacidade para analisar.'
           : undefined;
+  const updateDraft = (next: Partial<JobDraft>) => onDraftChange({ ...draft, ...next });
+
   const analyze = async () => {
     setLoading(true);
     setNotice('');
     try {
       const root = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-      const visitor = visitorId();
       const access = await fetch(`${root}/guest/access`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ visitorId: visitor, acceptedTerms: true, acceptedPrivacy: true }),
+        body: JSON.stringify({
+          visitorId: visitorId(),
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+        }),
       });
       if (!access.ok) throw new Error('Não foi possível iniciar sua jornada.');
       const token = ((await access.json()) as { accessToken: string }).accessToken;
@@ -147,7 +96,7 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({
           documents: documents.map(({ id, text }) => ({ id, text })),
-          ...(hasJob ? { jobText } : { targetRole }),
+          ...(draft.hasJob ? { jobText: draft.jobText } : { targetRole: draft.targetRole }),
         }),
       });
       if (!response.ok)
@@ -156,11 +105,7 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
             ? 'Sua análise gratuita volta em até 24 horas.'
             : 'A análise está indisponível. Tente novamente.',
         );
-      const next = (await response.json()) as Result;
-      setResult(next);
-      setArchetype(next.suggestedArchetype);
-      setObjective(next.suggestedObjective);
-      setTone(next.suggestedTone);
+      onComplete((await response.json()) as JobAnalysisResult);
     } catch (caught) {
       setNotice(
         caught instanceof Error && caught.message.includes('24 horas')
@@ -171,41 +116,50 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
       setLoading(false);
     }
   };
+
   return (
     <section className="job-example-step">
-      <p className="section-kicker">Etapa 2 · seu próximo passo</p>
-      <h1>Você tem uma vaga de exemplo?</h1>
-      <p>Cole os requisitos e a gente sugere a melhor forma de apresentar sua experiência.</p>
-      <div className="job-toggle">
-        <button aria-pressed={hasJob} onClick={() => setHasJob(true)} type="button">
+      <p className="section-kicker">Etapa 2 · definir o próximo passo</p>
+      <h1>Qual vaga você quer buscar?</h1>
+      <p>Cole os requisitos e a gente sugere como apresentar sua experiência.</p>
+      <div aria-label="Forma de definir o objetivo" className="job-toggle">
+        <button
+          aria-pressed={draft.hasJob}
+          onClick={() => updateDraft({ hasJob: true })}
+          type="button"
+        >
           Tenho uma vaga
         </button>
-        <button aria-pressed={!hasJob} onClick={() => setHasJob(false)} type="button">
+        <button
+          aria-pressed={!draft.hasJob}
+          onClick={() => updateDraft({ hasJob: false })}
+          type="button"
+        >
           Ainda não tenho
         </button>
       </div>
-      {hasJob ? (
+      {draft.hasJob ? (
         <textarea
           aria-label="Requisitos da vaga"
-          onChange={(event) => setJobText(event.target.value)}
+          onChange={(event) => updateDraft({ jobText: event.target.value })}
           placeholder="Cole aqui a descrição ou os requisitos da vaga"
-          rows={7}
-          value={jobText}
+          rows={9}
+          value={draft.jobText}
         />
       ) : (
         <input
           aria-label="Cargo que procura"
-          onChange={(event) => setTargetRole(event.target.value)}
+          onChange={(event) => updateDraft({ targetRole: event.target.value })}
           placeholder="Qual cargo você quer buscar?"
-          value={targetRole}
+          value={draft.targetRole}
         />
       )}
       <div className="job-terms">
         <input
           aria-describedby="job-terms-description"
-          checked={accepted}
+          checked={draft.accepted}
           id="job-terms-accepted"
-          onChange={(event) => setAccepted(event.target.checked)}
+          onChange={(event) => updateDraft({ accepted: event.target.checked })}
           type="checkbox"
         />
         <label htmlFor="job-terms-accepted">Li e aceito os </label>
@@ -225,48 +179,121 @@ export function JobExampleStep({ documents }: { documents: StoredResume[] }) {
         title={analysisDisabledMessage}
         type="button"
       >
-        {loading ? 'Analisando…' : 'Analisar e sugerir'}
+        {loading ? 'Analisando seu histórico…' : 'Analisar e sugerir'}
       </button>
-      <AnalysisErrorToast message={notice} onDismiss={() => setNotice('')} />
-      {result ? (
-        <div className="job-result">
-          <p className="section-kicker">Sugerido para você</p>
-          <h2>{result.targetRole}</h2>
-          <p>{result.reason}</p>
-          <p>{result.summary}</p>
-          {result.requirements.length ? (
-            <ul>
-              {result.requirements.map((item) => (
-                <li key={item.text}>{item.text}</li>
-              ))}
-            </ul>
-          ) : null}
-          <Choice
-            title="Estrutura do currículo"
-            values={archetypes}
-            value={archetype}
-            onChange={setArchetype}
-          />
-          <Choice
-            title="Seu objetivo"
-            values={objectives}
-            value={objective}
-            onChange={setObjective}
-          />
-          <Choice title="Tom de escrita" values={tones} value={tone} onChange={setTone} />
-          <button
-            className="button button-outline button-small"
-            onClick={() => {
-              localStorage.removeItem(ANALYSIS_KEY);
-              void clearStoredResumes();
-              setResult(undefined);
-            }}
-            type="button"
-          >
-            Apagar meus dados deste navegador
-          </button>
-        </div>
+      {loading ? (
+        <p aria-live="polite" className="job-analysis-status">
+          Isso pode levar alguns segundos.
+        </p>
       ) : null}
+      <AnalysisErrorToast message={notice} onDismiss={() => setNotice('')} />
+    </section>
+  );
+}
+
+function Choice<T extends string>({
+  title,
+  values,
+  value,
+  suggested,
+  onChange,
+}: {
+  title: string;
+  values: Array<{ value: T; label: string }>;
+  value: T;
+  suggested: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <fieldset className="job-choice">
+      <legend>{title}</legend>
+      <div>
+        {values.map((item) => (
+          <label key={item.value}>
+            <input
+              checked={value === item.value}
+              name={title}
+              onChange={() => onChange(item.value)}
+              type="radio"
+              value={item.value}
+            />
+            <span>
+              {item.label}
+              {item.value === suggested ? <small>Recomendado</small> : null}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+export function JobRecommendationsStep({
+  result,
+  preferences,
+  onPreferencesChange,
+  onEditJob,
+}: {
+  result: JobAnalysisResult;
+  preferences: JobPreferences;
+  onPreferencesChange: (preferences: JobPreferences) => void;
+  onEditJob: () => void;
+}) {
+  const update = (next: Partial<JobPreferences>) =>
+    onPreferencesChange({ ...preferences, ...next });
+  return (
+    <section className="job-recommendations-step">
+      <p className="section-kicker">Etapa 3 · revisar as recomendações</p>
+      <h1>Sugerido para você</h1>
+      <div className="job-result-summary">
+        <span className="job-recommendation-badge">Recomendação personalizada</span>
+        <h2>{result.targetRole}</h2>
+        <p>{result.reason}</p>
+        <p>{result.summary}</p>
+        {result.requirements.length ? (
+          <ul aria-label="Requisitos principais da vaga">
+            {result.requirements.map((item) => (
+              <li key={item.text}>{item.text}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+      <div className="job-recommendation-choices">
+        <Choice<Archetype>
+          title="Estrutura do currículo"
+          values={archetypes}
+          value={preferences.archetype}
+          suggested={result.suggestedArchetype}
+          onChange={(archetype) => update({ archetype })}
+        />
+        <Choice<Objective>
+          title="Seu objetivo"
+          values={objectives}
+          value={preferences.objective}
+          suggested={result.suggestedObjective}
+          onChange={(objective) => update({ objective })}
+        />
+        <Choice<Tone>
+          title="Tom de escrita"
+          values={tones}
+          value={preferences.tone}
+          suggested={result.suggestedTone}
+          onChange={(tone) => update({ tone })}
+        />
+      </div>
+      <div className="job-recommendation-actions">
+        <button className="button button-outline" onClick={onEditJob} type="button">
+          Editar vaga
+        </button>
+        <button
+          className="button button-primary"
+          disabled
+          title="A próxima etapa ainda está em construção."
+          type="button"
+        >
+          Continuar · em breve
+        </button>
+      </div>
     </section>
   );
 }

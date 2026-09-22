@@ -30,6 +30,7 @@ describe('GuestAnalysisService', () => {
       suggestedArchetype: 'B_CAREER_CHANGE',
       suggestedObjective: 'CHANGE_FIELD',
       suggestedTone: 'CONSULTATIVE',
+      summary: 'Encontramos 1 requisito principal para orientar seu currículo.',
     });
   });
 
@@ -45,5 +46,28 @@ describe('GuestAnalysisService', () => {
         jobText: 'Vaga para Engenheiro mecânico.',
       }),
     ).resolves.toMatchObject({ suggestedArchetype: 'B_CAREER_CHANGE' });
+  });
+
+  it('uses the plural form when the analysis finds multiple requirements', async () => {
+    quota.consumeAnalysis.mockResolvedValue(undefined);
+    ai.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        targetKind: 'same_track',
+        targetRole: 'Engenheiro de software',
+        requirements: [
+          { text: 'Experiência com React', category: 'ELIMINATORY' },
+          { text: 'Conhecimento de GraphQL', category: 'NEGOTIABLE' },
+        ],
+      }),
+    });
+
+    await expect(
+      service.analyze('token', {
+        documents: [{ id: 'resume', text: 'Desenvolvedor React.' }],
+        jobText: 'Vaga para engenheiro de software com React e GraphQL.',
+      }),
+    ).resolves.toMatchObject({
+      summary: 'Encontramos 2 requisitos principais para orientar seu currículo.',
+    });
   });
 });
