@@ -143,7 +143,10 @@ export class AiService {
           ...(request.systemInstruction
             ? { systemInstruction: { parts: [{ text: request.systemInstruction }] } }
             : {}),
-          generationConfig: this.generationConfig(request),
+          generationConfig: {
+            ...this.generationConfig(request),
+            responseMimeType: 'application/json',
+          },
         }),
       },
       provider,

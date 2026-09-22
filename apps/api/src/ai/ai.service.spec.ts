@@ -124,6 +124,19 @@ describe('AiService', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('pede JSON nativo ao Gemini para respostas estruturadas', async () => {
+    fetchMock.mockResolvedValue(
+      response(200, { candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }),
+    );
+
+    await new AiService().generateText({ prompt: 'Responda com dados estruturados.' });
+
+    const body = jsonBody(fetchMock.mock.calls[0][1]) as {
+      generationConfig?: { responseMimeType?: string };
+    };
+    expect(body.generationConfig?.responseMimeType).toBe('application/json');
+  });
+
   it('informa indisponibilidade quando nenhuma chave foi configurada', async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GROQ_API_KEY;
