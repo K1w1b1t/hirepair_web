@@ -57,14 +57,14 @@ describe('JobExampleStep', () => {
       act(() => recognition.onstart?.());
       fireEvent.click(screen.getByRole('checkbox'));
       act(() => recognition.result(['Experiência em manutenção industrial.']));
-      expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue(
-        'Experiência em manutenção industrial.',
-      );
       expect(screen.getByRole('checkbox')).toBeChecked();
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
       act(() => recognition.onend?.());
+      expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue(
+        'Experiência em manutenção industrial.',
+      );
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
     } finally {
       restore();
@@ -84,8 +84,8 @@ describe('JobExampleStep', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Falar para preencher' }));
       const role = MockSpeechRecognition.instances[1];
       act(() => role.result(['Assistente administrativo']));
-      expect(screen.getByLabelText('Cargo que procura')).toHaveValue('Assistente administrativo');
       act(() => role.onend?.());
+      expect(screen.getByLabelText('Cargo que procura')).toHaveValue('Assistente administrativo');
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
       fireEvent.click(screen.getByRole('button', { name: 'Tenho uma vaga' }));
       expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue('');

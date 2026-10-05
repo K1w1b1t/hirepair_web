@@ -52,14 +52,16 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Preparando o microfone…');
     act(() => recognition.onstart?.());
     expect(screen.getByRole('status')).toHaveTextContent('Pode falar.');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Ditado: Experiência')).toBeInTheDocument();
     const button = screen.getByRole('button', { name: 'Parar ditado' });
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(button).toHaveAttribute('aria-controls', 'experience');
+    expect(button).toHaveAttribute('aria-controls', 'experience-voice-transcript');
     expect(button.querySelector('rect')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows interim speech below the field and appends final segments once', () => {
+  it('shows interim speech in a card and fills the field only when dictation ends', () => {
     const { props } = renderField({ value: 'Experiência anterior.  ' });
     const recognition = start();
     act(() => recognition.onstart?.());
@@ -67,15 +69,16 @@ describe('VoiceTextField', () => {
     expect(props.onChange).not.toHaveBeenCalled();
     expect(screen.getByText('provisório')).toBeInTheDocument();
     act(() => recognition.result([' Atendimento. ', ' Vendas. ']));
-    expect(props.onChange).toHaveBeenNthCalledWith(1, 'Experiência anterior. Atendimento.');
-    expect(props.onChange).toHaveBeenNthCalledWith(2, 'Experiência anterior. Atendimento. Vendas.');
+    expect(props.onChange).not.toHaveBeenCalled();
     act(() => recognition.result(['Atendimento.', 'Vendas.', '   ']));
-    expect(props.onChange).toHaveBeenCalledTimes(2);
+    expect(props.onChange).not.toHaveBeenCalled();
     act(() => recognition.result(['Atendimento.', 'Vendas.', '   ', 'Caixa.'], 3));
-    expect(props.onChange).toHaveBeenLastCalledWith(
+    expect(props.onChange).not.toHaveBeenCalled();
+    act(() => recognition.onend?.());
+    expect(props.onChange).toHaveBeenCalledWith(
       'Experiência anterior. Atendimento. Vendas. Caixa.',
     );
-    expect(screen.getByText('Atendimento. Vendas. Caixa.')).toBeInTheDocument();
+    expect(screen.queryByText('Atendimento. Vendas. Caixa.')).not.toBeInTheDocument();
   });
 
   it('uses the current controlled value and callbacks rather than the initial render', () => {
@@ -84,6 +87,8 @@ describe('VoiceTextField', () => {
     const nextChange = jest.fn();
     rerender(<VoiceTextField {...props} value="Texto atualizado" onChange={nextChange} />);
     act(() => recognition.result(['com a fala']));
+    expect(nextChange).not.toHaveBeenCalled();
+    act(() => recognition.onend?.());
     expect(nextChange).toHaveBeenCalledWith('Texto atualizado com a fala');
     expect(props.onChange).not.toHaveBeenCalled();
   });
@@ -98,8 +103,9 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Finalizando ditado…');
     expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
     act(() => recognition.result(['Atendente']));
-    expect(props.onChange).toHaveBeenCalledWith('Atendente');
+    expect(props.onChange).not.toHaveBeenCalled();
     act(() => recognition.onend?.());
+    expect(props.onChange).toHaveBeenCalledWith('Atendente');
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('button', { name: 'Falar para preencher' })).toBeEnabled();
@@ -135,11 +141,12 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it('keeps typing available and cancels speech before accepting manual edits', () => {
+  it('restores typing when dictation is cancelled before accepting manual edits', () => {
     const { props } = renderField({ kind: 'input', value: 'Assistente' });
     const recognition = start();
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Auxiliar' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
     expect(recognition.abort).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Auxiliar' } });
     expect(props.onChange).toHaveBeenLastCalledWith('Auxiliar');
     act(() => recognition.result(['fala atrasada']));
     expect(props.onChange).toHaveBeenCalledTimes(1);
@@ -149,10 +156,9 @@ describe('VoiceTextField', () => {
 
   it('cancels with Escape but leaves normal keyboard input alone', () => {
     renderField();
-    const recognition = start();
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'a' });
-    expect(recognition.abort).not.toHaveBeenCalled();
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    const recognition = start();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Parar ditado' }), { key: 'Escape' });
     expect(recognition.abort).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     expect(recognition.abort).toHaveBeenCalledTimes(1);
@@ -200,7 +206,7 @@ describe('VoiceTextField', () => {
     const warning = jest.spyOn(console, 'warn').mockImplementation();
     const { props } = renderField();
     expect(screen.queryByRole('button', { name: 'Falar para preencher' })).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(warning).toHaveBeenCalledWith(
       'Ditado indisponível: SpeechRecognition não é suportado neste navegador.',
     );
@@ -215,7 +221,7 @@ describe('VoiceTextField', () => {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
     start();
     expect(screen.queryByRole('button', { name: 'Falar para preencher' })).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(warning).toHaveBeenCalledWith(
       'Ditado indisponível: SpeechRecognition não é suportado neste navegador.',
     );
@@ -233,11 +239,12 @@ describe('VoiceTextField', () => {
     const recognition = start();
     act(() => recognition.onstart?.());
     rerender(<VoiceTextField {...props} disabled />);
-    expect(screen.getByRole('textbox')).toBeDisabled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Parar ditado' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
     expect(recognition.stop).toHaveBeenCalledTimes(1);
     act(() => recognition.onend?.());
+    expect(screen.getByRole('textbox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Falar para preencher' })).toBeDisabled();
   });
 

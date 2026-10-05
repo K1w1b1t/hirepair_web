@@ -65,29 +65,35 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
         results: [{ isFinal: true, 0: { transcript } }],
       });
     }, text);
+    await expect(page.locator('.voice-input-transcript')).toHaveText(text);
   }
   await page.goto('/conversa');
   await page.getByRole('button', { name: 'Agora não' }).click();
   await page.getByLabel('Colar o texto do currículo').fill('Atendimento ao cliente.');
   await speak('Organização de estoque.');
-  await expect(page.getByLabel('Colar o texto do currículo')).toHaveValue(
-    'Atendimento ao cliente. Organização de estoque.',
-  );
-  await expect(page.getByRole('button', { name: 'Adicionar material' })).toBeDisabled();
+  await expect(page.getByLabel('Colar o texto do currículo')).toHaveCount(0);
+  await expect(page.locator('.voice-input-header')).toBeVisible();
+  await expect(page.locator('.voice-input-transcript')).toBeVisible();
+  await expect(page.locator('.voice-input-transcript')).toHaveText('Organização de estoque.');
+  await expect(page.getByRole('button', { name: 'Parar ditado' })).toBeEnabled();
   const mobileEvidence = testInfo.outputPath('dictation-resume-mobile.png');
-  await page.getByLabel('Colar o texto do currículo').scrollIntoViewIfNeeded();
+  await page.locator('.voice-input-transcript').scrollIntoViewIfNeeded();
   await page.screenshot({ path: mobileEvidence });
   await testInfo.attach('Ditado no currículo — celular', {
     path: mobileEvidence,
     contentType: 'image/png',
   });
+  await expect(page.getByRole('button', { name: 'Adicionar material' })).toBeDisabled();
   await page.getByRole('button', { name: 'Parar ditado' }).click();
+  await expect(page.getByLabel('Colar o texto do currículo')).toHaveValue(
+    'Atendimento ao cliente. Organização de estoque.',
+  );
   await page.getByRole('button', { name: 'Adicionar material' }).click();
   await page.getByRole('button', { name: 'Ver resumo' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await speak('Experiência em logística.');
+  await page.getByRole('button', { name: 'Parar ditado' }).click();
   await expect(page.getByLabel('Requisitos da vaga')).toHaveValue('Experiência em logística.');
-  await expect(page.getByLabel('Requisitos da vaga')).toHaveCSS('padding-right', '64px');
   await page.getByRole('button', { name: 'Ainda não tenho' }).click();
   await speak('Auxiliar de logística');
   await page.getByRole('button', { name: 'Parar ditado' }).click();

@@ -57,11 +57,11 @@ describe('ImportPanel', () => {
       const recognition = MockSpeechRecognition.instances[0];
       act(() => recognition.onstart?.());
       act(() => recognition.result(['Atendimento ao cliente.']));
-      expect(screen.getByLabelText(/colar o texto/i)).toHaveValue('Atendimento ao cliente.');
       expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: /parar ditado/i }));
       expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
       act(() => recognition.onend?.());
+      expect(screen.getByLabelText(/colar o texto/i)).toHaveValue('Atendimento ao cliente.');
       fireEvent.click(screen.getByRole('button', { name: /adicionar material/i }));
       expect(await screen.findByText(/adicionado manualmente/i)).toBeInTheDocument();
     } finally {

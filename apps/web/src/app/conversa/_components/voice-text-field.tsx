@@ -30,7 +30,6 @@ interface Session {
   recognition: Recognition;
   seen: Set<number>;
   segments: string[];
-  received: boolean;
   timeout?: number;
 }
 
@@ -99,6 +98,19 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     latest.current.onBusyChange(false);
   };
 
+  const saveTranscript = (active: Session) => {
+    const text = active.segments
+      .filter((_, index) => active.seen.has(index))
+      .filter(Boolean)
+      .join(' ');
+    if (!text) return false;
+    const previous = latest.current.value;
+    const updated = previous.trim() ? `${previous.trimEnd()} ${text}` : text;
+    latest.current = { ...latest.current, value: updated };
+    latest.current.onChange(updated);
+    return true;
+  };
+
   const cancel = () => {
     const active = session.current;
     if (active) {
@@ -139,7 +151,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     setLiveTranscript('');
     try {
       const recognition = new Constructor();
-      const next: Session = { recognition, seen: new Set(), segments: [], received: false };
+      const next: Session = { recognition, seen: new Set(), segments: [] };
       session.current = next;
       recognition.lang = 'pt-BR';
       recognition.continuous = true;
@@ -155,17 +167,15 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
           next.segments[index] = text;
           if (!result.isFinal || next.seen.has(index)) continue;
           next.seen.add(index);
-          if (!text) continue;
-          next.received = true;
-          const previous = latest.current.value;
-          const updated = previous.trim() ? `${previous.trimEnd()} ${text}` : text;
-          latest.current = { ...latest.current, value: updated };
-          latest.current.onChange(updated);
         }
         setLiveTranscript(next.segments.filter(Boolean).join(' '));
       };
       recognition.onend = () => {
-        finish(next, next.received ? '' : 'Não ouvimos nenhuma fala. Tente de novo ou digite.');
+        if (session.current !== next) return;
+        finish(
+          next,
+          saveTranscript(next) ? '' : 'Não ouvimos nenhuma fala. Tente de novo ou digite.',
+        );
       };
       recognition.onerror = ({ error }) => {
         if (session.current !== next) return;
@@ -190,7 +200,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   const busy = status !== 'idle';
   const fieldProps = {
     'aria-label': label,
-    'aria-describedby': `${id}-voice-notice`,
+    'aria-describedby': supported === true ? `${id}-voice-notice` : undefined,
     className,
     id,
     value,
@@ -214,11 +224,18 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
 
   return (
     <div className="voice-text-field">
-      <div className="voice-input-shell">
-        {kind === 'textarea' ? <textarea {...fieldProps} rows={rows} /> : <input {...fieldProps} />}
-        {supported === true ? (
+      {supported === true ? (
+        <div className="voice-input-header">
+          <p
+            aria-live="polite"
+            className="voice-input-notice"
+            id={`${id}-voice-notice`}
+            role="status"
+          >
+            {statusText}
+          </p>
           <button
-            aria-controls={id}
+            aria-controls={busy ? `${id}-voice-transcript` : id}
             aria-describedby={`${id}-voice-notice`}
             aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
             aria-pressed={busy}
@@ -252,16 +269,22 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
               )}
             </svg>
           </button>
-        ) : null}
-      </div>
-      <p aria-live="polite" className="voice-input-notice" id={`${id}-voice-notice`} role="status">
-        {statusText}
-      </p>
-      {status === 'listening' && liveTranscript ? (
-        <p aria-live="polite" className="voice-input-transcript">
-          {liveTranscript}
-        </p>
+        </div>
       ) : null}
+      {busy ? (
+        <div
+          aria-label={`Ditado: ${label}`}
+          aria-live="polite"
+          className="voice-input-transcript"
+          id={`${id}-voice-transcript`}
+        >
+          {liveTranscript}
+        </div>
+      ) : kind === 'textarea' ? (
+        <textarea {...fieldProps} rows={rows} />
+      ) : (
+        <input {...fieldProps} />
+      )}
     </div>
   );
 }
