@@ -73,7 +73,10 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   }, [props]);
 
   useEffect(() => {
-    setSupported(Boolean(recognitionConstructor()));
+    const isSupported = Boolean(recognitionConstructor());
+    setSupported(isSupported);
+    if (!isSupported)
+      console.warn('Ditado indisponível: SpeechRecognition não é suportado neste navegador.');
     return () => {
       const active = session.current;
       session.current = null;
@@ -125,6 +128,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     const Constructor = recognitionConstructor();
     if (!Constructor) {
       setSupported(false);
+      console.warn('Ditado indisponível: SpeechRecognition não é suportado neste navegador.');
       return;
     }
 
@@ -180,7 +184,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   const busy = status !== 'idle';
   const fieldProps = {
     'aria-label': label,
-    'aria-describedby': `${id}-voice-notice ${id}-voice-privacy`,
+    'aria-describedby': `${id}-voice-notice`,
     className,
     id,
     value,
@@ -206,49 +210,46 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     <div className="voice-text-field">
       <div className="voice-input-shell">
         {kind === 'textarea' ? <textarea {...fieldProps} rows={rows} /> : <input {...fieldProps} />}
-        <button
-          aria-controls={id}
-          aria-describedby={`${id}-voice-notice ${id}-voice-privacy`}
-          aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
-          aria-pressed={busy}
-          className="voice-input-button"
-          disabled={(disabled && !busy) || supported !== true || status === 'stopping'}
-          onClick={toggle}
-          onKeyDown={fieldProps.onKeyDown}
-          title={`Ditado: ${label}`}
-          type="button"
-        >
-          <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
-            {busy ? (
-              <rect fill="currentColor" height="12" rx="2" width="12" x="6" y="6" />
-            ) : (
-              <>
-                <path
-                  d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.8"
-                />
-                <path
-                  d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.8"
-                />
-              </>
-            )}
-          </svg>
-        </button>
+        {supported === true ? (
+          <button
+            aria-controls={id}
+            aria-describedby={`${id}-voice-notice`}
+            aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
+            aria-pressed={busy}
+            className="voice-input-button"
+            disabled={(disabled && !busy) || status === 'stopping'}
+            onClick={toggle}
+            onKeyDown={fieldProps.onKeyDown}
+            title={`Ditado: ${label}`}
+            type="button"
+          >
+            <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+              {busy ? (
+                <rect fill="currentColor" height="12" rx="2" width="12" x="6" y="6" />
+              ) : (
+                <>
+                  <path
+                    d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                  />
+                </>
+              )}
+            </svg>
+          </button>
+        ) : null}
       </div>
       <p aria-live="polite" className="voice-input-notice" id={`${id}-voice-notice`} role="status">
-        {supported === false
-          ? 'Ditado indisponível neste navegador. Você pode digitar.'
-          : statusText}
-      </p>
-      <p className="voice-input-privacy" id={`${id}-voice-privacy`}>
-        Ao falar, o áudio pode ser processado pelo serviço do seu navegador. Revise o texto.
+        {statusText}
       </p>
     </div>
   );

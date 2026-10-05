@@ -37,14 +37,14 @@ describe('VoiceTextField', () => {
     jest.useRealTimers();
   });
 
-  it('requests speech only after a click and announces its states without hiding the field', () => {
+  it('requests speech only after a click and announces its states without extra privacy copy', () => {
     const { props } = renderField();
     expect(MockSpeechRecognition.instances).toHaveLength(0);
     expect(screen.getByLabelText('Experiência')).toHaveAttribute(
       'aria-describedby',
-      'experience-voice-notice experience-voice-privacy',
+      'experience-voice-notice',
     );
-    expect(screen.getByText(/áudio pode ser processado/i)).toBeInTheDocument();
+    expect(screen.queryByText(/áudio pode ser processado/i)).not.toBeInTheDocument();
     const recognition = start();
     expect(recognition.start).toHaveBeenCalledTimes(1);
     expect(recognition).toMatchObject({ lang: 'pt-BR', continuous: true, interimResults: false });
@@ -191,12 +191,16 @@ describe('VoiceTextField', () => {
     expect(start().start).toHaveBeenCalledTimes(1);
   });
 
-  it('disables only speech when neither API is supported', () => {
+  it('hides speech when neither API is supported and logs the reason only to the console', () => {
     restore();
     restore = () => undefined;
+    const warning = jest.spyOn(console, 'warn').mockImplementation();
     const { props } = renderField();
-    expect(screen.getByRole('button', { name: 'Falar para preencher' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('Ditado indisponível neste navegador');
+    expect(screen.queryByRole('button', { name: 'Falar para preencher' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(warning).toHaveBeenCalledWith(
+      'Ditado indisponível: SpeechRecognition não é suportado neste navegador.',
+    );
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Digitado' } });
     expect(props.onChange).toHaveBeenCalledWith('Digitado');
     expect(MockSpeechRecognition.instances).toHaveLength(0);
@@ -204,9 +208,14 @@ describe('VoiceTextField', () => {
 
   it('handles support disappearing between render and click', () => {
     renderField();
+    const warning = jest.spyOn(console, 'warn').mockImplementation();
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
     start();
-    expect(screen.getByRole('status')).toHaveTextContent('Ditado indisponível');
+    expect(screen.queryByRole('button', { name: 'Falar para preencher' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(warning).toHaveBeenCalledWith(
+      'Ditado indisponível: SpeechRecognition não é suportado neste navegador.',
+    );
   });
 
   it('honors the processing state of its parent', () => {

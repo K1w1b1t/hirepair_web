@@ -37,15 +37,14 @@ describe('ImportPanel', () => {
     jest.restoreAllMocks();
   });
 
-  it('renders an accessible empty state with upload, paste, and inline voice input', async () => {
+  it('renders an accessible empty state with upload and paste when dictation is unavailable', async () => {
     render(<ImportPanel />);
     await act(async () => undefined);
 
     expect(screen.getByRole('heading', { name: /jornada profissional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
-    const voiceButton = screen.getByRole('button', { name: /falar para preencher/i });
-    expect(voiceButton.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /falar para preencher/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /escrever do zero/i })).not.toBeInTheDocument();
   });
 

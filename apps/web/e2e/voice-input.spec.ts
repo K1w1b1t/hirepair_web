@@ -98,10 +98,8 @@ test('continua digitando quando o navegador não oferece ditado', async ({ page 
   });
   await page.goto('/conversa');
   await page.getByRole('button', { name: 'Agora não' }).click();
-  await expect(page.getByRole('button', { name: 'Falar para preencher' })).toBeDisabled();
-  await expect(page.getByRole('status')).toHaveText(
-    'Ditado indisponível neste navegador. Você pode digitar.',
-  );
+  await expect(page.getByRole('button', { name: 'Falar para preencher' })).toBeHidden();
+  await expect(page.getByText(/áudio pode ser processado/i)).toBeHidden();
   await page.getByLabel('Colar o texto do currículo').fill('Atendimento ao cliente.');
   await page.getByRole('button', { name: 'Adicionar material' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
