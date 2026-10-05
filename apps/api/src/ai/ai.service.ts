@@ -7,7 +7,7 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { AiProvider, AiTextGenerationRequest, AiTextGenerationResult } from './ai.types';
 import { GLOBAL_TRACE_ID_HEADER } from '../common/request-context/request-context.constants';
 import { RequestContextService } from '../common/request-context/request-context.service';
@@ -277,7 +277,7 @@ export class AiService {
     const base = Number.isFinite(configuredBase) ? configuredBase : 1_000;
     const exponential = Math.min(MAX_RETRY_DELAY_MS, base * 2 ** (attempt - 1));
     const delay = Math.min(MAX_RETRY_DELAY_MS, error.retryAfterMs ?? exponential);
-    const jitter = Math.floor(Math.random() * 250);
+    const jitter = randomInt(250);
     await new Promise<void>((resolve) => setTimeout(resolve, delay + jitter));
   }
 
