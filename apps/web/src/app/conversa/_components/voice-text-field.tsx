@@ -29,6 +29,7 @@ type Status = 'idle' | 'starting' | 'listening' | 'stopping';
 interface Session {
   recognition: Recognition;
   seen: Set<number>;
+  segments: string[];
   received: boolean;
   timeout?: number;
 }
@@ -65,6 +66,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [notice, setNotice] = useState('');
+  const [liveTranscript, setLiveTranscript] = useState('');
   const session = useRef<Session | null>(null);
   const latest = useRef(props);
 
@@ -93,6 +95,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     window.clearTimeout(active.timeout);
     setStatus('idle');
     setNotice(message);
+    setLiveTranscript('');
     latest.current.onBusyChange(false);
   };
 
@@ -133,13 +136,14 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     }
 
     setNotice('');
+    setLiveTranscript('');
     try {
       const recognition = new Constructor();
-      const next: Session = { recognition, seen: new Set(), received: false };
+      const next: Session = { recognition, seen: new Set(), segments: [], received: false };
       session.current = next;
       recognition.lang = 'pt-BR';
       recognition.continuous = true;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.onstart = () => {
         if (session.current === next) setStatus('listening');
       };
@@ -147,9 +151,10 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
         if (session.current !== next) return;
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
           const result = event.results[index];
+          const text = result[0].transcript.trim();
+          next.segments[index] = text;
           if (!result.isFinal || next.seen.has(index)) continue;
           next.seen.add(index);
-          const text = result[0].transcript.trim();
           if (!text) continue;
           next.received = true;
           const previous = latest.current.value;
@@ -157,6 +162,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
           latest.current = { ...latest.current, value: updated };
           latest.current.onChange(updated);
         }
+        setLiveTranscript(next.segments.filter(Boolean).join(' '));
       };
       recognition.onend = () => {
         finish(next, next.received ? '' : 'Não ouvimos nenhuma fala. Tente de novo ou digite.');
@@ -201,8 +207,8 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   };
   const statusText = {
     idle: notice,
-    starting: 'Aguardando microfone…',
-    listening: 'Ouvindo…',
+    starting: 'Preparando o microfone…',
+    listening: 'Pode falar.',
     stopping: 'Finalizando ditado…',
   }[status];
 
@@ -251,6 +257,11 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
       <p aria-live="polite" className="voice-input-notice" id={`${id}-voice-notice`} role="status">
         {statusText}
       </p>
+      {status === 'listening' && liveTranscript ? (
+        <p aria-live="polite" className="voice-input-transcript">
+          {liveTranscript}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -448,15 +448,19 @@
 }
 .voice-input-notice {
   margin-top: 0.4rem;
-  color: var(--color-text-muted);
+  color: var(--color-navy);
   font-size: 0.8rem;
   line-height: 1.5;
 }
 .voice-input-notice:empty {
   display: none;
 }
-.voice-input-notice {
-  color: var(--color-navy);
+.voice-input-transcript {
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+  line-height: 1.5;
 }
 .import-document-list {
   display: grid;

@@ -34,7 +34,23 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   });
   async function speak(text: string) {
     await page.getByRole('button', { name: 'Falar para preencher' }).click();
-    await expect(page.getByRole('status')).toHaveText('Ouvindo…');
+    await expect(page.getByRole('status')).toHaveText('Pode falar.');
+    const partial = text.split(' ').slice(0, 2).join(' ');
+    await page.evaluate((transcript) => {
+      const browser = window as unknown as Window & {
+        testRecognition: {
+          onresult: (event: {
+            resultIndex: number;
+            results: Array<{ isFinal: boolean; 0: { transcript: string } }>;
+          }) => void;
+        };
+      };
+      browser.testRecognition.onresult({
+        resultIndex: 0,
+        results: [{ isFinal: false, 0: { transcript } }],
+      });
+    }, partial);
+    await expect(page.locator('.voice-input-transcript')).toHaveText(partial);
     await page.evaluate((transcript) => {
       const browser = window as unknown as Window & {
         testRecognition: {
@@ -99,7 +115,7 @@ test('continua digitando quando o navegador não oferece ditado', async ({ page 
   await page.goto('/conversa');
   await page.getByRole('button', { name: 'Agora não' }).click();
   await expect(page.getByRole('button', { name: 'Falar para preencher' })).toBeHidden();
-  await expect(page.getByText(/áudio pode ser processado/i)).toBeHidden();
+  await expect(page.getByText(/áudio pode ser processado/i)).toHaveCount(0);
   await page.getByLabel('Colar o texto do currículo').fill('Atendimento ao cliente.');
   await page.getByRole('button', { name: 'Adicionar material' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();

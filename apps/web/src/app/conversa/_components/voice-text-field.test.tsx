@@ -37,7 +37,7 @@ describe('VoiceTextField', () => {
     jest.useRealTimers();
   });
 
-  it('requests speech only after a click and announces its states without extra privacy copy', () => {
+  it('requests speech only after a click and invites the user to speak without extra privacy copy', () => {
     const { props } = renderField();
     expect(MockSpeechRecognition.instances).toHaveLength(0);
     expect(screen.getByLabelText('Experiência')).toHaveAttribute(
@@ -47,11 +47,11 @@ describe('VoiceTextField', () => {
     expect(screen.queryByText(/áudio pode ser processado/i)).not.toBeInTheDocument();
     const recognition = start();
     expect(recognition.start).toHaveBeenCalledTimes(1);
-    expect(recognition).toMatchObject({ lang: 'pt-BR', continuous: true, interimResults: false });
+    expect(recognition).toMatchObject({ lang: 'pt-BR', continuous: true, interimResults: true });
     expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
-    expect(screen.getByRole('status')).toHaveTextContent('Aguardando microfone…');
+    expect(screen.getByRole('status')).toHaveTextContent('Preparando o microfone…');
     act(() => recognition.onstart?.());
-    expect(screen.getByRole('status')).toHaveTextContent('Ouvindo…');
+    expect(screen.getByRole('status')).toHaveTextContent('Pode falar.');
     const button = screen.getByRole('button', { name: 'Parar ditado' });
     expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(button).toHaveAttribute('aria-controls', 'experience');
@@ -59,11 +59,13 @@ describe('VoiceTextField', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('appends final segments once, ignoring interim, repeated and blank results', () => {
+  it('shows interim speech below the field and appends final segments once', () => {
     const { props } = renderField({ value: 'Experiência anterior.  ' });
     const recognition = start();
+    act(() => recognition.onstart?.());
     act(() => recognition.result(['provisório'], 0, false));
     expect(props.onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('provisório')).toBeInTheDocument();
     act(() => recognition.result([' Atendimento. ', ' Vendas. ']));
     expect(props.onChange).toHaveBeenNthCalledWith(1, 'Experiência anterior. Atendimento.');
     expect(props.onChange).toHaveBeenNthCalledWith(2, 'Experiência anterior. Atendimento. Vendas.');
@@ -73,6 +75,7 @@ describe('VoiceTextField', () => {
     expect(props.onChange).toHaveBeenLastCalledWith(
       'Experiência anterior. Atendimento. Vendas. Caixa.',
     );
+    expect(screen.getByText('Atendimento. Vendas. Caixa.')).toBeInTheDocument();
   });
 
   it('uses the current controlled value and callbacks rather than the initial render', () => {
@@ -162,7 +165,7 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Não ouvimos nenhuma fala');
     expect(screen.getByRole('textbox')).toHaveValue('Texto preservado');
     start();
-    expect(screen.getByRole('status')).toHaveTextContent('Aguardando microfone');
+    expect(screen.getByRole('status')).toHaveTextContent('Preparando o microfone');
   });
 
   it.each([
