@@ -1,4 +1,4 @@
-import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, Optional, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface Error500Payload {
@@ -26,6 +26,7 @@ export class DiscordService implements OnModuleInit {
   private readonly lastSentAt = new Map<string, number>();
   constructor(
     private readonly config: ConfigService,
+    @Optional()
     private readonly now: () => number = () => Date.now(),
   ) {}
   onModuleInit(): void {

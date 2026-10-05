@@ -130,6 +130,12 @@ export class EnvironmentVariables {
   @MinLength(1)
   GEMINI_MODEL?: string;
 
+  /** Modelo Gemini estável usado quando o principal está temporariamente indisponível. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  GEMINI_FALLBACK_MODEL?: string;
+
   /** Permite acompanhar mudanças de catálogo do Groq por configuração. */
   @IsOptional()
   @IsString()
