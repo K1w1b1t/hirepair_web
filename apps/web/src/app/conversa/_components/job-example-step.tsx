@@ -14,6 +14,7 @@ import {
   type Tone,
 } from '../_lib/job-analysis';
 import type { StoredResume } from '../_lib/resume-storage';
+import { VoiceTextField } from './voice-text-field';
 
 function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   useEffect(() => {
@@ -61,10 +62,11 @@ export function JobExampleStep({
 }) {
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const hasRequiredInput = draft.hasJob
     ? Boolean(draft.jobText.trim())
     : Boolean(draft.targetRole.trim());
-  const analysisDisabled = loading || !draft.accepted || !hasRequiredInput;
+  const analysisDisabled = loading || voiceBusy || !draft.accepted || !hasRequiredInput;
   const analysisDisabledMessage =
     !hasRequiredInput && !draft.accepted
       ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
@@ -138,7 +140,7 @@ export function JobExampleStep({
     <section className="job-example-step">
       <p className="section-kicker">Etapa 2 · definir o próximo passo</p>
       <h1>Qual vaga você quer buscar?</h1>
-      <p>Cole os requisitos e a gente sugere como apresentar sua experiência.</p>
+      <p>Escreva, cole ou fale os requisitos e a gente sugere como apresentar sua experiência.</p>
       <div aria-label="Forma de definir o objetivo" className="job-toggle">
         <button
           aria-pressed={draft.hasJob}
@@ -156,17 +158,29 @@ export function JobExampleStep({
         </button>
       </div>
       {draft.hasJob ? (
-        <textarea
-          aria-label="Requisitos da vaga"
-          onChange={(event) => updateDraft({ jobText: event.target.value })}
-          placeholder="Cole aqui a descrição ou os requisitos da vaga"
+        <VoiceTextField
+          key="job"
+          className="job-text-input"
+          disabled={loading}
+          id="job-text"
+          kind="textarea"
+          label="Requisitos da vaga"
+          onBusyChange={setVoiceBusy}
+          onChange={(value) => updateDraft({ jobText: value })}
+          placeholder="Escreva, cole ou fale os requisitos da vaga"
           rows={9}
           value={draft.jobText}
         />
       ) : (
-        <input
-          aria-label="Cargo que procura"
-          onChange={(event) => updateDraft({ targetRole: event.target.value })}
+        <VoiceTextField
+          key="role"
+          className="job-text-input"
+          disabled={loading}
+          id="target-role"
+          kind="input"
+          label="Cargo que procura"
+          onBusyChange={setVoiceBusy}
+          onChange={(value) => updateDraft({ targetRole: value })}
           placeholder="Qual cargo você quer buscar?"
           value={draft.targetRole}
         />

@@ -22,15 +22,16 @@
   color: var(--color-text-muted);
   line-height: 1.7;
 }
-.job-example-step textarea,
-.job-example-step > input {
+.job-example-step .job-text-input {
   width: 100%;
-  margin-top: 1.5rem;
   border: 1px solid rgb(51 51 100 / 25%);
   border-radius: 1rem;
   background: var(--color-creme);
   padding: 1rem;
   color: var(--color-text-main);
+}
+.job-example-step > .voice-text-field {
+  margin-top: 1.5rem;
 }
 .job-toggle {
   display: flex;
@@ -407,24 +408,56 @@
   justify-content: flex-end;
   margin-top: 0.75rem;
 }
-.import-voice-option {
-  display: flex;
-  justify-content: center;
-  padding: 0.25rem 0;
+.import-paste-block .voice-text-field {
+  margin-top: 0.75rem;
 }
-.import-voice-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  border-color: rgb(99 111 193 / 38%);
-  color: var(--color-navy);
+.voice-input-shell {
+  position: relative;
 }
-.import-voice-button svg {
+.voice-text-field .voice-input-shell > textarea,
+.voice-text-field .voice-input-shell > input {
+  display: block;
+  margin-top: 0;
+  padding-right: 4rem;
+}
+.voice-input-button {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: var(--color-creme);
   color: var(--color-primary);
+  cursor: pointer;
 }
-.import-voice-button:disabled {
+.voice-input-button[aria-pressed='true'] {
+  background: var(--color-primary);
+  color: var(--color-creme);
+}
+.voice-input-button:focus-visible {
+  outline: 3px solid var(--color-navy);
+  outline-offset: 2px;
+}
+.voice-input-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+.voice-input-notice,
+.voice-input-privacy {
+  margin-top: 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.voice-input-notice:empty {
+  display: none;
+}
+.voice-input-notice {
+  color: var(--color-navy);
 }
 .import-document-list {
   display: grid;

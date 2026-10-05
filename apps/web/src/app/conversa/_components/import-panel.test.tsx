@@ -1,6 +1,27 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
+import * as extraction from '../_lib/extract-text';
+import * as storage from '../_lib/resume-storage';
+import {
+  installSpeechRecognition,
+  MockSpeechRecognition,
+} from '../../../../test/mock-speech-recognition';
+
+jest.mock('../_lib/extract-text', () => {
+  const actual = jest.requireActual<typeof import('../_lib/extract-text')>('../_lib/extract-text');
+  return {
+    ...actual,
+    extractTextFromFile: jest.fn(actual.extractTextFromFile),
+    extractedTextFromPaste: jest.fn(actual.extractedTextFromPaste),
+  };
+});
+
+jest.mock('../_lib/resume-storage', () => {
+  const actual =
+    jest.requireActual<typeof import('../_lib/resume-storage')>('../_lib/resume-storage');
+  return { ...actual, listStoredResumes: jest.fn(actual.listStoredResumes) };
+});
 
 function textFile(content: string, name: string, type: string): File {
   const file = new File([content], name, { type });
@@ -12,18 +33,41 @@ describe('ImportPanel', () => {
   beforeEach(async () => {
     await clearStoredResumes();
   });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-  it('renders an accessible empty state with upload, paste, and future voice path', async () => {
+  it('renders an accessible empty state with upload, paste, and inline voice input', async () => {
     render(<ImportPanel />);
     await act(async () => undefined);
 
     expect(screen.getByRole('heading', { name: /jornada profissional/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
-    const voiceButton = screen.getByRole('button', { name: /falar sobre minha jornada/i });
-    expect(voiceButton).toBeDisabled();
+    const voiceButton = screen.getByRole('button', { name: /falar para preencher/i });
     expect(voiceButton.querySelector('svg')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /escrever do zero/i })).not.toBeInTheDocument();
+  });
+
+  it('adds spoken material through the existing text action after dictation ends', async () => {
+    const restore = installSpeechRecognition();
+    try {
+      render(<ImportPanel />);
+      await act(async () => undefined);
+      fireEvent.click(screen.getByRole('button', { name: /falar para preencher/i }));
+      const recognition = MockSpeechRecognition.instances[0];
+      act(() => recognition.onstart?.());
+      act(() => recognition.result(['Atendimento ao cliente.']));
+      expect(screen.getByLabelText(/colar o texto/i)).toHaveValue('Atendimento ao cliente.');
+      expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /parar ditado/i }));
+      expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
+      act(() => recognition.onend?.());
+      fireEvent.click(screen.getByRole('button', { name: /adicionar material/i }));
+      expect(await screen.findByText(/adicionado manualmente/i)).toBeInTheDocument();
+    } finally {
+      restore();
+    }
   });
 
   it('brightens the upload card while a document is dragged over it', async () => {
@@ -106,5 +150,68 @@ describe('ImportPanel', () => {
     act(() => jest.advanceTimersByTime(5000));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     jest.useRealTimers();
+  });
+
+  it('ignores restoration that finishes after the panel is unmounted', async () => {
+    let resolveStored!: (items: storage.StoredResume[]) => void;
+    jest.spyOn(storage, 'listStoredResumes').mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStored = resolve;
+      }),
+    );
+    const onDocumentsChange = jest.fn();
+    const { unmount } = render(<ImportPanel onDocumentsChange={onDocumentsChange} />);
+    onDocumentsChange.mockClear();
+    unmount();
+    await act(async () => resolveStored([]));
+    expect(onDocumentsChange).not.toHaveBeenCalled();
+  });
+
+  it('preserves new material when delayed restoration finishes', async () => {
+    let resolveStored!: (items: storage.StoredResume[]) => void;
+    jest.spyOn(storage, 'listStoredResumes').mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStored = resolve;
+      }),
+    );
+    render(<ImportPanel />);
+    fireEvent.change(screen.getByLabelText(/colar o texto/i), {
+      target: { value: 'Atendimento ao cliente.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+    await act(async () => resolveStored([]));
+    expect(screen.getByText('Adicionado manualmente')).toBeInTheDocument();
+  });
+
+  it.each([
+    [new Error('Falha ao ler o texto.'), 'Falha ao ler o texto.'],
+    ['unknown failure', 'Não encontramos texto nesse material.'],
+  ])('preserves text if manual material extraction fails: %s', async (failure, expected) => {
+    jest.spyOn(extraction, 'extractedTextFromPaste').mockImplementationOnce(() => {
+      throw failure;
+    });
+    render(<ImportPanel />);
+    await act(async () => undefined);
+    fireEvent.change(screen.getByLabelText(/colar o texto/i), {
+      target: { value: 'Experiência profissional.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(expected);
+    expect(screen.getByLabelText(/colar o texto/i)).toHaveValue('Experiência profissional.');
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('reports an unknown file extraction failure without exposing its value', async () => {
+    jest.spyOn(extraction, 'extractTextFromFile').mockRejectedValueOnce('unexpected failure');
+    render(<ImportPanel />);
+    await act(async () => undefined);
+    fireEvent.change(screen.getByLabelText(/enviar currículo/i), {
+      target: { files: [textFile('Texto', 'curriculo.txt', 'text/plain')] },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'curriculo.txt: não foi possível ler.',
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('unexpected failure');
   });
 });
