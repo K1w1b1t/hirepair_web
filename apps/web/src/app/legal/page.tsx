@@ -20,7 +20,7 @@ export default function LegalPage() {
         Privacidade, cookies e termos
       </h1>
       <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">
-        Última atualização: 16 de setembro de 2026.
+        Última atualização: 5 de outubro de 2026.
       </p>
 
       <article className="mt-10 space-y-10 leading-7 text-[var(--color-text-muted)]">
@@ -42,6 +42,14 @@ export default function LegalPage() {
             serviço solicitado. Enviamos apenas o conteúdo necessário para essa análise; no modo
             visitante, seus materiais permanecem no navegador e não criam uma conta ou histórico no
             nosso banco de dados. O processamento pode ocorrer fora do Brasil.
+          </p>
+          <p className="mt-3">
+            O ditado por voz é opcional e usa o reconhecimento de fala do seu navegador. Ao ativar o
+            microfone, o áudio pode ser enviado ao serviço de reconhecimento usado pelo navegador,
+            conforme as políticas desse serviço, e pode exigir conexão com a internet. O HirePair
+            não armazena a gravação de áudio; o texto reconhecido fica no campo para você revisar e
+            é tratado como o conteúdo digitado. Você pode parar o ditado ou continuar usando apenas
+            a digitação.
           </p>
           <p className="mt-3">
             Você pode pedir confirmação, acesso, correção, anonimização, bloqueio, eliminação,

@@ -8,14 +8,17 @@ import {
 export function AnalyticsConsentControl() {
   const [decision, setDecision] = useState<AnalyticsConsent>();
   const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     setDecision(initializeAnalyticsFromConsent());
+    setLoaded(true);
   }, []);
   const choose = (value: AnalyticsConsent) => {
     setAnalyticsConsent(value);
     setDecision(value);
     setOpen(false);
   };
+  if (!loaded) return null;
   return (
     <div className="analytics-consent" aria-label="Preferências de cookies">
       {decision === undefined || open ? (

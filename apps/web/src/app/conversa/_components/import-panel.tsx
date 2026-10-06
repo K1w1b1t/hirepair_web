@@ -15,6 +15,7 @@ import {
   type StoredResume,
 } from '../_lib/resume-storage';
 import { FileDropzone } from './file-dropzone';
+import { VoiceTextField } from './voice-text-field';
 
 export interface ImportPanelProps {
   readonly onDocumentsChange?: (documents: StoredResume[]) => void;
@@ -71,6 +72,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string[]>([]);
   const [pastedText, setPastedText] = useState('');
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const hasLocalChanges = useRef(false);
 
   useEffect(() => {
@@ -155,48 +157,29 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
         onRemove={(id) => void removeDocument(id)}
       />
 
-      <div aria-label="Jornada falada" className="import-voice-option">
-        <button className="button button-outline import-voice-button" disabled type="button">
-          <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
-            <path
-              d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.8"
-            />
-            <path
-              d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.8"
-            />
-          </svg>
-          <span>Falar sobre minha jornada · em breve</span>
-        </button>
-      </div>
-
       <div className="import-paste-block">
         <label
           className="font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]"
           htmlFor="resume-paste"
         >
-          Prefere colar o texto?
+          Prefere escrever ou falar?
         </label>
-        <textarea
-          aria-label="Colar o texto do currículo"
+        <VoiceTextField
           className="import-textarea"
+          disabled={isProcessing}
           id="resume-paste"
-          onChange={(event) => setPastedText(event.target.value)}
-          placeholder="Cole aqui o conteúdo do currículo"
+          kind="textarea"
+          label="Colar o texto do currículo"
+          onBusyChange={setVoiceBusy}
+          onChange={setPastedText}
+          placeholder="Escreva, cole ou fale sobre sua experiência"
           rows={5}
           value={pastedText}
         />
         <div className="import-paste-actions">
           <button
             className="button button-primary button-small"
-            disabled={!pastedText.trim()}
+            disabled={voiceBusy || !pastedText.trim()}
             onClick={handlePaste}
             type="button"
           >
