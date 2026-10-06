@@ -75,7 +75,7 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   await expect(page.locator('.voice-input-header')).toBeVisible();
   await expect(page.locator('.voice-input-transcript')).toBeVisible();
   await expect(page.locator('.voice-input-transcript')).toHaveText('Organização de estoque.');
-  await expect(page.getByRole('button', { name: 'Parar ditado' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Confirmar ditado' })).toBeEnabled();
   const mobileEvidence = testInfo.outputPath('dictation-resume-mobile.png');
   await page.locator('.voice-input-transcript').scrollIntoViewIfNeeded();
   await page.screenshot({ path: mobileEvidence });
@@ -84,7 +84,7 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
     contentType: 'image/png',
   });
   await expect(page.getByRole('button', { name: 'Adicionar material' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Parar ditado' }).click();
+  await page.getByRole('button', { name: 'Confirmar ditado' }).click();
   await expect(page.locator('#resume-paste')).toHaveValue(
     'Atendimento ao cliente. Organização de estoque.',
   );
@@ -92,11 +92,11 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   await page.getByRole('button', { name: 'Ver resumo' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await speak('Experiência em logística.');
-  await page.getByRole('button', { name: 'Parar ditado' }).click();
+  await page.getByRole('button', { name: 'Confirmar ditado' }).click();
   await expect(page.locator('#job-text')).toHaveValue('Experiência em logística.');
   await page.getByRole('button', { name: 'Ainda não tenho' }).click();
   await speak('Auxiliar de logística');
-  await page.getByRole('button', { name: 'Parar ditado' }).click();
+  await page.getByRole('button', { name: 'Confirmar ditado' }).click();
   await expect(page.locator('#target-role')).toHaveValue('Auxiliar de logística');
   await expect(page).toHaveURL(/\/conversa\?etapa=job$/);
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');

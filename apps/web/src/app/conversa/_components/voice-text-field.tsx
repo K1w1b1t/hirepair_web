@@ -245,18 +245,24 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
             <button
               aria-controls={busy ? `${id}-voice-transcript` : id}
               aria-describedby={`${id}-voice-notice`}
-              aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
+              aria-label={busy ? 'Confirmar ditado' : 'Falar para preencher'}
               aria-pressed={busy}
               className="voice-input-button"
               disabled={(disabled && !busy) || status === 'stopping'}
               onClick={toggle}
               onKeyDown={fieldProps.onKeyDown}
-              title={`Ditado: ${label}`}
+              title={busy ? 'Confirmar e salvar ditado' : `Ditado: ${label}`}
               type="button"
             >
               <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
                 {busy ? (
-                  <rect fill="currentColor" height="12" rx="2" width="12" x="6" y="6" />
+                  <path
+                    d="m5 12 4 4L19 6"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                  />
                 ) : (
                   <>
                     <path

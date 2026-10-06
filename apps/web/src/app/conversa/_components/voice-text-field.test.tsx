@@ -54,10 +54,10 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Pode falar.');
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Ditado: Experiência')).toBeInTheDocument();
-    const button = screen.getByRole('button', { name: 'Parar ditado' });
+    const button = screen.getByRole('button', { name: 'Confirmar ditado' });
     expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(button).toHaveAttribute('aria-controls', 'experience-voice-transcript');
-    expect(button.querySelector('rect')).toBeInTheDocument();
+    expect(button.querySelector('path')).toHaveAttribute('d', 'm5 12 4 4L19 6');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -98,10 +98,10 @@ describe('VoiceTextField', () => {
     const { props } = renderField({ value: '  ' });
     const recognition = start();
     act(() => recognition.onstart?.());
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     act(() => jest.advanceTimersByTime(0));
     expect(recognition.stop).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Parar ditado' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirmar ditado' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Finalizando ditado…');
     expect(props.onBusyChange).toHaveBeenLastCalledWith(true);
     act(() => recognition.result(['Atendente']));
@@ -157,7 +157,7 @@ describe('VoiceTextField', () => {
   it('cancels a pending permission request and ignores its delayed events', () => {
     const { props } = renderField();
     const recognition = start();
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     expect(recognition.abort).toHaveBeenCalledTimes(1);
     expect(recognition.stop).not.toHaveBeenCalled();
     act(() => recognition.onstart?.());
@@ -171,7 +171,7 @@ describe('VoiceTextField', () => {
   it('restores typing when dictation is cancelled before accepting manual edits', () => {
     const { props } = renderField({ kind: 'input', value: 'Assistente' });
     const recognition = start();
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     expect(recognition.abort).toHaveBeenCalledTimes(1);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Auxiliar' } });
     expect(props.onChange).toHaveBeenLastCalledWith('Auxiliar');
@@ -185,7 +185,7 @@ describe('VoiceTextField', () => {
     renderField();
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'a' });
     const recognition = start();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Parar ditado' }), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Confirmar ditado' }), { key: 'Escape' });
     expect(recognition.abort).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     expect(recognition.abort).toHaveBeenCalledTimes(1);
@@ -268,8 +268,8 @@ describe('VoiceTextField', () => {
     act(() => recognition.onstart?.());
     rerender(<VoiceTextField {...props} disabled />);
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Parar ditado' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    expect(screen.getByRole('button', { name: 'Confirmar ditado' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     act(() => jest.advanceTimersByTime(0));
     expect(recognition.stop).toHaveBeenCalledTimes(1);
     act(() => recognition.onend?.());
@@ -280,7 +280,7 @@ describe('VoiceTextField', () => {
   it('also cancels with Escape while the microphone button has focus', () => {
     renderField();
     const recognition = start();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Parar ditado' }), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Confirmar ditado' }), { key: 'Escape' });
     expect(recognition.abort).toHaveBeenCalledTimes(1);
   });
 
@@ -323,7 +323,7 @@ describe('VoiceTextField', () => {
     recognition.stop.mockImplementation(() => {
       throw new Error('Already stopped');
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     act(() => jest.advanceTimersByTime(0));
     expect(screen.getByRole('status')).toHaveTextContent('Não foi possível concluir o ditado');
     expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
@@ -335,7 +335,7 @@ describe('VoiceTextField', () => {
     const { props } = renderField();
     const recognition = start();
     act(() => recognition.onstart?.());
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     act(() => jest.advanceTimersByTime(5000));
     expect(screen.getByRole('status')).toHaveTextContent('Não foi possível concluir o ditado');
     expect(recognition.abort).toHaveBeenCalledTimes(1);
@@ -347,7 +347,7 @@ describe('VoiceTextField', () => {
     const { props, unmount } = renderField();
     const recognition = start();
     act(() => recognition.onstart?.());
-    fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
     recognition.abort.mockImplementation(() => {
       throw new Error('Already stopped');
     });

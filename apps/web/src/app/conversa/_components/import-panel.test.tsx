@@ -58,7 +58,7 @@ describe('ImportPanel', () => {
       act(() => recognition.onstart?.());
       act(() => recognition.result(['Atendimento ao cliente.']));
       expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: /parar ditado/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirmar ditado/i }));
       expect(screen.getByRole('button', { name: /adicionar material/i })).toBeDisabled();
       act(() => recognition.onend?.());
       expect(screen.getByLabelText(/colar o texto/i)).toHaveValue('Atendimento ao cliente.');

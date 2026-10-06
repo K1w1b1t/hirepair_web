@@ -59,7 +59,7 @@ describe('JobExampleStep', () => {
       act(() => recognition.result(['Experiência em manutenção industrial.']));
       expect(screen.getByRole('checkbox')).toBeChecked();
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
       expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
       act(() => recognition.onend?.());
       expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue(

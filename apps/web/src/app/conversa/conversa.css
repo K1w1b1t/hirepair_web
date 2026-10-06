@@ -414,18 +414,22 @@
 .voice-input-shell {
   position: relative;
 }
-.voice-input-shell > textarea,
-.voice-input-shell > input {
+.voice-text-field .voice-input-shell > textarea,
+.voice-text-field .voice-input-shell > input {
   display: block;
   margin-top: 0;
   min-height: 5.5rem;
-  padding: 3.25rem 4rem 1rem 1rem;
+  padding: 1rem 5rem 1rem 1rem;
+}
+.voice-text-field .voice-input-shell > input {
+  min-height: 0;
+  height: 4rem;
 }
 .voice-input-header {
   position: absolute;
   z-index: 1;
   top: 0.4rem;
-  right: 0.4rem;
+  right: 1.25rem;
   left: 0.75rem;
   display: flex;
   min-height: 44px;
