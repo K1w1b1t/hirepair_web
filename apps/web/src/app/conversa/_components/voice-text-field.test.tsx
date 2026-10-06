@@ -94,10 +94,12 @@ describe('VoiceTextField', () => {
   });
 
   it('waits for final results after stopping and releases the submit action on end', () => {
+    jest.useFakeTimers();
     const { props } = renderField({ value: '  ' });
     const recognition = start();
     act(() => recognition.onstart?.());
     fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    act(() => jest.advanceTimersByTime(0));
     expect(recognition.stop).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Parar ditado' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Finalizando ditado…');
@@ -109,6 +111,31 @@ describe('VoiceTextField', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('button', { name: 'Falar para preencher' })).toBeEnabled();
+  });
+
+  it('cancels an active dictation without saving the recognized text', () => {
+    const { props } = renderField({ value: 'Texto preservado' });
+    const recognition = start();
+    act(() => recognition.onstart?.());
+    act(() => recognition.result(['fala descartada']));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar ditado' }));
+
+    expect(recognition.abort).toHaveBeenCalledTimes(1);
+    expect(props.onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox')).toHaveValue('Texto preservado');
+  });
+
+  it('preserves speech emitted synchronously before the transcription card mounts', () => {
+    Object.defineProperty(window, 'SpeechRecognition', {
+      configurable: true,
+      value: class extends MockSpeechRecognition {
+        start = jest.fn(() => this.result(['fala imediata']));
+      },
+    });
+    renderField();
+    start();
+    expect(screen.getByLabelText('Ditado: Experiência')).toHaveTextContent('fala imediata');
   });
 
   it('ends naturally without restarting and allows a new session', () => {
@@ -235,6 +262,7 @@ describe('VoiceTextField', () => {
   });
 
   it('keeps stopping available when the parent starts processing during dictation', () => {
+    jest.useFakeTimers();
     const { props, rerender } = renderField();
     const recognition = start();
     act(() => recognition.onstart?.());
@@ -242,6 +270,7 @@ describe('VoiceTextField', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Parar ditado' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    act(() => jest.advanceTimersByTime(0));
     expect(recognition.stop).toHaveBeenCalledTimes(1);
     act(() => recognition.onend?.());
     expect(screen.getByRole('textbox')).toBeDisabled();
@@ -287,6 +316,7 @@ describe('VoiceTextField', () => {
   });
 
   it('recovers from a synchronous stop failure', () => {
+    jest.useFakeTimers();
     const { props } = renderField();
     const recognition = start();
     act(() => recognition.onstart?.());
@@ -294,6 +324,7 @@ describe('VoiceTextField', () => {
       throw new Error('Already stopped');
     });
     fireEvent.click(screen.getByRole('button', { name: 'Parar ditado' }));
+    act(() => jest.advanceTimersByTime(0));
     expect(screen.getByRole('status')).toHaveTextContent('Não foi possível concluir o ditado');
     expect(props.onBusyChange).toHaveBeenLastCalledWith(false);
     expect(recognition.abort).toHaveBeenCalledTimes(1);

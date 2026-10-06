@@ -31,6 +31,7 @@ interface Session {
   seen: Set<number>;
   segments: string[];
   timeout?: number;
+  stopRequest?: number;
 }
 
 function recognitionConstructor() {
@@ -40,6 +41,7 @@ function recognitionConstructor() {
 
 function abort(session: Session) {
   window.clearTimeout(session.timeout);
+  window.clearTimeout(session.stopRequest);
   try {
     session.recognition.abort();
   } catch {
@@ -65,8 +67,9 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [notice, setNotice] = useState('');
-  const [liveTranscript, setLiveTranscript] = useState('');
   const session = useRef<Session | null>(null);
+  const liveTranscript = useRef('');
+  const transcriptElement = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
 
   useEffect(() => {
@@ -89,12 +92,12 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
   }, []);
 
   const finish = (active: Session, message: string) => {
-    if (session.current !== active) return;
     session.current = null;
     window.clearTimeout(active.timeout);
+    window.clearTimeout(active.stopRequest);
     setStatus('idle');
     setNotice(message);
-    setLiveTranscript('');
+    liveTranscript.current = '';
     latest.current.onBusyChange(false);
   };
 
@@ -127,16 +130,18 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
         return;
       }
       setStatus('stopping');
-      active.timeout = window.setTimeout(() => {
-        finish(active, 'Não foi possível concluir o ditado. Você pode continuar digitando.');
-        abort(active);
-      }, 5000);
-      try {
-        active.recognition.stop();
-      } catch {
-        finish(active, 'Não foi possível concluir o ditado. Você pode continuar digitando.');
-        abort(active);
-      }
+      active.stopRequest = window.setTimeout(() => {
+        active.timeout = window.setTimeout(() => {
+          finish(active, 'Não foi possível concluir o ditado. Você pode continuar digitando.');
+          abort(active);
+        }, 5000);
+        try {
+          active.recognition.stop();
+        } catch {
+          finish(active, 'Não foi possível concluir o ditado. Você pode continuar digitando.');
+          abort(active);
+        }
+      }, 0);
       return;
     }
 
@@ -148,7 +153,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
     }
 
     setNotice('');
-    setLiveTranscript('');
+    liveTranscript.current = '';
     try {
       const recognition = new Constructor();
       const next: Session = { recognition, seen: new Set(), segments: [] };
@@ -168,7 +173,9 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
           if (!result.isFinal || next.seen.has(index)) continue;
           next.seen.add(index);
         }
-        setLiveTranscript(next.segments.filter(Boolean).join(' '));
+        const transcript = next.segments.filter(Boolean).join(' ');
+        liveTranscript.current = transcript;
+        if (transcriptElement.current) transcriptElement.current.textContent = transcript;
       };
       recognition.onend = () => {
         if (session.current !== next) return;
@@ -224,67 +231,88 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
 
   return (
     <div className="voice-text-field">
-      {supported === true ? (
-        <div className="voice-input-header">
-          <p
+      <div className="voice-input-shell">
+        {supported === true ? (
+          <div className="voice-input-header">
+            <p
+              aria-live="polite"
+              className="voice-input-notice"
+              id={`${id}-voice-notice`}
+              role="status"
+            >
+              {statusText}
+            </p>
+            <button
+              aria-controls={busy ? `${id}-voice-transcript` : id}
+              aria-describedby={`${id}-voice-notice`}
+              aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
+              aria-pressed={busy}
+              className="voice-input-button"
+              disabled={(disabled && !busy) || status === 'stopping'}
+              onClick={toggle}
+              onKeyDown={fieldProps.onKeyDown}
+              title={`Ditado: ${label}`}
+              type="button"
+            >
+              <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+                {busy ? (
+                  <rect fill="currentColor" height="12" rx="2" width="12" x="6" y="6" />
+                ) : (
+                  <>
+                    <path
+                      d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.8"
+                    />
+                  </>
+                )}
+              </svg>
+            </button>
+            {status === 'listening' ? (
+              <button
+                aria-label="Cancelar ditado"
+                className="voice-input-button voice-input-cancel-button"
+                onClick={cancel}
+                title="Cancelar ditado sem salvar"
+                type="button"
+              >
+                <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+                  <path
+                    d="m7 7 10 10M17 7 7 17"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {busy ? (
+          <div
+            aria-label={`Ditado: ${label}`}
             aria-live="polite"
-            className="voice-input-notice"
-            id={`${id}-voice-notice`}
-            role="status"
+            className="voice-input-transcript"
+            id={`${id}-voice-transcript`}
+            ref={transcriptElement}
           >
-            {statusText}
-          </p>
-          <button
-            aria-controls={busy ? `${id}-voice-transcript` : id}
-            aria-describedby={`${id}-voice-notice`}
-            aria-label={busy ? 'Parar ditado' : 'Falar para preencher'}
-            aria-pressed={busy}
-            className="voice-input-button"
-            disabled={(disabled && !busy) || status === 'stopping'}
-            onClick={toggle}
-            onKeyDown={fieldProps.onKeyDown}
-            title={`Ditado: ${label}`}
-            type="button"
-          >
-            <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
-              {busy ? (
-                <rect fill="currentColor" height="12" rx="2" width="12" x="6" y="6" />
-              ) : (
-                <>
-                  <path
-                    d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Z"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.8"
-                  />
-                  <path
-                    d="M18.5 11.5a6.5 6.5 0 0 1-13 0M12 18v3M9 21h6"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.8"
-                  />
-                </>
-              )}
-            </svg>
-          </button>
-        </div>
-      ) : null}
-      {busy ? (
-        <div
-          aria-label={`Ditado: ${label}`}
-          aria-live="polite"
-          className="voice-input-transcript"
-          id={`${id}-voice-transcript`}
-        >
-          {liveTranscript}
-        </div>
-      ) : kind === 'textarea' ? (
-        <textarea {...fieldProps} rows={rows} />
-      ) : (
-        <input {...fieldProps} />
-      )}
+            {liveTranscript.current}
+          </div>
+        ) : kind === 'textarea' ? (
+          <textarea {...fieldProps} rows={rows} />
+        ) : (
+          <input {...fieldProps} />
+        )}
+      </div>
     </div>
   );
 }
