@@ -52,6 +52,8 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   async function speak(text: string) {
     await page.getByRole('button', { name: 'Falar para preencher' }).click();
     await expect(page.getByRole('status')).toHaveText('Pode falar.');
+    await expect(page.locator('.voice-input-transcript')).toBeEmpty();
+    await expect(page.locator('.voice-input-transcript')).toHaveCSS('height', '64px');
     const partial = text.split(' ').slice(0, 2).join(' ');
     await page.evaluate((transcript) => {
       const browser = window as unknown as Window & {
