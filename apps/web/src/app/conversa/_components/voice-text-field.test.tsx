@@ -37,6 +37,13 @@ describe('VoiceTextField', () => {
     jest.useRealTimers();
   });
 
+  it('keeps an empty textarea compact and restores its fallback rows when filled', () => {
+    const { props, rerender } = renderField();
+    expect(screen.getByRole('textbox')).toHaveAttribute('rows', '1');
+    rerender(<VoiceTextField {...props} value="Texto preenchido" />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('rows', '5');
+  });
+
   it('requests speech only after a click and invites the user to speak without extra privacy copy', () => {
     const { props } = renderField();
     expect(MockSpeechRecognition.instances).toHaveLength(0);

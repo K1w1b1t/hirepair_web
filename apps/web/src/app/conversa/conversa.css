@@ -418,8 +418,13 @@
 .voice-text-field .voice-input-shell > input {
   display: block;
   margin-top: 0;
-  min-height: 5.5rem;
+  min-height: 4rem;
   padding: 1rem 5rem 1rem 1rem;
+}
+.voice-text-field .voice-input-shell > textarea {
+  field-sizing: content;
+  max-height: 20rem;
+  overflow-y: auto;
 }
 .voice-text-field .voice-input-shell > input {
   min-height: 0;

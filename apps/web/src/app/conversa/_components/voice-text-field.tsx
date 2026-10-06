@@ -314,7 +314,7 @@ export function VoiceTextField(props: VoiceTextFieldProps) {
             {liveTranscript.current}
           </div>
         ) : kind === 'textarea' ? (
-          <textarea {...fieldProps} rows={rows} />
+          <textarea {...fieldProps} rows={value ? rows : 1} />
         ) : (
           <input {...fieldProps} />
         )}

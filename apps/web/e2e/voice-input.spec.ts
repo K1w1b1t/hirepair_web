@@ -1,5 +1,22 @@
 import { expect, test } from '@playwright/test';
 
+test('mantém o campo vazio compacto e expande texto longo com rolagem', async ({ page }) => {
+  await page.goto('/conversa');
+  await page.getByRole('button', { name: 'Agora não' }).click();
+  const field = page.locator('#resume-paste');
+  const emptyHeight = await field.evaluate((element) => element.clientHeight);
+  expect(emptyHeight).toBeLessThanOrEqual(66);
+  await field.fill(
+    'Experiência profissional com atendimento e organização de estoque.\n'.repeat(40),
+  );
+  const dimensions = await field.evaluate((element) => ({
+    height: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(dimensions.height).toBeGreaterThan(emptyHeight);
+  expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.height);
+});
+
 test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', async ({
   page,
 }, testInfo) => {
