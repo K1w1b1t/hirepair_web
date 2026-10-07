@@ -1,20 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ANALYSIS_KEY,
-  type JobAnalysisResult,
-  type JobDraft,
-  type JobPreferences,
-} from '../_lib/job-analysis';
+import { type JobAnalysisResult, type JobDraft, type JobPreferences } from '../_lib/job-analysis';
 import { listStoredResumes, type StoredResume } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
 
+import { initialDraft, persistJourney, restoreJourney } from '../_lib/journey-storage';
+
 type JourneyPhase = 'materials' | 'job' | 'recommendations';
 const PHASE_QUERY_PARAM = 'etapa';
-const initialDraft: JobDraft = { hasJob: true, jobText: '', targetRole: '', accepted: false };
 
 function phaseFromQuery(value: string | null): JourneyPhase {
   return value === 'job' || value === 'recommendations' ? value : 'materials';
@@ -67,7 +63,11 @@ function MaterialsSummary({
       ) : null}
       <div className="wizard-analysis-note">
         <JourneyCheck />
-        <p>Os arquivos ficam neste dispositivo enquanto você prepara esta etapa.</p>
+        <p>
+          Seus materiais ficam neste navegador até você limpar os dados dele. Ao analisar, uma cópia
+          do texto com identificadores reconhecidos removidos é enviada à IA. Em aparelhos
+          compartilhados, outras pessoas podem acessar os materiais locais.
+        </p>
       </div>
     </section>
   );
@@ -89,10 +89,14 @@ function JobContextPreview() {
 
 export function ConversationPageClient() {
   const [documents, setDocuments] = useState<StoredResume[]>([]);
+  const documentsRef = useRef<StoredResume[]>([]);
   const [phase, setPhase] = useState<JourneyPhase>('materials');
   const [draft, setDraft] = useState<JobDraft>(initialDraft);
   const [result, setResult] = useState<JobAnalysisResult>();
   const [preferences, setPreferences] = useState<JobPreferences>();
+  const [inputHash, setInputHash] = useState<string>();
+  const [hydrated, setHydrated] = useState(false);
+  const hydratedRef = useRef(false);
   const hasUserNavigated = useRef(false);
 
   const transitionTo = useCallback((nextPhase: JourneyPhase) => {
@@ -105,39 +109,30 @@ export function ConversationPageClient() {
 
   useEffect(() => {
     let mounted = true;
-    const restoreJourney = async () => {
+    const restoreConversation = async () => {
       const requestedPhase = phaseFromQuery(
         new URLSearchParams(window.location.search).get(PHASE_QUERY_PARAM),
       );
       const storedResumes = await listStoredResumes();
       if (!mounted) return;
       setDocuments(storedResumes);
+      documentsRef.current = storedResumes;
 
-      const saved = localStorage.getItem(ANALYSIS_KEY);
-      let hasAnalysis = false;
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as {
-            result: JobAnalysisResult;
-            archetype: JobPreferences['archetype'];
-            objective: JobPreferences['objective'];
-            tone: JobPreferences['tone'];
-          };
-          setResult(parsed.result);
-          setPreferences({
-            archetype: parsed.archetype,
-            objective: parsed.objective,
-            tone: parsed.tone,
-          });
-          hasAnalysis = true;
-        } catch {
-          localStorage.removeItem(ANALYSIS_KEY);
-        }
-      }
+      const saved = await restoreJourney(storedResumes);
+      if (!mounted) return;
+      setDraft(saved.draft);
+      setResult(saved.result);
+      setPreferences(saved.preferences);
+      setInputHash(saved.inputHash);
+      hydratedRef.current = true;
+      setHydrated(true);
+      const hasAnalysis = Boolean(saved.result);
 
       const restoredPhase =
         requestedPhase === 'recommendations' && !hasAnalysis
-          ? 'materials'
+          ? storedResumes.length
+            ? 'job'
+            : 'materials'
           : requestedPhase === 'job' && storedResumes.length === 0
             ? 'materials'
             : requestedPhase;
@@ -148,27 +143,49 @@ export function ConversationPageClient() {
         window.history.replaceState(window.history.state, '', url);
       }
     };
-    void restoreJourney();
+    void restoreConversation();
     return () => {
       mounted = false;
     };
   }, [transitionTo]);
 
   useEffect(() => {
-    if (result && preferences)
-      localStorage.setItem(ANALYSIS_KEY, JSON.stringify({ result, ...preferences }));
-  }, [preferences, result]);
+    if (hydrated) persistJourney({ draft, result, preferences, inputHash });
+  }, [draft, hydrated, inputHash, preferences, result]);
 
+  const invalidateAnalysis = useCallback(() => {
+    setResult(undefined);
+    setPreferences(undefined);
+    setInputHash(undefined);
+  }, []);
   const handleDocumentsChange = useCallback(
     (updatedDocuments: StoredResume[]) => {
-      setDocuments(updatedDocuments);
+      if (!hydratedRef.current) return;
+      const current = documentsRef.current;
+      if (
+        JSON.stringify(current.map(({ id, text }) => ({ id, text }))) !==
+        JSON.stringify(updatedDocuments.map(({ id, text }) => ({ id, text })))
+      ) {
+        invalidateAnalysis();
+        documentsRef.current = updatedDocuments;
+        setDocuments(updatedDocuments);
+      }
       if (updatedDocuments.length === 0) transitionTo('materials');
     },
-    [transitionTo],
+    [invalidateAnalysis, transitionTo],
   );
-
-  const handleComplete = (analysis: JobAnalysisResult) => {
+  const handleDraftChange = (next: JobDraft) => {
+    if (
+      next.hasJob !== draft.hasJob ||
+      next.jobText !== draft.jobText ||
+      next.targetRole !== draft.targetRole
+    )
+      invalidateAnalysis();
+    setDraft(next);
+  };
+  const handleComplete = (analysis: JobAnalysisResult, hash: string) => {
     setResult(analysis);
+    setInputHash(hash);
     setPreferences({
       archetype: analysis.suggestedArchetype,
       objective: analysis.suggestedObjective,
@@ -210,7 +227,7 @@ export function ConversationPageClient() {
         <JobExampleStep
           documents={documents}
           draft={draft}
-          onDraftChange={setDraft}
+          onDraftChange={handleDraftChange}
           onComplete={handleComplete}
         />
       ) : null}
@@ -219,7 +236,7 @@ export function ConversationPageClient() {
           result={result}
           preferences={preferences}
           onPreferencesChange={setPreferences}
-          onEditJob={() => setPhase('job')}
+          onEditJob={() => transitionTo('job')}
         />
       ) : null}
     </WizardShell>

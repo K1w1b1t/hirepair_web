@@ -76,6 +76,11 @@ projeto API.
 # Copiar variáveis de ambiente
 cp .env.example .env
 
+# Gere e preencha GUEST_ACCESS_SECRET no .env (obrigatório, exclusivo do ambiente)
+openssl rand -hex 32
+# IA fica desligada por padrão; configuração e validação operacional:
+# docs/backend/operational-foundation.md
+
 # Subir banco de dados Postgres (porta 5434) e Redis (porta 6379)
 npm run db:up
 
@@ -133,7 +138,12 @@ Todos existem na raiz do monorepo e repassam para `apps/api`.
 ### Primeira vez
 
 ```bash
-cp .env.example .env     # os valores padrão já servem para o local
+cp .env.example .env
+
+# Gere e preencha GUEST_ACCESS_SECRET no .env (obrigatório, exclusivo do ambiente)
+openssl rand -hex 32
+# IA fica desligada por padrão; configuração e validação operacional:
+# docs/backend/operational-foundation.md
 npm run db:up            # Postgres 16 na 5434 + Redis 7
 npm run db:migrate       # cria o schema
 npm run db:seed          # usuário dev@hirepair.local + rodada de amostra
@@ -268,7 +278,7 @@ branco e o Prisma cai para `DATABASE_URL`.
 | Sintoma                                                      | Causa e solução                                                                                                   |
 | :----------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
 | `Can't reach database server at localhost:5434`              | Container não está de pé: `npm run db:up`                                                                         |
-| `Configuracao de ambiente invalida: DATABASE_URL...` no boot | Falta o `.env`: `cp .env.example .env`                                                                            |
+| `Configuracao de ambiente invalida: DATABASE_URL...` no boot | Falta o `.env`: `cp .env.example .env`; gere e preencha `GUEST_ACCESS_SECRET` com `openssl rand -hex 32`          |
 | `The migration ... was modified after it was applied`        | Uma migration já aplicada foi editada. Crie uma nova, ou `npm run db:reset` em desenvolvimento                    |
 | `Drift detected` no `db:migrate`                             | O banco saiu de sincronia com as migrations (alteração feita à mão via psql). `npm run db:reset`                  |
 | Erro de tipo em `@prisma/client` após mudar o schema         | O Client não foi regenerado: `npm run db:generate`                                                                |

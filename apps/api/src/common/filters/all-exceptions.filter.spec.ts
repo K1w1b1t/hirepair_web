@@ -8,6 +8,7 @@ function host() {
       captured.status = code;
       return this;
     },
+    setHeader: jest.fn(),
     json(body: Record<string, unknown>) {
       captured.body = body;
       return this;
@@ -17,7 +18,7 @@ function host() {
     captured,
     value: {
       switchToHttp: () => ({
-        getRequest: () => ({ method: 'GET', url: '/boom?secret=x' }),
+        getRequest: () => ({ method: 'GET', url: '/boom?secret=x', route: { path: '/boom' } }),
         getResponse: () => response,
       }),
     } as ArgumentsHost,
@@ -34,7 +35,10 @@ describe('AllExceptionsFilter', () => {
   it('passes through deliberate HTTP exceptions', () => {
     const target = host();
     new AllExceptionsFilter(context, discord).catch(new HttpException('bad', 400), target.value);
-    expect(target.captured).toEqual({ status: 400, body: 'bad' });
+    expect(target.captured).toMatchObject({
+      status: 400,
+      body: { code: 'VALIDATION_ERROR', traceId: 'trace-1' },
+    });
     expect(sendError500).not.toHaveBeenCalled();
   });
 
@@ -53,4 +57,67 @@ describe('AllExceptionsFilter', () => {
       expect.objectContaining({ path: '/boom', route: '/boom' }),
     );
   });
+});
+
+it('maps body-parser size errors to a safe 413 response', () => {
+  const target = host();
+  new AllExceptionsFilter(
+    { getTraceId: () => 'trace' } as never,
+    { sendError500: jest.fn() } as never,
+  ).catch(
+    Object.assign(new Error('private body'), { type: 'entity.too.large', status: 413 }),
+    target.value,
+  );
+  expect(target.captured).toMatchObject({
+    status: 413,
+    body: { code: 'BODY_TOO_LARGE', traceId: 'trace' },
+  });
+});
+
+it.each([
+  [429, {}],
+  [429, { retryAfterSeconds: 60 }],
+  [422, { code: 'CONTENT_REJECTED' }],
+  [404, {}],
+])('normalizes HTTP %s', (status, payload) => {
+  const target = host();
+  new AllExceptionsFilter(
+    { getTraceId: () => 't' } as never,
+    { sendError500: jest.fn() } as never,
+  ).catch(new HttpException(payload, status), target.value);
+  expect(target.captured.status).toBe(status);
+  expect(target.captured.body.traceId).toBe('t');
+});
+it('handles malformed JSON and arbitrary thrown values safely', () => {
+  const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  const sendError500 = jest.fn();
+  const filter = new AllExceptionsFilter(
+    { getTraceId: () => 't' } as never,
+    { sendError500 } as never,
+  );
+  const target = host();
+  filter.catch({ type: 'entity.parse.failed' }, target.value);
+  expect(target.captured.status).toBe(400);
+  for (const exception of [null, 'private', { type: 'other' }]) {
+    filter.catch(exception, target.value);
+    expect(target.captured.status).toBe(500);
+  }
+  const empty = {
+    switchToHttp: () => ({
+      getRequest: () => ({ method: 'GET', url: '?secret' }),
+      getResponse: () => ({ status: () => ({ json: jest.fn() }) }),
+    }),
+  };
+  filter.catch('oops', empty as never);
+  const missing = {
+    switchToHttp: () => ({
+      getRequest: () => ({ method: 'GET' }),
+      getResponse: () => ({ status: () => ({ json: jest.fn() }) }),
+    }),
+  };
+  filter.catch('oops', missing as never);
+  expect(sendError500).toHaveBeenCalledWith(
+    expect.objectContaining({ path: '/unmatched' }) as unknown,
+  );
+  log.mockRestore();
 });

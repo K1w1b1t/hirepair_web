@@ -28,7 +28,7 @@ describe('configureApp', () => {
     expect(app.enableCors).toHaveBeenCalledWith(
       expect.objectContaining({
         origin: ['https://hirepair.com.br'],
-        credentials: true,
+        credentials: false,
         exposedHeaders: ['x-global-trace-id', 'Content-Disposition'],
       }),
     );
@@ -45,4 +45,28 @@ describe('configureApp', () => {
 
     expect(setup).not.toHaveBeenCalled();
   });
+});
+
+it('uses the process environment and returns safe DTO errors', async () => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  const useGlobalPipes = jest.fn();
+  const app = {
+    use: jest.fn(),
+    enableShutdownHooks: jest.fn(),
+    enableCors: jest.fn(),
+    useGlobalPipes,
+  };
+  try {
+    configureApp(app as never);
+    const pipe = (useGlobalPipes.mock.calls as unknown as [ValidationPipe][])[0][0];
+    class InvalidDto {
+      field!: string;
+    }
+    await expect(
+      pipe.transform({ extra: 'private' }, { type: 'body', metatype: InvalidDto }),
+    ).rejects.toHaveProperty('response.code', 'VALIDATION_ERROR');
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
 });

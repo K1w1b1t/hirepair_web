@@ -8,7 +8,7 @@ import {
 import type { Request, Response } from 'express';
 import { DiscordService } from '../discord/discord.service';
 import { RequestContextService } from '../request-context/request-context.service';
-import { normalizeRoutePath } from '../request-context/route-path.util';
+import { requestRoute } from '../request-context/request-route';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -21,25 +21,53 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
+    const traceId = this.context.getTraceId();
     if (exception instanceof HttpException) {
-      response.status(exception.getStatus()).json(exception.getResponse());
+      const statusCode = exception.getStatus();
+      const raw = exception.getResponse();
+      const payload =
+        typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+      const code =
+        typeof payload.code === 'string'
+          ? payload.code
+          : statusCode === 429
+            ? 'RATE_LIMIT_REACHED'
+            : statusCode === 400
+              ? 'VALIDATION_ERROR'
+              : 'HTTP_ERROR';
+      if (statusCode === 429 && typeof payload.retryAfterSeconds === 'number')
+        response.setHeader('Retry-After', String(payload.retryAfterSeconds));
+      response.status(statusCode).json({ ...payload, statusCode, code, message: code, traceId });
       return;
     }
-    const traceId = this.context.getTraceId();
+    if (
+      exception &&
+      typeof exception === 'object' &&
+      'type' in exception &&
+      (exception.type === 'entity.too.large' || exception.type === 'entity.parse.failed')
+    ) {
+      const statusCode = exception.type === 'entity.too.large' ? 413 : 400;
+      response.status(statusCode).json({
+        statusCode,
+        code: statusCode === 413 ? 'BODY_TOO_LARGE' : 'VALIDATION_ERROR',
+        traceId,
+      });
+      return;
+    }
     const errorMessage = exception instanceof Error ? exception.message : String(exception);
     const stack = exception instanceof Error ? exception.stack : undefined;
-    const path = (request.url || '/').split(/[?#]/, 1)[0] || '/';
+    const path = requestRoute(request);
     this.logger.error({
       msg: 'Unhandled exception',
       traceId,
       method: request.method,
-      route: normalizeRoutePath(path),
+      route: path,
     });
     void this.discord.sendError500({
       traceId,
       method: request.method,
       path,
-      route: normalizeRoutePath(path),
+      route: path,
       errorMessage,
       stack,
     });
