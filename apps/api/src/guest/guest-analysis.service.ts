@@ -31,7 +31,9 @@ function parseModelResult(text: string): ModelResult {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
     const value = parsed as ModelResult;
     if (
-      Object.keys(value).sort().join(',') !== 'requirements,targetKind,targetRole' ||
+      Object.keys(value)
+        .sort((first, second) => first.localeCompare(second))
+        .join(',') !== 'requirements,targetKind,targetRole' ||
       !['different_track', 'operational', 'specialist', 'same_track', 'first_job'].includes(
         value.targetKind,
       ) ||
@@ -42,7 +44,9 @@ function parseModelResult(text: string): ModelResult {
       value.requirements.some(
         (item) =>
           !item ||
-          Object.keys(item).sort().join(',') !== 'category,text' ||
+          Object.keys(item)
+            .sort((first, second) => first.localeCompare(second))
+            .join(',') !== 'category,text' ||
           typeof item.text !== 'string' ||
           !item.text.trim() ||
           item.text.length > 500 ||

@@ -16,6 +16,22 @@ function phaseFromQuery(value: string | null): JourneyPhase {
   return value === 'job' || value === 'recommendations' ? value : 'materials';
 }
 
+function restoredPhase(
+  requested: JourneyPhase,
+  documentCount: number,
+  hasAnalysis: boolean,
+): JourneyPhase {
+  if (requested === 'recommendations' && !hasAnalysis) return documentCount ? 'job' : 'materials';
+  if (requested === 'job' && documentCount === 0) return 'materials';
+  return requested;
+}
+
+function stepForPhase(phase: JourneyPhase): number {
+  if (phase === 'materials') return 1;
+  if (phase === 'job') return 2;
+  return 3;
+}
+
 function JourneyCheck() {
   return (
     <span aria-hidden="true" className="wizard-journey-check">
@@ -87,6 +103,71 @@ function JobContextPreview() {
   );
 }
 
+function ConversationPreview({
+  phase,
+  documentCount,
+  hasAnalysis,
+  onStart,
+}: {
+  phase: JourneyPhase;
+  documentCount: number;
+  hasAnalysis: boolean;
+  onStart: (next: JourneyPhase) => void;
+}) {
+  if (phase === 'materials')
+    return (
+      <MaterialsSummary
+        documentCount={documentCount}
+        onStart={() => onStart(hasAnalysis ? 'recommendations' : 'job')}
+      />
+    );
+  if (phase === 'job') return <JobContextPreview />;
+  return null;
+}
+
+function ConversationStep({
+  phase,
+  documents,
+  draft,
+  result,
+  preferences,
+  onDocumentsChange,
+  onDraftChange,
+  onComplete,
+  onPreferencesChange,
+  onEditJob,
+}: {
+  phase: JourneyPhase;
+  documents: StoredResume[];
+  draft: JobDraft;
+  result: JobAnalysisResult | undefined;
+  preferences: JobPreferences | undefined;
+  onDocumentsChange: (documents: StoredResume[]) => void;
+  onDraftChange: (draft: JobDraft) => void;
+  onComplete: (analysis: JobAnalysisResult, hash: string) => void;
+  onPreferencesChange: (preferences: JobPreferences) => void;
+  onEditJob: () => void;
+}) {
+  if (phase === 'materials') return <ImportPanel onDocumentsChange={onDocumentsChange} />;
+  if (phase === 'job')
+    return (
+      <JobExampleStep
+        documents={documents}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onComplete={onComplete}
+      />
+    );
+  return (
+    <JobRecommendationsStep
+      result={result as JobAnalysisResult}
+      preferences={preferences as JobPreferences}
+      onPreferencesChange={onPreferencesChange}
+      onEditJob={onEditJob}
+    />
+  );
+}
+
 export function ConversationPageClient() {
   const [documents, setDocuments] = useState<StoredResume[]>([]);
   const documentsRef = useRef<StoredResume[]>([]);
@@ -128,18 +209,11 @@ export function ConversationPageClient() {
       setHydrated(true);
       const hasAnalysis = Boolean(saved.result);
 
-      const restoredPhase =
-        requestedPhase === 'recommendations' && !hasAnalysis
-          ? storedResumes.length
-            ? 'job'
-            : 'materials'
-          : requestedPhase === 'job' && storedResumes.length === 0
-            ? 'materials'
-            : requestedPhase;
+      const nextPhase = restoredPhase(requestedPhase, storedResumes.length, hasAnalysis);
       if (!hasUserNavigated.current) {
-        setPhase(restoredPhase);
+        setPhase(nextPhase);
         const url = new URL(window.location.href);
-        url.searchParams.set(PHASE_QUERY_PARAM, restoredPhase);
+        url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
         window.history.replaceState(window.history.state, '', url);
       }
     };
@@ -194,51 +268,39 @@ export function ConversationPageClient() {
     transitionTo('recommendations');
   };
 
-  const preview =
-    phase === 'materials' ? (
-      <MaterialsSummary
-        documentCount={documents.length}
-        onStart={() => transitionTo(result && preferences ? 'recommendations' : 'job')}
-      />
-    ) : phase === 'job' ? (
-      <JobContextPreview />
-    ) : null;
-  const currentStep = phase === 'materials' ? 1 : phase === 'job' ? 2 : 3;
   const goBack =
-    phase === 'job'
-      ? () => transitionTo('materials')
-      : phase === 'recommendations'
-        ? () => transitionTo('job')
-        : undefined;
+    phase === 'materials' ? undefined : () => transitionTo(phase === 'job' ? 'materials' : 'job');
 
   return (
     <WizardShell
-      currentStep={currentStep}
+      currentStep={stepForPhase(phase)}
       onBack={goBack}
-      preview={preview}
+      preview={
+        <ConversationPreview
+          phase={phase}
+          documentCount={documents.length}
+          hasAnalysis={Boolean(result && preferences)}
+          onStart={transitionTo}
+        />
+      }
       previewLabel={phase === 'materials' ? 'Resumo dos materiais' : 'Orientação da análise'}
       previewOnMobile={phase === 'materials'}
       previewTitle="Materiais para análise"
       previewTriggerLabel="Ver resumo"
       totalSteps={5}
     >
-      {phase === 'materials' ? <ImportPanel onDocumentsChange={handleDocumentsChange} /> : null}
-      {phase === 'job' ? (
-        <JobExampleStep
-          documents={documents}
-          draft={draft}
-          onDraftChange={handleDraftChange}
-          onComplete={handleComplete}
-        />
-      ) : null}
-      {phase === 'recommendations' && result && preferences ? (
-        <JobRecommendationsStep
-          result={result}
-          preferences={preferences}
-          onPreferencesChange={setPreferences}
-          onEditJob={() => transitionTo('job')}
-        />
-      ) : null}
+      <ConversationStep
+        phase={phase}
+        documents={documents}
+        draft={draft}
+        result={result}
+        preferences={preferences}
+        onDocumentsChange={handleDocumentsChange}
+        onDraftChange={handleDraftChange}
+        onComplete={handleComplete}
+        onPreferencesChange={setPreferences}
+        onEditJob={() => transitionTo('job')}
+      />
     </WizardShell>
   );
 }

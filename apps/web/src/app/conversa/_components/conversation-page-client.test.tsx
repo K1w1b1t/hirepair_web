@@ -105,6 +105,17 @@ describe('conversation persistence and transitions', () => {
     await screen.findByText('Analyze');
     expect(window.location.search).toBe('?etapa=job');
   });
+  it('stores a completed analysis and advances to recommendations', async () => {
+    window.history.replaceState({}, '', '/conversa?etapa=job');
+    render(<ConversationPageClient />);
+
+    await screen.findByText('Analyze');
+    fireEvent.click(screen.getByText('Analyze'));
+
+    expect(await screen.findByText('Recommendations')).toBeInTheDocument();
+    expect(window.location.search).toBe('?etapa=recommendations');
+    expect(persist).toHaveBeenLastCalledWith(snapshot);
+  });
   it('restores valid analysis, synchronizes edit/back URLs and retains preferences', async () => {
     window.history.replaceState({}, '', '/conversa?etapa=recommendations');
     restore.mockResolvedValue(snapshot);

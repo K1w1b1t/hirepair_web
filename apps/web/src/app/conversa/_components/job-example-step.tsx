@@ -67,7 +67,8 @@ export function JobExampleStep({
   const hasRequiredInput = draft.hasJob
     ? Boolean(draft.jobText.trim())
     : Boolean(draft.targetRole.trim());
-  const analysisDisabled = !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
+  const analysisDisabled =
+    !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
   const analysisDisabledMessage =
     !hasRequiredInput && !draft.accepted
       ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'

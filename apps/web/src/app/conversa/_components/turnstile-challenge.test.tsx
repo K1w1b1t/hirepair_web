@@ -63,10 +63,12 @@ describe('Turnstile access widget', () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: false, json: () => Promise.resolve(config) });
     const view = render(<TurnstileChallenge onReady={onReady} />);
     await screen.findByText(/indisponível/);
+    expect(onReady).toHaveBeenLastCalledWith();
     view.unmount();
     (fetch as jest.Mock).mockRejectedValue(new Error('network'));
     render(<TurnstileChallenge onReady={onReady} />);
     await screen.findByText(/indisponível/);
+    expect(onReady).toHaveBeenLastCalledWith();
   });
   it('loads the script once and renders when it becomes available', async () => {
     const view = render(<TurnstileChallenge onReady={onReady} />);
