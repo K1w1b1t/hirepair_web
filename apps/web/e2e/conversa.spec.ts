@@ -49,10 +49,32 @@ test.describe('wizard acolhedor', () => {
   });
 
   test('separa vaga e recomendações em etapas claras', async ({ page }) => {
+    await page.route('**/guest/config', async (route) => {
+      await route.fulfill({
+        json: {
+          enabled: true,
+          siteKey: 'test-site',
+          termsVersion: '2026-10-07',
+          privacyVersion: '2026-10-07',
+        },
+      });
+    });
+    await page.route(
+      'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
+      async (route) => {
+        await route.fulfill({
+          contentType: 'application/javascript',
+          body: "window.turnstile={render:function(el,options){setTimeout(function(){options.callback('test-proof')},0);return 'test-widget'},remove:function(){}};",
+        });
+      },
+    );
+
     await page.route('**/guest/access', async (route) => {
       await route.fulfill({ json: { accessToken: 'guest-token' }, status: 201 });
     });
     await page.route('**/guest/job-analysis', async (route) => {
+      expect(route.request().postData()).not.toContain('123.456.789-00');
+      expect(route.request().headers()['idempotency-key']).toBeTruthy();
       await route.fulfill({
         json: {
           reason: 'Seu histórico indica uma transição de carreira.',
@@ -69,7 +91,9 @@ test.describe('wizard acolhedor', () => {
 
     await page.goto('/conversa');
     await dismissAnalytics(page);
-    await page.getByLabel('Colar o texto').fill('Mecânico de manutenção industrial.');
+    await page
+      .getByLabel('Colar o texto')
+      .fill('Mecânico de manutenção industrial. CPF: 123.456.789-00');
     await page.getByRole('button', { name: 'Adicionar material' }).click();
     await page.getByRole('button', { name: 'Continuar' }).click();
 
@@ -77,6 +101,9 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByRole('heading', { name: /qual vaga você quer buscar/i })).toBeVisible();
     await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
+    await page.getByLabel(/requisitos da vaga/i).blur();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: '../../docs/backend/evidence/41-vaga.png', fullPage: true });
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: /analisar e sugerir/i }).click();
 
@@ -85,5 +112,16 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByText('Engenheiro mecânico')).toBeVisible();
     await expect(page.getByRole('radio', { name: /transição de carreira/i })).toBeChecked();
     await expect(page.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
+    await page.getByRole('button', { name: /editar vaga/i }).click();
+    await expect(page).toHaveURL(/etapa=job/);
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
+      'Vaga para engenheiro mecânico.',
+    );
+    await page.getByLabel(/requisitos da vaga/i).fill('Vaga corrigida');
+    await page.reload();
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue('Vaga corrigida');
+    await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
   });
 });

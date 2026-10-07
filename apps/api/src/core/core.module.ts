@@ -1,8 +1,11 @@
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
 import { LoggerModule } from 'nestjs-pino';
+import { OperationalModule } from '../operational/operational.module';
+import { RedisThrottlerStorage } from '../operational/redis-throttler.storage';
+import { NetworkThrottlerGuard } from '../operational/network-throttler.guard';
 import { AuthModule } from '../auth/auth.module';
 import { DiscordModule } from '../common/discord/discord.module';
 import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter';
@@ -20,10 +23,18 @@ import { RequestContextModule } from '../common/request-context/request-context.
     RequestContextModule,
     DiscordModule,
     AuthModule,
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
+    OperationalModule,
+    ThrottlerModule.forRootAsync({
+      imports: [OperationalModule],
+      inject: [RedisThrottlerStorage],
+      useFactory: (storage: RedisThrottlerStorage) => ({
+        storage,
+        throttlers: [{ ttl: 60_000, limit: 10 }],
+      }),
+    }),
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: NetworkThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },

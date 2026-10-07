@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   archetypes,
-  GUEST_ID_KEY,
   objectives,
   tones,
   type Archetype,
@@ -13,6 +12,13 @@ import {
   type Objective,
   type Tone,
 } from '../_lib/job-analysis';
+import {
+  analyzeGuest,
+  inputFingerprint,
+  AnalysisFailure,
+  type GuestChallenge,
+} from '../_lib/guest-api';
+import { TurnstileChallenge } from './turnstile-challenge';
 import type { StoredResume } from '../_lib/resume-storage';
 import { VoiceTextField } from './voice-text-field';
 
@@ -41,14 +47,6 @@ function AnalysisErrorToast({ message, onDismiss }: { message: string; onDismiss
   );
 }
 
-function visitorId() {
-  const current = localStorage.getItem(GUEST_ID_KEY);
-  if (current) return current;
-  const next = crypto.randomUUID();
-  localStorage.setItem(GUEST_ID_KEY, next);
-  return next;
-}
-
 export function JobExampleStep({
   documents,
   draft,
@@ -58,15 +56,19 @@ export function JobExampleStep({
   documents: StoredResume[];
   draft: JobDraft;
   onDraftChange: (draft: JobDraft) => void;
-  onComplete: (result: JobAnalysisResult) => void;
+  onComplete: (result: JobAnalysisResult, hash: string) => void;
 }) {
   const [notice, setNotice] = useState('');
+  const [challenge, setChallenge] = useState<GuestChallenge>();
+  const [challengeKey, setChallengeKey] = useState(0);
+  const onChallenge = useCallback((value?: GuestChallenge) => setChallenge(value), []);
   const [loading, setLoading] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const hasRequiredInput = draft.hasJob
     ? Boolean(draft.jobText.trim())
     : Boolean(draft.targetRole.trim());
-  const analysisDisabled = loading || voiceBusy || !draft.accepted || !hasRequiredInput;
+  const analysisDisabled =
+    !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
   const analysisDisabledMessage =
     !hasRequiredInput && !draft.accepted
       ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
@@ -77,62 +79,22 @@ export function JobExampleStep({
           : undefined;
   const updateDraft = (next: Partial<JobDraft>) => onDraftChange({ ...draft, ...next });
 
-  const analyze = async () => {
+  const analyze = async (verifiedChallenge: GuestChallenge) => {
     setLoading(true);
     setNotice('');
     try {
-      const root = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-      const access = await fetch(`${root}/guest/access`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          visitorId: visitorId(),
-          acceptedTerms: true,
-          acceptedPrivacy: true,
-        }),
-      });
-      if (!access.ok) throw new Error('Não foi possível iniciar sua jornada.');
-      const token = ((await access.json()) as { accessToken: string }).accessToken;
-      const response = await fetch(`${root}/guest/job-analysis`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          documents: documents.map(({ id, text }) => ({ id, text })),
-          ...(draft.hasJob ? { jobText: draft.jobText } : { targetRole: draft.targetRole }),
-        }),
-      });
-      if (!response.ok) {
-        const failure = (await response.json().catch(() => undefined)) as
-          { code?: unknown; message?: unknown } | undefined;
-        const failureCode = typeof failure?.code === 'string' ? failure.code : undefined;
-        const providerLimitMessage =
-          typeof failure?.message === 'string' && failureCode === 'AI_CAPACITY_EXHAUSTED'
-            ? failure.message
-            : undefined;
-        const guestLimitMessage =
-          failureCode === 'GUEST_ANALYSIS_LIMIT_REACHED' && typeof failure?.message === 'string'
-            ? failure.message
-            : undefined;
-        throw new Error(
-          response.status === 400
-            ? (guestLimitMessage ?? 'Sua análise gratuita volta em até 24 horas.')
-            : response.status === 503
-              ? (providerLimitMessage ?? 'A análise está temporariamente indisponível.')
-              : 'A análise está indisponível. Tente novamente.',
-        );
-      }
-      onComplete((await response.json()) as JobAnalysisResult);
+      const result = await analyzeGuest(documents, draft, verifiedChallenge);
+      onComplete(result, await inputFingerprint(documents, draft));
     } catch (caught) {
       setNotice(
-        caught instanceof Error &&
-          (caught.message.includes('24 horas') ||
-            caught.message.includes('capacidade gratuita da IA') ||
-            caught.message.includes('temporariamente indisponível'))
+        caught instanceof AnalysisFailure
           ? caught.message
           : 'Verifique sua conexão e tente novamente em alguns instantes.',
       );
     } finally {
       setLoading(false);
+      setChallenge(undefined);
+      setChallengeKey((value) => value + 1);
     }
   };
 
@@ -141,6 +103,12 @@ export function JobExampleStep({
       <p className="section-kicker">Etapa 2 · definir o próximo passo</p>
       <h1>Qual vaga você quer buscar?</h1>
       <p>Escreva, cole ou fale os requisitos e a gente sugere como apresentar sua experiência.</p>
+      <p>
+        Ao analisar, o texto profissional e a vaga são enviados ao Groq, após remoção de
+        identificadores e contatos reconhecidos. Os originais continuam neste aparelho. Evite
+        incluir dados pessoais desnecessários.
+      </p>
+      <TurnstileChallenge key={challengeKey} onReady={onChallenge} />
       <div aria-label="Forma de definir o objetivo" className="job-toggle">
         <button
           aria-pressed={draft.hasJob}
@@ -206,7 +174,7 @@ export function JobExampleStep({
       <button
         className="button button-primary"
         disabled={analysisDisabled}
-        onClick={() => void analyze()}
+        onClick={challenge ? () => void analyze(challenge) : undefined}
         title={analysisDisabledMessage}
         type="button"
       >

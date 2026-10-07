@@ -24,6 +24,15 @@ jobs:
     # docker-compose.yml local, para que a DATABASE_URL abaixo seja a mesma do
     # .env.example e não exista uma segunda string para manter em sincronia.
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 16379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
       postgres:
         image: postgres:16-alpine
         env:
@@ -69,6 +78,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Validate operational limits against disposable Redis
+        run: npm run test:operational -w apps/api
 
       - name: Run build
         run: npm run build

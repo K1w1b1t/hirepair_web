@@ -1,9 +1,12 @@
-import { validate } from './env.validation';
+import { validate as validateEnvironment } from './env.validation';
+
+const validate = (config: Record<string, unknown>) =>
+  validateEnvironment({ GUEST_ACCESS_SECRET: 's'.repeat(32), ...config });
 
 const VALID_URL = 'postgresql://user:pass@localhost:5434/hirepair?schema=public';
 
 describe('validate (ambiente)', () => {
-  it('aceita o minimo: apenas DATABASE_URL', () => {
+  it('aceita o minimo: DATABASE_URL e segredo de visitante', () => {
     expect(validate({ DATABASE_URL: VALID_URL }).DATABASE_URL).toBe(VALID_URL);
   });
 

@@ -1,299 +1,200 @@
-import {
-  BadGatewayException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  Optional,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { randomInt, randomUUID } from 'node:crypto';
-import { AiProvider, AiTextGenerationRequest, AiTextGenerationResult } from './ai.types';
-import { GLOBAL_TRACE_ID_HEADER } from '../common/request-context/request-context.constants';
+import { Injectable, Optional } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { countTokens } from 'gpt-tokenizer/cjs/encoding/o200k_harmony';
+import type { AiTextGenerationRequest, AiTextGenerationResult, AiProvider } from './ai.types';
+import { AiBudgetService } from '../operational/ai-budget.service';
+import { operationalError, requirePublicAi } from '../operational/operational.config';
 import { RequestContextService } from '../common/request-context/request-context.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_TIMEOUT_MS = 15_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
-const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
-const MAX_ATTEMPTS_PER_PROVIDER = 2;
-const MAX_RETRY_DELAY_MS = 8_000;
-
-interface AiProviderDefinition {
-  provider: AiProvider;
-  model: string;
-  apiKey?: string;
-}
-
-interface GeminiResponse {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-}
-
-interface GroqResponse {
-  choices?: Array<{ message?: { content?: string | null } }>;
-}
-
-class AiProviderError extends Error {
-  constructor(
-    readonly provider: AiProvider,
-    readonly model: string,
-    readonly status?: number,
-    readonly retryAfterMs?: number,
-  ) {
-    super(`Falha no provedor ${provider} (${model})${status ? `: HTTP ${status}` : '.'}`);
-  }
-}
+type GroqPayload = {
+  choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+  usage?: { prompt_tokens: number; completion_tokens: number };
+};
+type ProviderConfig = { provider: AiProvider; model: string };
+const providers: ProviderConfig[] = [
+  { provider: 'groq-120b', model: 'openai/gpt-oss-120b' },
+  { provider: 'groq-20b', model: 'openai/gpt-oss-20b' },
+];
 
 @Injectable()
 export class AiService {
-  private readonly logger = new Logger(AiService.name);
-
   constructor(
-    @Optional() private readonly requestContext?: RequestContextService,
-    @Optional() private readonly telemetry?: TelemetryService,
+    @Optional() private readonly requestContext: RequestContextService | undefined,
+    @Optional() private readonly telemetry: TelemetryService | undefined,
+    private readonly budget: AiBudgetService,
   ) {}
-
+  estimateTokens(request: AiTextGenerationRequest): number {
+    const input = countTokens(
+      JSON.stringify({
+        prompt: request.prompt,
+        system: request.systemInstruction,
+        schema: request.responseSchema,
+      }),
+      { disallowedSpecial: new Set() },
+    );
+    const output = Math.min(request.maxOutputTokens ?? 1200, 1200);
+    const tokens = Math.ceil((input + 128) * 1.2) + output;
+    if (tokens > 6000 || output <= 0) throw operationalError('AI_INPUT_TOO_LARGE', 400);
+    return tokens;
+  }
   async generateText(request: AiTextGenerationRequest): Promise<AiTextGenerationResult> {
-    const providers = this.providers();
-    if (providers.length === 0) {
-      throw new ServiceUnavailableException('Nenhum provedor de IA foi configurado.');
-    }
-
-    const errors: AiProviderError[] = [];
+    requirePublicAi();
+    if (!process.env.GROQ_API_KEY) throw operationalError('AI_CONFIGURATION_ERROR');
+    const tokens = this.estimateTokens(request);
+    const deadline = Date.now() + 30_000;
     for (const [index, provider] of providers.entries()) {
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_PROVIDER; attempt += 1) {
-        try {
-          const text = await this.generateWithProvider(provider, request);
-          return { text, provider: provider.provider, model: provider.model };
-        } catch (error) {
-          if (!(error instanceof AiProviderError)) throw error;
-          errors.push(error);
-          if (!this.shouldRetry(error)) {
-            this.logger.warn(
-              `IA recusou a requisição em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}).`,
-            );
-            if (error.status === 400 || error.status === 401 || error.status === 403) {
-              throw new HttpException(
-                {
-                  statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-                  code: 'AI_CONFIGURATION_ERROR',
-                  message: 'O provedor de IA está com uma configuração inválida.',
-                },
-                HttpStatus.SERVICE_UNAVAILABLE,
-              );
-            }
-            throw new BadGatewayException(`Falha no provedor de IA (${error.provider}).`);
-          }
-          if (attempt < MAX_ATTEMPTS_PER_PROVIDER) await this.waitBeforeRetry(error, attempt);
-        }
-      }
-
-      const nextProvider = providers[index + 1];
-      if (nextProvider) {
-        const error = errors.at(-1)!;
-        await this.telemetry?.captureAiFallback({
-          fromProvider: provider.provider,
-          fromModel: provider.model,
-          toProvider: nextProvider.provider,
-          toModel: nextProvider.model,
-          status: error.status ?? 503,
-          traceId: this.requestContext?.getTraceId() ?? randomUUID(),
-        });
-        this.logger.warn(
-          `IA temporariamente indisponivel em ${error.provider} (${error.model}, HTTP ${error.status ?? 'rede'}); alternando provedor.`,
-        );
-      }
+      const result = await this.generateWithProvider(request, provider, tokens, deadline, index);
+      if (result) return result;
     }
-
-    if (errors.length > 0 && errors.every((error) => error.status === 429)) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          code: 'AI_CAPACITY_EXHAUSTED',
-          message: 'A capacidade gratuita da IA foi atingida. Tente novamente mais tarde.',
-        },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
-    throw this.toServiceUnavailable(errors.at(-1));
+    throw operationalError('AI_UNAVAILABLE');
   }
-
-  private providers(): AiProviderDefinition[] {
-    return [
-      {
-        provider: 'gemini',
-        model: process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
-        apiKey: process.env.GEMINI_API_KEY,
-      },
-      {
-        provider: 'gemini',
-        model: process.env.GEMINI_FALLBACK_MODEL ?? DEFAULT_GEMINI_FALLBACK_MODEL,
-        apiKey: process.env.GEMINI_API_KEY,
-      },
-      {
-        provider: 'groq-70b',
-        model: process.env.GROQ_70B_MODEL ?? 'llama-3.3-70b-versatile',
-        apiKey: process.env.GROQ_API_KEY,
-      },
-      {
-        provider: 'groq-8b',
-        model: process.env.GROQ_8B_MODEL ?? 'llama-3.1-8b-instant',
-        apiKey: process.env.GROQ_API_KEY,
-      },
-    ].filter(
-      (provider, index, all): provider is AiProviderDefinition & { apiKey: string } =>
-        Boolean(provider.apiKey) &&
-        all.findIndex((item) => item.model === provider.model) === index,
-    );
-  }
-
   private async generateWithProvider(
-    provider: AiProviderDefinition,
     request: AiTextGenerationRequest,
-  ): Promise<string> {
-    return provider.provider === 'gemini'
-      ? this.generateWithGemini(provider, request)
-      : this.generateWithGroq(provider, request);
-  }
-
-  private async generateWithGemini(
-    provider: AiProviderDefinition,
-    request: AiTextGenerationRequest,
-  ): Promise<string> {
-    const response = await this.request(
-      `${GEMINI_ENDPOINT}/${encodeURIComponent(provider.model)}:generateContent`,
-      {
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': provider.apiKey ?? '' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
-          ...(request.systemInstruction
-            ? { systemInstruction: { parts: [{ text: request.systemInstruction }] } }
-            : {}),
-          generationConfig: {
-            ...this.generationConfig(request),
-            responseMimeType: 'application/json',
-          },
-        }),
-      },
-      provider,
-    );
-    const payload = (await response.json()) as GeminiResponse;
-    const text = payload.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text ?? '')
-      .join('')
-      .trim();
-    if (!text) throw new AiProviderError(provider.provider, provider.model, response.status);
-    return text;
-  }
-
-  private async generateWithGroq(
-    provider: AiProviderDefinition,
-    request: AiTextGenerationRequest,
-  ): Promise<string> {
-    const response = await this.request(
-      GROQ_ENDPOINT,
-      {
-        headers: {
-          authorization: `Bearer ${provider.apiKey ?? ''}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: provider.model,
-          messages: [
-            ...(request.systemInstruction
-              ? [{ role: 'system', content: request.systemInstruction }]
-              : []),
-            { role: 'user', content: request.prompt },
-          ],
-          ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
-          ...(request.maxOutputTokens === undefined
-            ? {}
-            : { max_completion_tokens: request.maxOutputTokens }),
-        }),
-      },
-      provider,
-    );
-    const payload = (await response.json()) as GroqResponse;
-    const text = payload.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new AiProviderError(provider.provider, provider.model, response.status);
-    return text;
-  }
-
-  private async request(
-    url: string,
-    init: RequestInit,
-    provider: AiProviderDefinition,
-  ): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(controller.abort.bind(controller), this.timeoutMs());
-    try {
-      const headers = new Headers(init.headers);
-      const traceId = this.requestContext?.getTraceId();
-      if (traceId) headers.set(GLOBAL_TRACE_ID_HEADER, traceId);
-      const response = await fetch(url, {
-        ...init,
-        headers,
-        method: 'POST',
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new AiProviderError(
-          provider.provider,
-          provider.model,
-          response.status,
-          this.retryAfterMs(response.headers.get('retry-after')),
-        );
+    provider: ProviderConfig,
+    tokens: number,
+    deadline: number,
+    index: number,
+  ): Promise<AiTextGenerationResult | undefined> {
+    const reservation = await this.budget.reserve(request.context, provider.model, tokens);
+    const startedAt = Date.now();
+    const response = await this.requestProvider(request, provider, deadline);
+    if (!response) {
+      await this.budget.settle(
+        reservation,
+        'network_or_timeout',
+        undefined,
+        Date.now() - startedAt,
+      );
+      if (this.canFallback(index, deadline)) {
+        void this.fallback(503);
+        return undefined;
       }
-      return response;
-    } catch (error) {
-      if (error instanceof AiProviderError) throw error;
-      throw new AiProviderError(provider.provider, provider.model, 503);
-    } finally {
-      clearTimeout(timeout);
+      throw operationalError('AI_UNAVAILABLE');
+    }
+    const payload = await this.parsePayload(response);
+    if (!payload) {
+      await this.budget.settle(reservation, 'invalid_response', undefined, Date.now() - startedAt);
+      throw operationalError('AI_INVALID_RESPONSE', 502);
+    }
+    const text = this.contentFrom(payload);
+    const validContent = Boolean(text) && payload.choices?.[0]?.finish_reason !== 'length';
+    await this.budget.settle(
+      reservation,
+      this.outcome(response, validContent),
+      payload.usage,
+      Date.now() - startedAt,
+    );
+    if (!response.ok) return this.handleFailedResponse(response, provider, deadline, index);
+    if (!validContent) throw operationalError('AI_INVALID_RESPONSE', 502);
+    return { text, provider: provider.provider, model: provider.model };
+  }
+  private async requestProvider(
+    request: AiTextGenerationRequest,
+    provider: ProviderConfig,
+    deadline: number,
+  ): Promise<Response | undefined> {
+    try {
+      return await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: this.headers(),
+        signal: AbortSignal.timeout(Math.max(1, Math.min(15_000, deadline - Date.now()))),
+        body: JSON.stringify(this.requestBody(request, provider.model)),
+      });
+    } catch {
+      return undefined;
     }
   }
-
-  private generationConfig(request: AiTextGenerationRequest): Record<string, number> {
+  private headers(): Headers {
+    const headers = new Headers({
+      'content-type': 'application/json',
+      authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    });
+    const traceId = this.requestContext?.getTraceId();
+    if (traceId) headers.set('x-global-trace-id', traceId);
+    return headers;
+  }
+  private requestBody(request: AiTextGenerationRequest, model: string) {
     return {
-      ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
-      ...(request.maxOutputTokens === undefined
-        ? {}
-        : { maxOutputTokens: request.maxOutputTokens }),
+      model,
+      messages: [
+        ...(request.systemInstruction
+          ? [{ role: 'system', content: request.systemInstruction }]
+          : []),
+        { role: 'user', content: request.prompt },
+      ],
+      temperature: request.temperature ?? 0,
+      reasoning_effort: 'low',
+      max_completion_tokens: Math.min(request.maxOutputTokens ?? 1200, 1200),
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'job_analysis', strict: true, schema: request.responseSchema },
+      },
     };
   }
-
-  private timeoutMs(): number {
-    return Number(process.env.AI_REQUEST_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
+  private async parsePayload(response: Response): Promise<GroqPayload | undefined> {
+    if (!response.ok) return {};
+    try {
+      const payload: unknown = await response.json();
+      return payload && typeof payload === 'object' ? payload : undefined;
+    } catch {
+      return undefined;
+    }
   }
-
-  private shouldRetry(error: AiProviderError): boolean {
-    return error.status === 408 || error.status === 429 || (error.status ?? 0) >= 500;
+  private contentFrom(payload: GroqPayload): string {
+    const content = payload.choices?.[0]?.message?.content;
+    return typeof content === 'string' ? content.trim() : '';
   }
-
-  private async waitBeforeRetry(error: AiProviderError, attempt: number): Promise<void> {
-    const configuredBase = Number(process.env.AI_RETRY_BASE_MS);
-    const base = Number.isFinite(configuredBase) ? configuredBase : 1_000;
-    const exponential = Math.min(MAX_RETRY_DELAY_MS, base * 2 ** (attempt - 1));
-    const delay = Math.min(MAX_RETRY_DELAY_MS, error.retryAfterMs ?? exponential);
-    const jitter = randomInt(250);
-    await new Promise<void>((resolve) => setTimeout(resolve, delay + jitter));
+  private outcome(response: Response, validContent: boolean): string {
+    if (!response.ok) return `http_${response.status}`;
+    return validContent ? 'success' : 'invalid_response';
   }
-
-  private retryAfterMs(value: string | null): number | undefined {
-    if (!value) return undefined;
-    const seconds = Number(value);
-    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
-    const timestamp = Date.parse(value);
-    return Number.isNaN(timestamp) ? undefined : Math.max(0, timestamp - Date.now());
+  private async handleFailedResponse(
+    response: Response,
+    provider: ProviderConfig,
+    deadline: number,
+    index: number,
+  ): Promise<undefined> {
+    if (response.status === 429) {
+      const seconds = this.retryAfterSeconds(response.headers.get('retry-after'));
+      await this.budget.openCircuit(provider.model, seconds);
+      throw operationalError('AI_CAPACITY_EXHAUSTED', 503, seconds);
+    }
+    if (response.status === 401 || response.status === 403)
+      throw operationalError('AI_CONFIGURATION_ERROR');
+    if (response.status >= 500 && this.canFallback(index, deadline)) {
+      void this.fallback(response.status);
+      return undefined;
+    }
+    throw this.errorForStatus(response.status);
   }
-
-  private toServiceUnavailable(error?: AiProviderError): ServiceUnavailableException {
-    const provider = error ? ` (${error.provider})` : '';
-    return new ServiceUnavailableException({
-      code: 'AI_TEMPORARILY_UNAVAILABLE',
-      message: `Os provedores de IA estao indisponiveis${provider}.`,
-    });
+  private retryAfterSeconds(raw: string | null): number {
+    const numeric = Number(raw);
+    if (raw && Number.isFinite(numeric)) return Math.min(Math.max(1, Math.ceil(numeric)), 86_400);
+    const date = raw ? Date.parse(raw) : Number.NaN;
+    if (Number.isFinite(date))
+      return Math.min(Math.max(1, Math.ceil((date - Date.now()) / 1000)), 86_400);
+    return 60;
+  }
+  private canFallback(index: number, deadline: number): boolean {
+    return index === 0 && Date.now() < deadline;
+  }
+  private errorForStatus(status: number) {
+    if (status >= 500) return operationalError('AI_UNAVAILABLE', 503);
+    return operationalError('AI_REQUEST_REJECTED', 422);
+  }
+  private async fallback(status: number): Promise<void> {
+    try {
+      await this.telemetry?.captureAiFallback({
+        fromProvider: 'groq-120b',
+        fromModel: 'openai/gpt-oss-120b',
+        toProvider: 'groq-20b',
+        toModel: 'openai/gpt-oss-20b',
+        status,
+        traceId: this.requestContext?.getTraceId() ?? randomUUID(),
+      });
+    } catch {
+      return;
+    }
   }
 }

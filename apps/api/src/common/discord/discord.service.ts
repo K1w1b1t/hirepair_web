@@ -43,8 +43,7 @@ export class DiscordService implements OnModuleInit {
         { name: 'Request', value: `${payload.method} ${payload.path}` },
         { name: 'Trace ID', value: payload.traceId ?? 'N/A' },
         { name: 'Ambiente', value: this.config.get<string>('NODE_ENV', 'unknown') },
-        { name: 'Erro', value: payload.errorMessage.slice(0, 1000) },
-        ...(payload.stack ? [{ name: 'Stack', value: this.truncate(payload.stack) }] : []),
+        { name: 'Erro', value: 'Falha interna; consulte metadados pelo Trace ID.' },
       ],
     });
   }
@@ -57,7 +56,21 @@ export class DiscordService implements OnModuleInit {
         { name: 'Fila', value: payload.queue },
         { name: 'Job', value: payload.jobId ?? payload.jobName ?? 'N/A' },
         { name: 'Trace ID', value: payload.traceId ?? 'N/A' },
-        { name: 'Erro', value: this.truncate(payload.failedReason) || 'N/A' },
+        { name: 'Erro', value: 'Job esgotou tentativas.' },
+      ],
+    });
+  }
+  async sendAiBudget(payload: {
+    model: string;
+    threshold: number;
+    environment: string;
+  }): Promise<void> {
+    await this.send(`ai:${payload.environment}:${payload.model}:${payload.threshold}`, {
+      title: 'HirePair — limite de IA',
+      fields: [
+        { name: 'Ambiente', value: payload.environment },
+        { name: 'Modelo', value: payload.model },
+        { name: 'Limite', value: `${payload.threshold}%` },
       ],
     });
   }
@@ -69,12 +82,11 @@ export class DiscordService implements OnModuleInit {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ embeds: [embed] }),
+        signal: AbortSignal.timeout(3000),
       });
       if (!response.ok) this.logger.warn(`Discord respondeu HTTP ${response.status}.`);
-    } catch (caught) {
-      this.logger.error(
-        `Falha ao enviar alerta Discord: ${caught instanceof Error ? caught.message : String(caught)}`,
-      );
+    } catch {
+      this.logger.error('Falha ao enviar alerta Discord.');
     }
   }
   private isLimited(key: string): boolean {
@@ -87,8 +99,5 @@ export class DiscordService implements OnModuleInit {
       if (now - sentAt >= COOLDOWN_MS) this.lastSentAt.delete(entry);
     if (this.lastSentAt.size >= MAX_KEYS) this.lastSentAt.clear();
     this.lastSentAt.set(key, now);
-  }
-  private truncate(value?: string): string | undefined {
-    return value && value.length > 1000 ? `...${value.slice(-1000)}` : value;
   }
 }
