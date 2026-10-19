@@ -1,3 +1,16 @@
+jest.mock('./_components/turnstile-challenge', () => ({
+  TurnstileChallenge: ({
+    onReady,
+  }: {
+    onReady: (challenge: { token: string; termsVersion: string; privacyVersion: string }) => void;
+  }) => {
+    const { useEffect } = jest.requireActual<typeof import('react')>('react');
+    useEffect(() => {
+      onReady({ token: 'challenge', termsVersion: '2026-10-07', privacyVersion: '2026-10-07' });
+    }, [onReady]);
+    return null;
+  },
+}));
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { clearStoredResumes } from './_lib/resume-storage';
 import ConversationPage, { metadata } from './page';

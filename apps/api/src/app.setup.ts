@@ -1,3 +1,4 @@
+import { operationalError } from './operational/operational.config';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -6,7 +7,7 @@ import helmet from 'helmet';
 import { apiDocsEnabled, parseCorsOrigins } from './config/http-config';
 import { GLOBAL_TRACE_ID_HEADER } from './common/request-context/request-context.constants';
 
-const BODY_LIMIT = '10mb';
+const BODY_LIMIT = '256kb';
 
 export function configureApp(
   app: NestExpressApplication,
@@ -20,15 +21,16 @@ export function configureApp(
     origin: parseCorsOrigins(environment.CORS_ORIGIN),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'PATCH', 'OPTIONS'],
     exposedHeaders: [GLOBAL_TRACE_ID_HEADER, 'Content-Disposition'],
-    credentials: true,
+    credentials: false,
     maxAge: 86400,
   });
   app.useGlobalPipes(
     new ValidationPipe({
+      exceptionFactory: () => operationalError('VALIDATION_ERROR', 400),
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
-      transformOptions: { enableImplicitConversion: true },
+      transformOptions: { enableImplicitConversion: false },
     }),
   );
   if (apiDocsEnabled(environment.NODE_ENV, environment.API_DOCS_ENABLED)) {

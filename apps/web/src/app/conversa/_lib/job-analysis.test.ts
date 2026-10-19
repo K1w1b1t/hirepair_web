@@ -13,4 +13,17 @@ describe('deriveChoices', () => {
     expect(result.selected.tone).toBe('CONSULTATIVE');
     expect(result.archetypes).toHaveLength(5);
   });
+  it.each([
+    ['operational', 'C_OPERATIONAL', 'DIRECT'],
+    ['specialist', 'E_SPECIALIST', 'TECHNICAL'],
+    ['first_job', 'A_FIRST_JOB', 'DIRECT'],
+    ['same_track', 'D_SAME_FIELD_RETURN', 'NEUTRAL'],
+    [undefined, 'D_SAME_FIELD_RETURN', 'NEUTRAL'],
+  ])('maps %s to the stable archetype and tone', (targetKind, archetype, tone) => {
+    const result = deriveChoices({ targetKind, requirements: [] });
+
+    expect(result.selected.archetype).toBe(archetype);
+    expect(result.selected.tone).toBe(tone);
+    expect(result.selected.objective).toBe('ENTER_FAST');
+  });
 });

@@ -7,7 +7,6 @@ import { validate } from './config/env.validation';
 import { CoreModule } from './core/core.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { QueuesModule } from './queues/queues.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { GuestModule } from './guest/guest.module';
 
@@ -18,7 +17,6 @@ import { GuestModule } from './guest/guest.module';
     TelemetryModule,
     AiModule,
     PrismaModule,
-    QueuesModule,
     HealthModule,
     GuestModule,
   ],

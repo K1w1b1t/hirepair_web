@@ -56,35 +56,29 @@ export const tones: Array<{ value: Tone; label: string }> = [
   { value: 'TECHNICAL', label: 'Técnico' },
   { value: 'WELCOMING', label: 'Acolhedor' },
 ];
+const archetypeByTargetKind: Record<string, Archetype> = {
+  different_track: 'B_CAREER_CHANGE',
+  operational: 'C_OPERATIONAL',
+  specialist: 'E_SPECIALIST',
+  first_job: 'A_FIRST_JOB',
+};
+const toneByArchetype: Record<Archetype, Tone> = {
+  A_FIRST_JOB: 'DIRECT',
+  B_CAREER_CHANGE: 'CONSULTATIVE',
+  C_OPERATIONAL: 'DIRECT',
+  D_SAME_FIELD_RETURN: 'NEUTRAL',
+  E_SPECIALIST: 'TECHNICAL',
+};
 export function deriveChoices(signal: AnalysisSignal) {
-  const archetype: Archetype =
-    signal.targetKind === 'different_track'
-      ? 'B_CAREER_CHANGE'
-      : signal.targetKind === 'operational'
-        ? 'C_OPERATIONAL'
-        : signal.targetKind === 'specialist'
-          ? 'E_SPECIALIST'
-          : signal.targetKind === 'first_job'
-            ? 'A_FIRST_JOB'
-            : 'D_SAME_FIELD_RETURN';
-  const tone: Tone =
-    archetype === 'B_CAREER_CHANGE'
-      ? 'CONSULTATIVE'
-      : archetype === 'E_SPECIALIST'
-        ? 'TECHNICAL'
-        : archetype === 'A_FIRST_JOB' || archetype === 'C_OPERATIONAL'
-          ? 'DIRECT'
-          : 'NEUTRAL';
+  const archetype = archetypeByTargetKind[signal.targetKind ?? ''] ?? 'D_SAME_FIELD_RETURN';
+  const tone = toneByArchetype[archetype];
   return {
     archetypes,
     objectives,
     tones,
     selected: {
       archetype,
-      objective:
-        archetype === 'B_CAREER_CHANGE'
-          ? ('CHANGE_FIELD' as Objective)
-          : ('ENTER_FAST' as Objective),
+      objective: archetype === 'B_CAREER_CHANGE' ? 'CHANGE_FIELD' : 'ENTER_FAST',
       tone,
     },
   };

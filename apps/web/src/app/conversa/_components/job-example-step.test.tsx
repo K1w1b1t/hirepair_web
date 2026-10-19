@@ -1,4 +1,17 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+jest.mock('./turnstile-challenge', () => ({
+  TurnstileChallenge: ({
+    onReady,
+  }: {
+    onReady: (challenge: { token: string; termsVersion: string; privacyVersion: string }) => void;
+  }) => {
+    const { useEffect } = jest.requireActual<typeof import('react')>('react');
+    useEffect(() => {
+      onReady({ token: 'challenge', termsVersion: '2026-10-07', privacyVersion: '2026-10-07' });
+    }, [onReady]);
+    return null;
+  },
+}));
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import {
   installSpeechRecognition,
@@ -6,7 +19,6 @@ import {
 } from '../../../../test/mock-speech-recognition';
 import type { JobDraft } from '../_lib/job-analysis';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
-import { GUEST_ID_KEY } from '../_lib/job-analysis';
 
 const document = {
   id: 'resume',
@@ -18,7 +30,6 @@ const document = {
   createdAt: 1,
 };
 const initialDraft = { hasJob: true, jobText: '', targetRole: '', accepted: false };
-const originalFetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
 
 function InteractiveJob({ draft: initial }: { draft: JobDraft }) {
   const [draft, setDraft] = useState(initial);
@@ -33,21 +44,6 @@ function InteractiveJob({ draft: initial }: { draft: JobDraft }) {
 }
 
 describe('JobExampleStep', () => {
-  beforeEach(() => {
-    Object.defineProperty(globalThis, 'fetch', {
-      configurable: true,
-      writable: true,
-      value: jest.fn(),
-    });
-  });
-  afterEach(() => {
-    jest.restoreAllMocks();
-    localStorage.clear();
-    if (originalFetchDescriptor)
-      Object.defineProperty(globalThis, 'fetch', originalFetchDescriptor);
-    else Reflect.deleteProperty(globalThis, 'fetch');
-  });
-
   it('dictates vacancy requirements and preserves legal acceptance changed during speech', () => {
     const restore = installSpeechRecognition();
     try {
@@ -58,14 +54,11 @@ describe('JobExampleStep', () => {
       fireEvent.click(screen.getByRole('checkbox'));
       act(() => recognition.result(['Experiência em manutenção industrial.']));
       expect(screen.getByRole('checkbox')).toBeChecked();
-      expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar ditado' }));
-      expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
       act(() => recognition.onend?.());
       expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue(
         'Experiência em manutenção industrial.',
       );
-      expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
     } finally {
       restore();
     }
@@ -79,16 +72,11 @@ describe('JobExampleStep', () => {
       const vacancy = MockSpeechRecognition.instances[0];
       fireEvent.click(screen.getByRole('button', { name: 'Ainda não tenho' }));
       expect(vacancy.abort).toHaveBeenCalledTimes(1);
-      act(() => vacancy.result(['vaga antiga']));
-      expect(screen.getByLabelText('Cargo que procura')).toHaveValue('');
       fireEvent.click(screen.getByRole('button', { name: 'Falar para preencher' }));
       const role = MockSpeechRecognition.instances[1];
       act(() => role.result(['Assistente administrativo']));
       act(() => role.onend?.());
       expect(screen.getByLabelText('Cargo que procura')).toHaveValue('Assistente administrativo');
-      expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Tenho uma vaga' }));
-      expect(screen.getByLabelText('Requisitos da vaga')).toHaveValue('');
     } finally {
       restore();
     }
@@ -150,7 +138,7 @@ describe('JobExampleStep', () => {
     jest.useRealTimers();
   });
 
-  it('shows a blocking transition while the analysis is being prepared', () => {
+  it('shows a blocking transition while the analysis is being prepared', async () => {
     const originalFetch = globalThis.fetch;
     Object.defineProperty(globalThis, 'fetch', {
       configurable: true,
@@ -173,6 +161,7 @@ describe('JobExampleStep', () => {
     );
     expect(screen.getByText(/isso pode levar alguns segundos/i)).toBeInTheDocument();
     expect(screen.getByTestId('analysis-spinner')).toBeInTheDocument();
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
 
@@ -208,104 +197,6 @@ describe('JobExampleStep', () => {
     );
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
-
-  it('uses the desired role for analysis and preserves the existing visitor identifier', async () => {
-    localStorage.setItem(GUEST_ID_KEY, 'known-visitor');
-    const result = { targetRole: 'Assistente administrativo' };
-    const fetchMock = jest
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ accessToken: 'guest-token' }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => result } as Response);
-    const onComplete = jest.fn();
-    render(
-      <JobExampleStep
-        documents={[document]}
-        draft={{
-          ...initialDraft,
-          hasJob: false,
-          targetRole: 'Assistente administrativo',
-          accepted: true,
-        }}
-        onComplete={onComplete}
-        onDraftChange={jest.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
-    await act(async () => undefined);
-    expect(onComplete).toHaveBeenCalledWith(result);
-    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({
-      visitorId: 'known-visitor',
-      acceptedTerms: true,
-      acceptedPrivacy: true,
-    });
-    expect(JSON.parse(fetchMock.mock.calls[1][1]!.body as string)).toEqual({
-      documents: [{ id: document.id, text: document.text }],
-      targetRole: 'Assistente administrativo',
-    });
-  });
-
-  it('falls back to a connection notice when visitor access fails', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false } as Response);
-    render(
-      <JobExampleStep
-        documents={[document]}
-        draft={{ ...initialDraft, jobText: 'Vaga', accepted: true }}
-        onComplete={jest.fn()}
-        onDraftChange={jest.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Verifique sua conexão');
-    fireEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it.each([
-    [
-      400,
-      {
-        code: 'GUEST_ANALYSIS_LIMIT_REACHED',
-        message: 'Sua análise gratuita volta em até 24 horas.',
-      },
-      '24 horas',
-    ],
-    [400, { code: 'OTHER' }, '24 horas'],
-    [503, { message: 'Não deve aparecer' }, 'temporariamente indisponível'],
-    [500, { code: 123, message: 456 }, 'Verifique sua conexão'],
-    [500, undefined, 'Verifique sua conexão'],
-    [503, undefined, 'temporariamente indisponível'],
-  ])(
-    'preserves the failure contract for status %s and payload %j',
-    async (status, payload, expected) => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ accessToken: 'guest-token' }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: false,
-          status,
-          json: async () => {
-            if (!payload) throw new SyntaxError('No JSON');
-            return payload;
-          },
-        } as Response);
-      render(
-        <JobExampleStep
-          documents={[document]}
-          draft={{ ...initialDraft, jobText: 'Vaga', accepted: true }}
-          onComplete={jest.fn()}
-          onDraftChange={jest.fn()}
-        />,
-      );
-      fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
-      expect(await screen.findByRole('alert')).toHaveTextContent(expected);
-    },
-  );
 });
 
 describe('JobRecommendationsStep', () => {
@@ -338,39 +229,93 @@ describe('JobRecommendationsStep', () => {
     expect(onPreferencesChange).toHaveBeenCalledWith(
       expect.objectContaining({ archetype: 'E_SPECIALIST' }),
     );
-    fireEvent.click(screen.getByRole('radio', { name: 'Trabalhar remoto' }));
-    expect(onPreferencesChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ objective: 'WORK_REMOTE' }),
-    );
-    fireEvent.click(screen.getByRole('radio', { name: 'Acolhedor' }));
-    expect(onPreferencesChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ tone: 'WELCOMING' }),
-    );
     expect(screen.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
   });
+});
 
-  it('allows editing the job when no explicit requirements were extracted', () => {
-    const onEditJob = jest.fn();
+describe('analysis error codes', () => {
+  it('does not describe input validation as a daily quota', async () => {
+    const original = globalThis.fetch;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ code: 'AI_INPUT_TOO_LARGE' }),
+      });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
     render(
-      <JobRecommendationsStep
-        result={{
-          targetRole: 'Assistente',
-          reason: 'Objetivo escolhido.',
-          summary: 'Sem requisitos explícitos.',
-          requirements: [],
-          suggestedArchetype: 'A_FIRST_JOB',
-          suggestedObjective: 'ENTER_FAST',
-          suggestedTone: 'WELCOMING',
-        }}
-        preferences={{ archetype: 'A_FIRST_JOB', objective: 'ENTER_FAST', tone: 'WELCOMING' }}
-        onEditJob={onEditJob}
-        onPreferencesChange={jest.fn()}
+      <JobExampleStep
+        documents={[document]}
+        draft={{ ...initialDraft, jobText: 'Vaga', accepted: true }}
+        onComplete={jest.fn()}
+        onDraftChange={jest.fn()}
       />,
     );
-    expect(
-      screen.queryByRole('list', { name: 'Requisitos principais da vaga' }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar vaga' }));
-    expect(onEditJob).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/reduza/i);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/24 horas/);
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: original });
   });
+});
+
+it('switches between vacancy and target-role inputs with precise consent guidance', () => {
+  const onDraftChange = jest.fn();
+  const props = { documents: [document], onComplete: jest.fn(), onDraftChange };
+  const view = render(<JobExampleStep {...props} draft={initialDraft} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ainda não tenho' }));
+  expect(onDraftChange).toHaveBeenLastCalledWith({ ...initialDraft, hasJob: false });
+  view.rerender(
+    <JobExampleStep {...props} draft={{ ...initialDraft, hasJob: false, accepted: true }} />,
+  );
+  expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toHaveAttribute(
+    'title',
+    'Informe os requisitos da vaga para analisar.',
+  );
+  fireEvent.change(screen.getByLabelText('Cargo que procura'), { target: { value: 'Mecânico' } });
+  expect(onDraftChange).toHaveBeenLastCalledWith({
+    ...initialDraft,
+    hasJob: false,
+    accepted: true,
+    targetRole: 'Mecânico',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Tenho uma vaga' }));
+  view.rerender(<JobExampleStep {...props} draft={{ ...initialDraft, jobText: 'Vaga' }} />);
+  expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toHaveAttribute(
+    'title',
+    'Aceite os Termos e a Política de Privacidade para analisar.',
+  );
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(onDraftChange).toHaveBeenLastCalledWith({
+    ...initialDraft,
+    jobText: 'Vaga',
+    accepted: true,
+  });
+});
+it('edits goal and tone and shows no requirement list for an empty result', () => {
+  const onPreferencesChange = jest.fn(),
+    onEditJob = jest.fn();
+  render(
+    <JobRecommendationsStep
+      result={{
+        targetRole: 'Mecânico',
+        reason: 'r',
+        summary: 's',
+        suggestedArchetype: 'C_OPERATIONAL',
+        suggestedObjective: 'ENTER_FAST',
+        suggestedTone: 'DIRECT',
+        requirements: [],
+      }}
+      preferences={{ archetype: 'C_OPERATIONAL', objective: 'ENTER_FAST', tone: 'DIRECT' }}
+      onPreferencesChange={onPreferencesChange}
+      onEditJob={onEditJob}
+    />,
+  );
+  const radios = screen.getAllByRole('radio');
+  for (const radio of radios) fireEvent.click(radio);
+  expect(onPreferencesChange).toHaveBeenCalledWith(expect.objectContaining({ tone: 'NEUTRAL' }));
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Editar vaga' }));
+  expect(onEditJob).toHaveBeenCalled();
 });

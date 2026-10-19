@@ -20,7 +20,7 @@ export default function LegalPage() {
         Privacidade, cookies e termos
       </h1>
       <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">
-        Última atualização: 5 de outubro de 2026.
+        Última atualização: 7 de outubro de 2026.
       </p>
 
       <article className="mt-10 space-y-10 leading-7 text-[var(--color-text-muted)]">
@@ -38,10 +38,21 @@ export default function LegalPage() {
             serviço, sempre conforme a finalidade informada.
           </p>
           <p className="mt-3">
-            A análise de currículo e vaga usa provedores de inteligência artificial como parte do
-            serviço solicitado. Enviamos apenas o conteúdo necessário para essa análise; no modo
-            visitante, seus materiais permanecem no navegador e não criam uma conta ou histórico no
-            nosso banco de dados. O processamento pode ocorrer fora do Brasil.
+            A análise usa o Groq e envia uma cópia do texto profissional e da vaga, com
+            identificadores e contatos reconhecidos removidos. Essa remoção reduz os dados enviados,
+            mas não garante anonimização. O histórico profissional pode identificar você. O
+            processamento ocorre fora do Brasil. Para materiais reais, usamos a configuração de
+            retenção zero do provedor; não usamos o Gemini gratuito para seus materiais. Os
+            originais, a vaga e as sugestões permanecem neste navegador, sem expiração automática,
+            até você limpar os dados do navegador. Em aparelhos compartilhados, outras pessoas podem
+            acessá-los. No modo visitante, esses materiais não criam conta nem histórico no nosso
+            banco.
+          </p>
+          <p className="mt-3">
+            Para proteger o serviço, mantemos identificadores pseudônimos de acesso, versões do
+            consentimento e metadados de uso de IA por até 30 dias. As cotas expiram conforme suas
+            janelas de uso; os registros não incluem o conteúdo dos materiais. O consentimento para
+            a análise é separado da sua escolha sobre analytics e cookies opcionais.
           </p>
           <p className="mt-3">
             O ditado por voz é opcional e usa o reconhecimento de fala do seu navegador. Ao ativar o

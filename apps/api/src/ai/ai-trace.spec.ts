@@ -1,25 +1,22 @@
 import { AiService } from './ai.service';
-
-describe('AiService trace propagation', () => {
-  const originalFetch = global.fetch;
-  afterAll(() => {
-    global.fetch = originalFetch;
-  });
-  afterEach(() => {
-    delete process.env.GEMINI_API_KEY;
-    jest.restoreAllMocks();
-  });
-
-  it('forwards the current global trace ID', async () => {
-    process.env.GEMINI_API_KEY = 'key';
-    const fetchMock = jest.fn().mockResolvedValue(
-      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), {
-        status: 200,
+describe('AiService request boundary', () => {
+  it('requires the business budget even if provider credentials exist', async () => {
+    process.env.AI_PUBLIC_ENABLED = 'true';
+    process.env.GROQ_API_KEY = 'key';
+    const reserve = jest.fn().mockRejectedValue(new Error('budget denied'));
+    const service = new AiService(undefined, undefined, { reserve } as never);
+    await expect(
+      service.generateText({
+        prompt: 'test',
+        responseSchema: {},
+        context: {
+          principalId: 'v',
+          scopeId: 'v',
+          operation: 'job-analysis',
+          idempotencyKey: 'key',
+          inputVersion: 'hash',
+        },
       }),
-    );
-    global.fetch = fetchMock;
-    await new AiService({ getTraceId: () => 'trace-1' } as never).generateText({ prompt: 'hello' });
-    const [, requestInit] = fetchMock.mock.lastCall as unknown as [unknown, RequestInit];
-    expect(new Headers(requestInit?.headers).get('x-global-trace-id')).toBe('trace-1');
+    ).rejects.toThrow('budget denied');
   });
 });

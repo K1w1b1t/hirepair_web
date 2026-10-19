@@ -1,58 +1,95 @@
+import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { RedisService } from '../operational/redis.service';
 import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  OnApplicationShutdown,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { createHmac } from 'node:crypto';
-import Redis from 'ioredis';
+  BEGIN_ANALYSIS_SCRIPT,
+  COUNTERS_SCRIPT,
+  FINISH_ANALYSIS_SCRIPT,
+  SET_RECORD_SCRIPT,
+} from '../operational/redis.scripts';
+import {
+  appEnvironment,
+  LEGAL_VERSION,
+  opaqueId,
+  operationalError,
+  RECORD_TTL_MS,
+} from '../operational/operational.config';
 
-const DAY_SECONDS = 24 * 60 * 60;
+export interface AnalysisLease {
+  owner: string;
+  keys: string[];
+}
 @Injectable()
-export class GuestQuotaService implements OnApplicationShutdown {
-  private readonly redis: Redis;
-  constructor() {
-    const url = process.env.REDIS_URL;
-    this.redis = url
-      ? new Redis(url, { maxRetriesPerRequest: 1 })
-      : new Redis({
-          host: process.env.REDIS_HOST ?? 'localhost',
-          port: Number(process.env.REDIS_PORT) || 6379,
-          maxRetriesPerRequest: 1,
-        });
+export class GuestQuotaService {
+  constructor(private readonly redis: RedisService) {}
+  private prefix(): string {
+    return `{hirepair:${process.env.AI_QUOTA_POOL ?? 'local'}}:${appEnvironment()}:guest`;
   }
-  async reserveAnalysis(visitorId: string, ip = 'unknown'): Promise<void> {
-    const key = this.key(visitorId, ip);
-    try {
-      const allowed = await this.redis.set(`guest-analysis:${key}`, '1', 'EX', DAY_SECONDS, 'NX');
-      if (allowed !== 'OK')
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            code: 'GUEST_ANALYSIS_LIMIT_REACHED',
-            message: 'Sua análise gratuita volta em até 24 horas.',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw new ServiceUnavailableException('A análise está temporariamente indisponível.');
-    }
+  async recordConsent(visitorId: string): Promise<void> {
+    await this.redis.run(
+      SET_RECORD_SCRIPT,
+      [`${this.prefix()}:consent:${opaqueId(visitorId)}`],
+      [
+        JSON.stringify({
+          acceptedAt: Date.now(),
+          termsVersion: LEGAL_VERSION,
+          privacyVersion: LEGAL_VERSION,
+        }),
+        RECORD_TTL_MS,
+      ],
+    );
   }
-  async releaseAnalysis(visitorId: string, ip = 'unknown'): Promise<void> {
+  async reserveAccess(network: string): Promise<void> {
+    const root = `${this.prefix()}:access:${opaqueId(network)}`;
+    const specs = [
+      { amount: 1, limit: 5, ttl: 60_000 },
+      { amount: 1, limit: 30, ttl: 3_600_000 },
+    ];
+    const [blocked, ttl] = await this.redis.run<[number, number]>(
+      COUNTERS_SCRIPT,
+      [`${root}:minute`, `${root}:hour`],
+      [JSON.stringify(specs)],
+    );
+    if (blocked) throw operationalError('NETWORK_LIMIT_REACHED', 429, Math.ceil(ttl / 1000));
+  }
+  async reserveAnalysis(
+    visitorId: string,
+    network: string,
+    key: string,
+    hash: string,
+  ): Promise<AnalysisLease> {
+    const subject = opaqueId(visitorId);
+    const prefix = this.prefix();
+    const keys = [
+      `${prefix}:idempotency:${subject}:${opaqueId(key)}`,
+      `${prefix}:lock:${subject}`,
+      `${prefix}:attempts:${subject}`,
+      `${prefix}:network:${opaqueId(network)}`,
+    ];
+    const owner = randomUUID();
+    const [code, ttl] = await this.redis.run<[string, number]>(BEGIN_ANALYSIS_SCRIPT, keys, [
+      hash,
+      owner,
+      3,
+      30,
+      RECORD_TTL_MS,
+    ]);
+    if (code !== 'OK')
+      throw operationalError(
+        code,
+        code.includes('LIMIT') ? 429 : 409,
+        Math.max(1, Math.ceil(ttl / 1000)),
+      );
+    return { owner, keys: keys.slice(0, 2) };
+  }
+  async finishAnalysis(lease: AnalysisLease, completed: boolean): Promise<void> {
     try {
-      await this.redis.del(`guest-analysis:${this.key(visitorId, ip)}`);
+      await this.redis.run(FINISH_ANALYSIS_SCRIPT, lease.keys, [
+        lease.owner,
+        completed ? 'completed' : 'failed',
+      ]);
     } catch {
-      // A reserva permanece como proteção conservadora se o Redis cair durante a liberação.
+      return;
     }
-  }
-  private key(visitorId: string, ip: string): string {
-    return createHmac('sha256', process.env.GUEST_ACCESS_SECRET ?? 'local-guest-access-secret')
-      .update(`${visitorId}:${ip}`)
-      .digest('hex');
-  }
-  onApplicationShutdown(): Promise<'OK'> {
-    return this.redis.quit();
   }
 }

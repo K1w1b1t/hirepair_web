@@ -9,6 +9,7 @@ import {
   Max,
   Min,
   MinLength,
+  Matches,
   validateSync,
 } from 'class-validator';
 
@@ -29,6 +30,41 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   PORT?: number;
+
+  @IsString()
+  @MinLength(32)
+  GUEST_ACCESS_SECRET!: string;
+
+  @IsOptional()
+  @IsIn(['development', 'test', 'staging', 'production'])
+  APP_ENV?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  AI_PUBLIC_ENABLED?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  GROQ_ZDR_CONFIRMED?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  GROQ_FREE_TIER_CONFIRMED?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  TURNSTILE_SECRET_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  TURNSTILE_SITE_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_-]{1,80}$/)
+  AI_QUOTA_POOL?: string;
 
   /**
    * Conexao usada pela aplicacao em runtime. Em producao aponta para o pooler em
@@ -171,10 +207,34 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
   if (errors.length > 0) {
     throw new Error(
       `Configuracao de ambiente invalida:\n${errors
-        .map((error) => `  - ${Object.values(error.constraints ?? {}).join(', ')}`)
+        .map((error) => `  - ${Object.values(error.constraints!).join(', ')}`)
         .join('\n')}`,
     );
   }
 
+  if (validated.AI_PUBLIC_ENABLED === 'true') {
+    if (
+      !validated.APP_ENV ||
+      !validated.AI_QUOTA_POOL ||
+      !validated.TURNSTILE_SECRET_KEY ||
+      !validated.TURNSTILE_SITE_KEY ||
+      !validated.GROQ_API_KEY ||
+      validated.GROQ_ZDR_CONFIRMED !== 'true' ||
+      validated.GROQ_FREE_TIER_CONFIRMED !== 'true'
+    )
+      throw new Error(
+        'IA publica exige APP_ENV, AI_QUOTA_POOL, Turnstile, GROQ_API_KEY, GROQ_ZDR_CONFIRMED=true e GROQ_FREE_TIER_CONFIRMED=true.',
+      );
+    if (
+      ['staging', 'production'].includes(validated.APP_ENV) &&
+      (!validated.REDIS_URL ||
+        !validated.DISCORD_WEBHOOK_URL ||
+        /^[123]x0/.test(validated.TURNSTILE_SECRET_KEY) ||
+        /^[123]x0/.test(validated.TURNSTILE_SITE_KEY))
+    )
+      throw new Error(
+        'IA publica em staging/producao exige Redis remoto, alertas e chaves reais do Turnstile.',
+      );
+  }
   return validated;
 }
