@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockGuestChallenge } from './helpers/guest-challenge';
 
 test.describe('wizard acolhedor', () => {
   async function dismissAnalytics(page: import('@playwright/test').Page) {
@@ -49,25 +50,7 @@ test.describe('wizard acolhedor', () => {
   });
 
   test('separa vaga e recomendações em etapas claras', async ({ page }) => {
-    await page.route('**/guest/config', async (route) => {
-      await route.fulfill({
-        json: {
-          enabled: true,
-          siteKey: 'test-site',
-          termsVersion: '2026-10-07',
-          privacyVersion: '2026-10-07',
-        },
-      });
-    });
-    await page.route(
-      'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
-      async (route) => {
-        await route.fulfill({
-          contentType: 'application/javascript',
-          body: "window.turnstile={render:function(el,options){setTimeout(function(){options.callback('test-proof')},0);return 'test-widget'},remove:function(){}};",
-        });
-      },
-    );
+    await mockGuestChallenge(page);
 
     await page.route('**/guest/access', async (route) => {
       await route.fulfill({ json: { accessToken: 'guest-token' }, status: 201 });

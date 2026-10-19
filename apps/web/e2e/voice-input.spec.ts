@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { mockGuestChallenge } from './helpers/guest-challenge';
+
+test.beforeEach(async ({ page }) => {
+  await mockGuestChallenge(page);
+});
 
 test('mantém o campo vazio compacto e expande texto longo com rolagem', async ({ page }) => {
   await page.goto('/conversa');
@@ -51,7 +56,7 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   });
   async function speak(text: string) {
     await page.getByRole('button', { name: 'Falar para preencher' }).click();
-    await expect(page.getByRole('status')).toHaveText('Pode falar.');
+    await expect(page.locator('.voice-input-notice')).toHaveText('Pode falar.');
     await expect(page.locator('.voice-input-transcript')).toBeEmpty();
     await expect(page.locator('.voice-input-transcript')).toHaveCSS('height', '64px');
     const partial = text.split(' ').slice(0, 2).join(' ');
