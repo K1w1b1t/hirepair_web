@@ -20,7 +20,7 @@ jest.mock('../_lib/extract-text', () => {
 jest.mock('../_lib/resume-storage', () => {
   const actual =
     jest.requireActual<typeof import('../_lib/resume-storage')>('../_lib/resume-storage');
-  return { ...actual, listStoredResumes: jest.fn(actual.listStoredResumes) };
+  return { __esModule: true, ...actual, listStoredResumes: jest.fn(actual.listStoredResumes) };
 });
 
 function textFile(content: string, name: string, type: string): File {
@@ -213,4 +213,37 @@ describe('ImportPanel', () => {
     );
     expect(screen.getByRole('alert')).not.toHaveTextContent('unexpected failure');
   });
+});
+it('does not add empty material through form submission', async () => {
+  render(<ImportPanel />);
+  fireEvent.submit(screen.getByRole('form', { name: 'Adicionar material em texto' }));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+it('warns when a file or pasted text is available only in memory', async () => {
+  const save = jest.spyOn(storage, 'saveStoredResume').mockResolvedValue(false);
+  const view = render(<ImportPanel />);
+  fireEvent.change(screen.getByLabelText('Colar o texto do currículo'), {
+    target: { value: 'Atendimento ao cliente' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('A retomada não está garantida');
+  view.unmount();
+  render(<ImportPanel />);
+  fireEvent.change(screen.getByLabelText('Enviar currículo'), {
+    target: { files: [textFile('Atendimento', 'curriculo.txt', 'text/plain')] },
+  });
+  expect(await screen.findByRole('alert')).toHaveTextContent('A retomada não está garantida');
+  save.mockRestore();
+});
+
+it('does not warn when pasted material was durably saved', async () => {
+  const save = jest.spyOn(storage, 'saveStoredResume').mockResolvedValue(true);
+  render(<ImportPanel />);
+  fireEvent.change(screen.getByLabelText('Colar o texto do currículo'), {
+    target: { value: 'Atendimento ao cliente' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+  await waitFor(() => expect(save).toHaveBeenCalled());
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  save.mockRestore();
 });

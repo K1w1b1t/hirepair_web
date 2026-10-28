@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "prepare": "husky || true",
@@ -26,7 +27,10 @@
     "db:deploy": "npm run db:deploy -w apps/api",
     "db:reset": "npm run db:reset -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
-    "db:studio": "npm run db:studio -w apps/api"
+    "db:studio": "npm run db:studio -w apps/api",
+    "prebuild": "npm run build -w @hirepair/interview-engine",
+    "pretest": "npm run build -w @hirepair/interview-engine",
+    "pretypecheck": "npm run build -w @hirepair/interview-engine"
   },
   "lint-staged": {
     "*.{json,md,yml,yaml,css,js,mjs}": [

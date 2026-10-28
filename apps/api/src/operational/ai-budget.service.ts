@@ -21,7 +21,7 @@ import {
 export interface AiExecutionContext {
   principalId: string;
   scopeId: string;
-  operation: 'job-analysis';
+  operation: 'job-analysis' | 'resume-extraction' | 'criteria-analysis';
   idempotencyKey: string;
   inputVersion: string;
 }
@@ -55,7 +55,7 @@ export class AiBudgetService {
   ): Promise<AiReservation> {
     requirePublicAi();
     if (
-      context.operation !== 'job-analysis' ||
+      !['job-analysis', 'resume-extraction', 'criteria-analysis'].includes(context.operation) ||
       !Number.isInteger(tokens) ||
       tokens <= 0 ||
       tokens > 6000
@@ -74,6 +74,7 @@ export class AiBudgetService {
     const daily = `${root}:${env}:groq:${model}:${day}`;
     const monthly = `${root}:${env}:month:${month}`;
     const scope = `${root}:${env}:scope:${opaqueId(`${context.principalId}:${context.scopeId}`)}`;
+    const principal = `${root}:${env}:principal:${opaqueId(context.principalId)}`;
     const specs: Counter[] = [
       { key: `${shared}:calls`, amount: 1, limit: 800, ttl: dayTtl },
       { key: `${shared}:tokens`, amount: tokens, limit: 160_000, ttl: dayTtl },
@@ -88,6 +89,8 @@ export class AiBudgetService {
       },
       { key: `${scope}:calls`, amount: 1, limit: 6, ttl: WEEK_MS },
       { key: `${scope}:tokens`, amount: tokens, limit: 36_000, ttl: WEEK_MS },
+      { key: `${principal}:calls`, amount: 1, limit: 6, ttl: WEEK_MS },
+      { key: `${principal}:tokens`, amount: tokens, limit: 36_000, ttl: WEEK_MS },
     ];
     const id = randomUUID();
     const reservation: AiReservation = {

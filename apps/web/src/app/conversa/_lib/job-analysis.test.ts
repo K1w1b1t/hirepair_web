@@ -9,7 +9,7 @@ describe('deriveChoices', () => {
     });
 
     expect(result.selected.archetype).toBe('B_CAREER_CHANGE');
-    expect(result.selected.objective).toBe('CHANGE_FIELD');
+    expect(result.selected.objective).toBeNull();
     expect(result.selected.tone).toBe('CONSULTATIVE');
     expect(result.archetypes).toHaveLength(5);
   });
@@ -24,6 +24,6 @@ describe('deriveChoices', () => {
 
     expect(result.selected.archetype).toBe(archetype);
     expect(result.selected.tone).toBe(tone);
-    expect(result.selected.objective).toBe('ENTER_FAST');
+    expect(result.selected.objective).toBeNull();
   });
 });

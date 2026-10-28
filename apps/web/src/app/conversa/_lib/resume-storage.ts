@@ -7,12 +7,17 @@ const DATABASE_VERSION = 1;
 let fallbackId = 0;
 
 export type StoredResume = ExtractedText & {
+  original?: File;
   id: string;
   findings: DiagnosticFinding[];
   createdAt: number;
 };
 
 let fallbackResumes: StoredResume[] = [];
+let generation = 0;
+export function resumeStorageGeneration(): number {
+  return generation;
+}
 
 function canUseIndexedDb(): boolean {
   return typeof indexedDB !== 'undefined';
@@ -47,8 +52,19 @@ function runTransaction<T>(
     (database) =>
       new Promise<T>((resolve, reject) => {
         const transaction = database.transaction(STORE_NAME, mode);
-        operation(transaction.objectStore(STORE_NAME), resolve, reject);
-        transaction.addEventListener('complete', () => database.close());
+        let result: T;
+        operation(
+          transaction.objectStore(STORE_NAME),
+          (value) => {
+            result = value;
+          },
+          reject,
+        );
+        transaction.addEventListener('complete', () => {
+          database.close();
+          resolve(result);
+        });
+        transaction.addEventListener('abort', () => database.close());
         transaction.addEventListener('error', () =>
           reject(transaction.error ?? new Error('IndexedDB transaction failed.')),
         );
@@ -77,12 +93,16 @@ export async function listStoredResumes(): Promise<StoredResume[]> {
   }
 }
 
-export async function saveStoredResume(resume: StoredResume): Promise<void> {
+export async function saveStoredResume(
+  resume: StoredResume,
+  expectedGeneration = generation,
+): Promise<boolean> {
+  if (expectedGeneration !== generation) return false;
   fallbackResumes = sortResumes([
     ...fallbackResumes.filter((item) => item.id !== resume.id),
     resume,
   ]);
-  if (!canUseIndexedDb()) return;
+  if (!canUseIndexedDb()) return false;
   try {
     await runTransaction<void>('readwrite', (store, resolve, reject) => {
       const request = store.put(resume);
@@ -91,8 +111,9 @@ export async function saveStoredResume(resume: StoredResume): Promise<void> {
         reject(request.error ?? new Error('Could not save the resume.')),
       );
     });
+    return true;
   } catch {
-    return;
+    return false;
   }
 }
 
@@ -112,9 +133,10 @@ export async function deleteStoredResume(id: string): Promise<void> {
   }
 }
 
-export async function clearStoredResumes(): Promise<void> {
+export async function clearStoredResumes(): Promise<boolean> {
+  generation++;
   fallbackResumes = [];
-  if (!canUseIndexedDb()) return;
+  if (!canUseIndexedDb()) return false;
   try {
     await runTransaction<void>('readwrite', (store, resolve, reject) => {
       const request = store.clear();
@@ -123,8 +145,9 @@ export async function clearStoredResumes(): Promise<void> {
         reject(request.error ?? new Error('Could not clear stored resumes.')),
       );
     });
+    return true;
   } catch {
-    return;
+    return false;
   }
 }
 

@@ -11,6 +11,7 @@ import {
   deleteStoredResume,
   listStoredResumes,
   saveStoredResume,
+  resumeStorageGeneration,
   toStoredResume,
   type StoredResume,
 } from '../_lib/resume-storage';
@@ -92,10 +93,17 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     onDocumentsChange?.(documents);
   }, [documents, onDocumentsChange]);
 
-  const addDocument = async (document: ExtractedText) => {
+  const addDocument = async (document: ExtractedText, original: File, generation: number) => {
     hasLocalChanges.current = true;
-    const storedDocument = toStoredResume(document, diagnoseResumeText(document.text));
-    await saveStoredResume(storedDocument);
+    const storedDocument = {
+      ...toStoredResume(document, diagnoseResumeText(document.text)),
+      original,
+    };
+    const saved = await saveStoredResume(storedDocument, generation);
+    if (!saved)
+      setError([
+        'O material está disponível nesta aba, mas não foi possível salvá-lo neste aparelho. A retomada não está garantida.',
+      ]);
     setDocuments((current) => [...current, storedDocument]);
   };
 
@@ -103,9 +111,10 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     setIsProcessing(true);
     setError([]);
     const errors: string[] = [];
+    const generation = resumeStorageGeneration();
     for (const file of files) {
       try {
-        await addDocument(await extractTextFromFile(file));
+        await addDocument(await extractTextFromFile(file), file, generation);
       } catch (error_) {
         errors.push(
           file.name + ': ' + (error_ instanceof Error ? error_.message : 'não foi possível ler.'),
@@ -122,7 +131,12 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     try {
       hasLocalChanges.current = true;
       const storedDocument = createPastedResume(pastedText);
-      void saveStoredResume(storedDocument);
+      void saveStoredResume(storedDocument).then((saved) => {
+        if (!saved)
+          setError([
+            'O material está disponível nesta aba, mas não foi possível salvá-lo neste aparelho. A retomada não está garantida.',
+          ]);
+      });
       setDocuments((current) => [...current, storedDocument]);
       setPastedText('');
       setError([]);
@@ -157,7 +171,14 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
         onRemove={(id) => void removeDocument(id)}
       />
 
-      <div className="import-paste-block">
+      <form
+        aria-label="Adicionar material em texto"
+        className="import-paste-block"
+        onSubmit={(event) => {
+          event.preventDefault();
+          handlePaste();
+        }}
+      >
         <label
           className="font-[family-name:var(--font-heading)] font-semibold text-[var(--color-navy)]"
           htmlFor="resume-paste"
@@ -180,13 +201,12 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
           <button
             className="button button-primary button-small"
             disabled={voiceBusy || !pastedText.trim()}
-            onClick={handlePaste}
-            type="button"
+            type="submit"
           >
             Adicionar material
           </button>
         </div>
-      </div>
+      </form>
 
       <ImportErrorToast messages={error} onDismiss={() => setError([])} />
     </div>

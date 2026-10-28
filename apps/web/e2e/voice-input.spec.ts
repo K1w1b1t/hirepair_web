@@ -125,6 +125,7 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   await expect(page).toHaveURL(/\/conversa\?etapa=job$/);
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
   await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+  await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByRole('checkbox').check();
   await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -150,6 +151,7 @@ test('continua digitando quando o navegador não oferece ditado', async ({ page 
   await page.getByRole('button', { name: 'Adicionar material' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByLabel('Requisitos da vaga').fill('Vaga de atendimento.');
+  await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByRole('checkbox').check();
   await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
 });

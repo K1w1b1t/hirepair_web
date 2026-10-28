@@ -2,7 +2,8 @@
 
 ## Fronteiras e configuração
 
-Apenas `POST /guest/job-analysis` consome IA. Não aceita prompt, modelo,
+`POST /guest/job-analysis` (compatibilidade) e `POST /guest/interview-preparation`
+(preparação v1) consomem IA. Não aceitam prompt, modelo,
 ferramentas ou operação genérica. O servidor escolhe análise profissional,
 schema fechado e modelos Groq GPT-OSS 120B/20B. Gemini gratuito não recebe
 currículos reais. A restrição de finalidade reduz utilidade para abuso; não
@@ -114,3 +115,28 @@ suas próprias chaves; não faz flush. Usa HTTP real, Redis/Lua real e provedor
 externo simulado, sem gastar IA. `npm run test:e2e` valida a jornada no navegador.
 Configuração real e evidências de staging continuam obrigatórias antes de
 habilitar IA pública. Consulte [pendências e responsáveis](./security-audit-41.md).
+
+## Fundação do motor (#43)
+
+A preparação recebe objetivo explícito/provisório e IDs locais de sessão/funil.
+Extração e critérios são duas operações fechadas, `resume-extraction` e
+`criteria-analysis`, com schemas e validação de origem/referências separados.
+Compartilham prazo de 30 segundos e até duas chamadas, sem retry/fallback nesta
+operação. A rota antiga conserva seu comportamento de compatibilidade.
+
+A cota de 6 chamadas/36.000 tokens em 7 dias vale simultaneamente por sessão e
+por visitante, além de rede/modelo/pool/ambiente. Criar outra sessão não renova
+cota do visitante. A reserva Redis continua anterior ao provedor e indisponibilidade
+falha fechada. A integração descartável verifica também esse limite entre sessões.
+
+Conteúdo e estado do motor são locais; Redis guarda somente metadados operacionais.
+Confirmação/redação/compartilhamento continuam nas issues responsáveis, sem eventos
+artificiais nesta fundação. Falhas conhecidas registram interrupção local com motivo;
+resposta perdida não é refeita silenciosamente. A versão de consentimento passou a
+`2026-10-28`, refletindo preparação, descarte e retenção de relatos. Credencial assinada
+pode ser renovada preservando visitante; acesso exige consentimento vigente.
+
+Ver [ADR 0043](../architecture/adr-0043-evidence-interview.md) e
+[roteiro de entregas](../architecture/product-delivery-roadmap.md). O pacote de domínio
+é compilado no postinstall e antes dos builds/testes/typecheck; instalações devem
+executar os scripts normais do npm, incluindo a geração do Prisma já exigida.

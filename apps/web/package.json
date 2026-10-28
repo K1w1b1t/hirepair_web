@@ -12,7 +12,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "prebuild": "npm run build -w @hirepair/interview-engine"
   },
   "dependencies": {
     "@posthog/nextjs-config": "^1.7.6",
@@ -21,7 +22,8 @@
     "pdfjs-dist": "^6.3.289",
     "posthog-js": "^1.433.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@hirepair/interview-engine": "1.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

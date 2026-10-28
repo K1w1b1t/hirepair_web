@@ -23,7 +23,8 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "test:operational": "ts-node test/operational.redis.integration.ts"
+    "test:operational": "ts-node test/operational.redis.integration.ts",
+    "prebuild": "npm run build -w @hirepair/interview-engine"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -49,7 +50,8 @@
     "posthog-node": "^5.21.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "@hirepair/interview-engine": "1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -87,7 +89,7 @@
       "reflect-metadata"
     ],
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.ts$": "ts-jest"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

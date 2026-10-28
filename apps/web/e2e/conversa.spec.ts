@@ -1,3 +1,4 @@
+import { preparationFixture } from '../test/preparation';
 import { expect, test } from '@playwright/test';
 import { mockGuestChallenge } from './helpers/guest-challenge';
 
@@ -55,19 +56,11 @@ test.describe('wizard acolhedor', () => {
     await page.route('**/guest/access', async (route) => {
       await route.fulfill({ json: { accessToken: 'guest-token' }, status: 201 });
     });
-    await page.route('**/guest/job-analysis', async (route) => {
+    await page.route('**/guest/interview-preparation', async (route) => {
       expect(route.request().postData()).not.toContain('123.456.789-00');
       expect(route.request().headers()['idempotency-key']).toBeTruthy();
       await route.fulfill({
-        json: {
-          reason: 'Seu histórico indica uma transição de carreira.',
-          requirements: [{ category: 'ELIMINATORY', text: 'Graduação em Engenharia' }],
-          suggestedArchetype: 'B_CAREER_CHANGE',
-          suggestedObjective: 'CHANGE_FIELD',
-          suggestedTone: 'CONSULTATIVE',
-          summary: 'Encontramos 1 requisito principal para orientar seu currículo.',
-          targetRole: 'Engenheiro mecânico',
-        },
+        json: preparationFixture(route.request().postDataJSON()),
         status: 201,
       });
     });
@@ -86,13 +79,18 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
     await page.getByLabel(/requisitos da vaga/i).blur();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: '../../docs/backend/evidence/41-vaga.png', fullPage: true });
+    await page.screenshot({ path: '../../docs/backend/evidence/43-objetivo.png', fullPage: true });
+    await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+    await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
+    await page.getByLabel('Objetivo provisório').selectOption('yes');
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: /analisar e sugerir/i }).click();
 
     await expect(page.getByText('Passo 3 de 5')).toBeVisible();
     await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
-    await expect(page.getByText('Engenheiro mecânico')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Plano inicial de investigação' })).toBeVisible();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: '../../docs/backend/evidence/43-plano.png', fullPage: true });
     await expect(page.getByRole('radio', { name: /transição de carreira/i })).toBeChecked();
     await expect(page.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
     await page.reload();
@@ -106,5 +104,9 @@ test.describe('wizard acolhedor', () => {
     await page.reload();
     await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue('Vaga corrigida');
     await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }).click();
+    await expect(page.getByRole('heading', { name: /jornada profissional/i })).toBeVisible();
+    await expect(page.getByText('Mecânico de manutenção industrial.')).toHaveCount(0);
   });
 });

@@ -68,7 +68,7 @@ export function JobExampleStep({
     ? Boolean(draft.jobText.trim())
     : Boolean(draft.targetRole.trim());
   const analysisDisabled =
-    !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
+    !draft.objective || !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
   const analysisDisabledMessage =
     !hasRequiredInput && !draft.accepted
       ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
@@ -89,7 +89,10 @@ export function JobExampleStep({
       setNotice(
         caught instanceof AnalysisFailure
           ? caught.message
-          : 'Verifique sua conexão e tente novamente em alguns instantes.',
+          : caught instanceof Error &&
+              ['LOCAL_STORAGE_UNAVAILABLE', 'REVISION_CONFLICT'].includes(caught.message)
+            ? new AnalysisFailure(caught.message).message
+            : 'Verifique sua conexão e tente novamente em alguns instantes.',
       );
     } finally {
       setLoading(false);
@@ -108,6 +111,43 @@ export function JobExampleStep({
         identificadores e contatos reconhecidos. Os originais continuam neste aparelho. Evite
         incluir dados pessoais desnecessários.
       </p>
+      <fieldset className="job-choice" disabled={loading}>
+        <legend>O que você quer neste momento?</legend>
+        <p>
+          Escolha o que mais importa agora. Se estiver em dúvida, pode escolher uma opção provisória
+          e revisar depois.
+        </p>
+        <select
+          aria-label="Seu objetivo pessoal"
+          value={draft.objective ?? ''}
+          onChange={(event) => updateDraft({ objective: event.target.value as Objective })}
+        >
+          <option value="" disabled>
+            Escolha seu objetivo
+          </option>
+          {objectives.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+        <p>
+          Entrar rápido prioriza renda agora; maximizar salário prioriza melhores ofertas; mudar de
+          área valoriza experiências transferíveis; trabalhar remoto prioriza flexibilidade de
+          local; conciliar rotina prioriza horários compatíveis.
+        </p>
+        <label>
+          Esta escolha é provisória?
+          <select
+            aria-label="Objetivo provisório"
+            value={draft.provisional ? 'yes' : 'no'}
+            onChange={(event) => updateDraft({ provisional: event.target.value === 'yes' })}
+          >
+            <option value="no">Não, este é meu objetivo</option>
+            <option value="yes">Sim, confirmo por enquanto</option>
+          </select>
+        </label>
+      </fieldset>
       <TurnstileChallenge key={challengeKey} onReady={onChallenge} />
       <div aria-label="Forma de definir o objetivo" className="job-toggle">
         <button
@@ -214,7 +254,7 @@ function Choice<T extends string>({
   title: string;
   values: Array<{ value: T; label: string }>;
   value: T;
-  suggested: T;
+  suggested?: T;
   onChange: (value: T) => void;
 }) {
   return (
@@ -269,6 +309,20 @@ export function JobRecommendationsStep({
           </ul>
         ) : null}
       </div>
+      {result.preparation?.plan ? (
+        <section aria-label="Plano inicial de investigação">
+          <h2>O que vamos entender melhor</h2>
+          <p>Conte do seu jeito. Você não precisa conhecer termos de currículo.</p>
+          <ol>
+            {result.preparation.plan.topics.map((topic) => (
+              <li key={topic.id}>
+                <strong>{topic.missingEvidence}</strong>
+                <p>{topic.reason}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
       <div className="job-recommendation-choices">
         <Choice<Archetype>
           title="Estrutura do currículo"
@@ -281,7 +335,6 @@ export function JobRecommendationsStep({
           title="Seu objetivo"
           values={objectives}
           value={preferences.objective}
-          suggested={result.suggestedObjective}
           onChange={(objective) => update({ objective })}
         />
         <Choice<Tone>

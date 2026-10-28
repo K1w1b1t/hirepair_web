@@ -1,3 +1,6 @@
+import { clearStoredResumes } from '../_lib/resume-storage';
+import { preparationFixture } from '../../../../test/preparation';
+import { saveEngine, deleteEngine } from '../_lib/engine-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ConversationPageClient } from './conversation-page-client';
 import type { StoredResume } from '../_lib/resume-storage';
@@ -30,7 +33,14 @@ const snapshot: JourneySnapshot = { draft: initialDraft, result, preferences, in
 const list = jest.fn(),
   restore = jest.fn(),
   persist = jest.fn();
-jest.mock('../_lib/resume-storage', () => ({ listStoredResumes: () => list() }));
+jest.mock('../_lib/resume-storage', () => ({
+  listStoredResumes: () => list(),
+  clearStoredResumes: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('../_lib/engine-storage', () => ({
+  deleteEngine: jest.fn().mockResolvedValue(undefined),
+  saveEngine: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../_lib/journey-storage', () => ({
   initialDraft: { hasJob: true, jobText: '', targetRole: '', accepted: false },
   restoreJourney: (documents: unknown) => restore(documents),
@@ -83,6 +93,9 @@ jest.mock('./job-example-step', () => ({
     <div>
       Recommendations<button onClick={onEditJob}>Edit job</button>
       <button onClick={() => onPreferencesChange(preferences)}>Preferences</button>
+      <button onClick={() => onPreferencesChange({ ...preferences, objective: 'CHANGE_FIELD' })}>
+        New objective
+      </button>
     </div>
   ),
 }));
@@ -197,4 +210,86 @@ describe('conversation persistence and transitions', () => {
     await act(async () => resolve({ draft: initialDraft }));
     expect(window.location.search).toBe('?etapa=job');
   });
+});
+
+it('deletes the whole local journey only after explicit confirmation', async () => {
+  window.history.replaceState({}, '', '/conversa');
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
+  list.mockResolvedValue([resume]);
+  restore.mockResolvedValue(snapshot);
+  render(<ConversationPageClient />);
+  await screen.findByText('Continuar');
+  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
+  expect(confirm).toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  list.mockResolvedValue([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
+  await waitFor(() => expect(screen.queryByText('Continuar')).not.toBeInTheDocument());
+  expect(window.location.search).toBe('?etapa=materials');
+  confirm.mockRestore();
+});
+
+it('saves communication choices against the current local revision and invalidates content', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=recommendations');
+  list.mockResolvedValue([resume]);
+  for (const hasContent of [false, true]) {
+    const session = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+    if (hasContent) session.content = { ...session.plan!, sections: [] };
+    restore.mockResolvedValue({
+      ...snapshot,
+      draft: { ...initialDraft, objective: 'ENTER_FAST' },
+      result: { ...result, preparation: session },
+    });
+    const view = render(<ConversationPageClient />);
+    await screen.findByText('Recommendations');
+    fireEvent.click(screen.getByText('Preferences'));
+    await waitFor(() =>
+      expect(saveEngine).toHaveBeenCalledWith(expect.objectContaining({ revision: 1 }), 0),
+    );
+    view.unmount();
+  }
+});
+it('returns to preparation after the person changes the declared objective', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=recommendations');
+  list.mockResolvedValue([resume]);
+  restore.mockResolvedValue({ ...snapshot, draft: { ...initialDraft, objective: 'ENTER_FAST' } });
+  render(<ConversationPageClient />);
+  await screen.findByText('Recommendations');
+  fireEvent.click(screen.getByText('New objective'));
+  expect(window.location.search).toBe('?etapa=job');
+});
+it('reports storage conflicts and deletion failures without claiming success', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=recommendations');
+  list.mockResolvedValue([resume]);
+  const session = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+  restore.mockResolvedValue({
+    ...snapshot,
+    draft: { ...initialDraft, objective: 'ENTER_FAST' },
+    result: { ...result, preparation: session },
+  });
+  (saveEngine as jest.Mock).mockRejectedValueOnce(new Error('REVISION_CONFLICT'));
+  render(<ConversationPageClient />);
+  await screen.findByText('Recommendations');
+  fireEvent.click(screen.getByText('Preferences'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar');
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  (deleteEngine as jest.Mock).mockRejectedValueOnce(new Error('unavailable'));
+  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
+  await waitFor(() =>
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível excluir'),
+  );
+  confirm.mockRestore();
+});
+
+it('does not report full deletion when document storage fails to clear', async () => {
+  window.history.replaceState({}, '', '/conversa');
+  list.mockResolvedValue([resume]);
+  restore.mockResolvedValue(snapshot);
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  (clearStoredResumes as jest.Mock).mockResolvedValueOnce(false);
+  render(<ConversationPageClient />);
+  await screen.findByText('Continuar');
+  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível excluir');
+  confirm.mockRestore();
 });

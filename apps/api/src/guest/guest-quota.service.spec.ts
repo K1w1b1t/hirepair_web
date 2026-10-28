@@ -32,8 +32,8 @@ describe('GuestQuotaService', () => {
     run.mockResolvedValue(1);
     await service().recordConsent('visitor');
     expect(JSON.parse(String(run.mock.calls[0][2][0]))).toMatchObject({
-      termsVersion: '2026-10-07',
-      privacyVersion: '2026-10-07',
+      termsVersion: '2026-10-28',
+      privacyVersion: '2026-10-28',
     });
   });
   it('reserves access and reports the window expiration', async () => {

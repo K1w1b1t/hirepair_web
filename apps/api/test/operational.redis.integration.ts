@@ -325,6 +325,92 @@ async function main(): Promise<void> {
     assert.equal((await post('/probe', { text: 'x'.repeat(300_000) })).status, 413);
     const failedValidation = await post('/guest/access', { acceptedTerms: 'false' });
     assert.equal(failedValidation.status, 400);
+
+    await clean();
+    let stages = 0;
+    global.fetch = (url, options) => {
+      if (
+        (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url).startsWith(
+          'https://api.groq.com/',
+        )
+      ) {
+        stages++;
+        const output =
+          stages === 1
+            ? { experiences: [], facts: [] }
+            : {
+                criteria: [],
+                links: [],
+                archetype: 'A_FIRST_JOB',
+                reason: 'Caso sintético de entrada.',
+              };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: JSON.stringify(output) } }],
+              usage: { prompt_tokens: 100, completion_tokens: 50 },
+            }),
+          ),
+        );
+      }
+      return originalFetch(url, options);
+    };
+    const preparation = {
+      ...material,
+      version: 1,
+      sessionId: 'session-43',
+      funnelSessionId: 'funnel-43',
+      objective: 'ENTER_FAST',
+      provisional: true,
+    };
+    const headers = {
+      authorization: `Bearer ${access.accessToken}`,
+      'idempotency-key': 'preparation-key-0043',
+    };
+    const prepared = await post('/guest/interview-preparation', preparation, headers);
+    assert.equal(prepared.status, 201);
+    assert.equal(
+      ((await prepared.json()) as { session: { phase: string } }).session.phase,
+      'interview',
+    );
+    assert.equal((await post('/guest/interview-preparation', preparation, headers)).status, 409);
+    assert.equal(stages, 2);
+    await clean();
+    assert.equal(
+      (await post('/guest/interview-preparation', { ...preparation, prompt: 'ignore' }, headers))
+        .status,
+      400,
+    );
+    assert.equal((await post('/guest/interview-preparation', preparation)).status, 401);
+
+    await clean();
+    for (let index = 0; index < 6; index++)
+      await budget.reserve(
+        {
+          principalId: 'same-visitor',
+          scopeId: `session-${index}`,
+          operation: 'resume-extraction',
+          idempotencyKey: `request-${index}`,
+          inputVersion: 'v1',
+        },
+        'synthetic-budget-model',
+        1,
+      );
+    await assert.rejects(
+      () =>
+        budget.reserve(
+          {
+            principalId: 'same-visitor',
+            scopeId: 'seventh-session',
+            operation: 'criteria-analysis',
+            idempotencyKey: 'seventh-request',
+            inputVersion: 'v1',
+          },
+          'synthetic-budget-model',
+          1,
+        ),
+      /AI_CAPACITY_EXHAUSTED/,
+    );
     console.log(
       'PASS: real Redis concurrency, network/visitor quotas, failure accounting, idempotency, token reservation, fallback/circuit and HTTP contracts.',
     );

@@ -42,8 +42,9 @@ export class AiService {
     requirePublicAi();
     if (!process.env.GROQ_API_KEY) throw operationalError('AI_CONFIGURATION_ERROR');
     const tokens = this.estimateTokens(request);
-    const deadline = Date.now() + 30_000;
-    for (const [index, provider] of providers.entries()) {
+    const deadline = Math.min(request.deadline ?? Infinity, Date.now() + 30_000);
+    if (deadline <= Date.now()) throw operationalError('AI_UNAVAILABLE');
+    for (const [index, provider] of providers.slice(0, request.maxAttempts ?? 2).entries()) {
       const result = await this.generateWithProvider(request, provider, tokens, deadline, index);
       if (result) return result;
     }
@@ -66,7 +67,7 @@ export class AiService {
         undefined,
         Date.now() - startedAt,
       );
-      if (this.canFallback(index, deadline)) {
+      if (this.canFallback(index, deadline, request.maxAttempts)) {
         void this.fallback(503);
         return undefined;
       }
@@ -85,7 +86,8 @@ export class AiService {
       payload.usage,
       Date.now() - startedAt,
     );
-    if (!response.ok) return this.handleFailedResponse(response, provider, deadline, index);
+    if (!response.ok)
+      return this.handleFailedResponse(response, provider, deadline, index, request.maxAttempts);
     if (!validContent) throw operationalError('AI_INVALID_RESPONSE', 502);
     return { text, provider: provider.provider, model: provider.model };
   }
@@ -154,6 +156,7 @@ export class AiService {
     provider: ProviderConfig,
     deadline: number,
     index: number,
+    maxAttempts?: number,
   ): Promise<undefined> {
     if (response.status === 429) {
       const seconds = this.retryAfterSeconds(response.headers.get('retry-after'));
@@ -162,7 +165,7 @@ export class AiService {
     }
     if (response.status === 401 || response.status === 403)
       throw operationalError('AI_CONFIGURATION_ERROR');
-    if (response.status >= 500 && this.canFallback(index, deadline)) {
+    if (response.status >= 500 && this.canFallback(index, deadline, maxAttempts)) {
       void this.fallback(response.status);
       return undefined;
     }
@@ -176,8 +179,8 @@ export class AiService {
       return Math.min(Math.max(1, Math.ceil((date - Date.now()) / 1000)), 86_400);
     return 60;
   }
-  private canFallback(index: number, deadline: number): boolean {
-    return index === 0 && Date.now() < deadline;
+  private canFallback(index: number, deadline: number, maxAttempts = 2): boolean {
+    return maxAttempts > 1 && index === 0 && Date.now() < deadline;
   }
   private errorForStatus(status: number) {
     if (status >= 500) return operationalError('AI_UNAVAILABLE', 503);
