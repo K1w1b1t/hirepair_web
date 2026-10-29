@@ -112,7 +112,8 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
     setError([]);
     const errors: string[] = [];
     const generation = resumeStorageGeneration();
-    for (const file of files) {
+    await files.reduce(async (previous, file) => {
+      await previous;
       try {
         await addDocument(await extractTextFromFile(file), file, generation);
       } catch (error_) {
@@ -120,7 +121,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
           file.name + ': ' + (error_ instanceof Error ? error_.message : 'não foi possível ler.'),
         );
       }
-    }
+    }, Promise.resolve());
     if (errors.length > 0) setError(errors);
     setIsProcessing(false);
   };

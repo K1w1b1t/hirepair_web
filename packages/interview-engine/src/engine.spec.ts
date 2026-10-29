@@ -339,6 +339,21 @@ it('records explicit candidate decisions, invalidates old confirmation and repla
     ).toThrow('INVALID_FACT_DECISION');
 });
 import { mergeHistory } from './index';
+it('preserves decisions after collision, confirmation and repeated preparation', () => {
+  const incoming = prepared();
+  incoming.experiences[0].title = 'Outra experiência';
+  incoming.facts[0].text = 'Outro fato';
+  const merged = mergeHistory(confirmed(), incoming);
+  const id = merged.links[0].factIds[0];
+  const decided = decideFact(merged, id, 'confirmed', false, 'decided');
+  const repeated = mergeHistory(decided, incoming);
+  expect(repeated.facts.find((fact) => fact.id === id)).toEqual(
+    decided.facts.find((fact) => fact.id === id),
+  );
+  expect(repeated.links[0].factIds).toEqual([id]);
+  expect(repeated.experiences).toHaveLength(2);
+  expect(repeated.facts).toHaveLength(2);
+});
 it('preserves confirmed history and remaps colliding extraction identities on retargeting', () => {
   const previous = confirmed();
   const incoming = prepared();

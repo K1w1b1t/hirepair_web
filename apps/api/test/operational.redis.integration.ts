@@ -239,11 +239,11 @@ async function main(): Promise<void> {
             JSON.stringify({ success: true, hostname: 'localhost', action: 'guest_access' }),
           ),
         );
-      if (
-        (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url).startsWith(
-          'https://api.groq.com/',
-        )
-      ) {
+      let address: string;
+      if (typeof url === 'string') address = url;
+      else if (url instanceof URL) address = url.href;
+      else address = url.url;
+      if (address.startsWith('https://api.groq.com/')) {
         providerCalls++;
         return Promise.resolve(
           new Response(
@@ -329,11 +329,11 @@ async function main(): Promise<void> {
     await clean();
     let stages = 0;
     global.fetch = (url, options) => {
-      if (
-        (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url).startsWith(
-          'https://api.groq.com/',
-        )
-      ) {
+      let address: string;
+      if (typeof url === 'string') address = url;
+      else if (url instanceof URL) address = url.href;
+      else address = url.url;
+      if (address.startsWith('https://api.groq.com/')) {
         stages++;
         const output =
           stages === 1
@@ -384,18 +384,21 @@ async function main(): Promise<void> {
     assert.equal((await post('/guest/interview-preparation', preparation)).status, 401);
 
     await clean();
-    for (let index = 0; index < 6; index++)
-      await budget.reserve(
-        {
-          principalId: 'same-visitor',
-          scopeId: `session-${index}`,
-          operation: 'resume-extraction',
-          idempotencyKey: `request-${index}`,
-          inputVersion: 'v1',
-        },
-        'synthetic-budget-model',
-        1,
-      );
+    await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        budget.reserve(
+          {
+            principalId: 'same-visitor',
+            scopeId: `session-${index}`,
+            operation: 'resume-extraction',
+            idempotencyKey: `request-${index}`,
+            inputVersion: 'v1',
+          },
+          'synthetic-budget-model',
+          1,
+        ),
+      ),
+    );
     await assert.rejects(
       () =>
         budget.reserve(

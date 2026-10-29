@@ -67,7 +67,7 @@ projeto API.
 
 ### Pré-requisitos
 
-- Node.js (v20 ou superior)
+- Node.js 22.23.4 ou patch posterior da linha 22 (use `nvm install && nvm use`)
 - Docker & Docker Compose
 
 ### Instalação e Comandos Básicos

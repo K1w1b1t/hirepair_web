@@ -25,7 +25,7 @@ export class PreparationController {
     @Body() body: PreparationDto,
     @Req() request: Request,
   ) {
-    const token = authorization?.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i)?.[1];
+    const token = authorization?.match(/^Bearer ([a-z0-9_-]+\.[a-z0-9_-]+)$/i)?.[1];
     if (!token) throw operationalError('GUEST_ACCESS_INVALID', 401);
     if (!key || !/^[A-Za-z0-9_-]{16,100}$/.test(key))
       throw operationalError('IDEMPOTENCY_KEY_REQUIRED', 400);

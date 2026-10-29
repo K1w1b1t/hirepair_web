@@ -95,6 +95,7 @@ export function evidenceStatus(link: EvidenceLink, facts: Fact[]): EvidenceLink[
   if (!linked.length) return 'unknown';
   return linked.every((f) => f.confirmation === 'confirmed') ? 'confirmed' : 'candidate';
 }
+const criterionImpact = { ELIMINATORY: 3, NEGOTIABLE: 2, DECORATIVE: 1 };
 export function replan(s: Session): Plan {
   const topics = s.criteria
     .flatMap((criterion) => {
@@ -113,14 +114,7 @@ export function replan(s: Session): Plan {
               status === 'contradiction'
                 ? 'Precisamos esclarecer relatos diferentes antes de usar esta informação.'
                 : criterion.reason,
-            impact:
-              status === 'contradiction'
-                ? 3
-                : criterion.category === 'ELIMINATORY'
-                  ? 3
-                  : criterion.category === 'NEGOTIABLE'
-                    ? 2
-                    : 1,
+            impact: status === 'contradiction' ? 3 : criterionImpact[criterion.category],
             uncertainty: status === 'candidate' ? 2 : 3,
             relevance: criterion.relevance,
           },
@@ -332,17 +326,18 @@ export function mergeHistory(previous: Session, incoming: Session): Session {
   });
   const factIds = new Map<string, string>();
   next.facts = next.facts.map((fact) => {
-    const old = previous.facts.find((item) => item.id === fact.id);
+    const original = previous.facts.find((item) => item.id === fact.id);
     const experienceId = experienceIds.get(fact.experienceId) ?? fact.experienceId;
-    if (
-      old &&
-      old.text === fact.text &&
-      JSON.stringify(old.origin) === JSON.stringify(fact.origin) &&
-      old.experienceId === experienceId
-    )
-      return old;
-    const id = old ? `${fact.id.slice(0, 30)}:${incoming.inputs.resumes.slice(0, 16)}` : fact.id;
-    factIds.set(fact.id, id);
+    const sameFact = (item: Fact) =>
+      item.text === fact.text &&
+      JSON.stringify(item.origin) === JSON.stringify(fact.origin) &&
+      item.experienceId === experienceId;
+    let id = fact.id;
+    if (original && !sameFact(original))
+      id = `${fact.id.slice(0, 30)}:${incoming.inputs.resumes.slice(0, 16)}`;
+    const old = previous.facts.find((item) => item.id === id);
+    if (id !== fact.id) factIds.set(fact.id, id);
+    if (old && sameFact(old)) return old;
     return { ...fact, id, experienceId };
   });
   for (const experience of previous.experiences)

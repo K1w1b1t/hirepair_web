@@ -145,6 +145,18 @@ export function parseExtraction(text: string, sources: Source[]): Extraction {
     throw new Error('INVALID_REFERENCE');
   return result;
 }
+function isObjectiveBarrier(criterion: CriteriaAnalysis['criteria'][number]): boolean {
+  return (
+    criterion.kind === 'explicit' &&
+    criterion.objectiveBasis &&
+    criterion.quote !== null &&
+    /(?:obrigat[óo]ri|exigid|indispens[aá]vel)/i.test(criterion.quote) &&
+    /(?:\bCNH\b|\bCREA\b|\bCOREN\b|\bCRMV\b|\bCRM\b|\bOAB\b|\bNR[- ]?\d+|forma[çc][ãa]o|diploma|disponibilidade|presencial|idioma)/i.test(
+      criterion.quote,
+    ) &&
+    !/(?:desej[aá]vel|diferencial|prefer[eê]ncia)/i.test(criterion.quote)
+  );
+}
 export function parseCriteria(text: string, job: string, extraction: Extraction): CriteriaAnalysis {
   const result = parse<CriteriaAnalysis>(text, CRITERIA_SCHEMA);
   unique(result.criteria.map((item) => item.id));
@@ -155,15 +167,8 @@ export function parseCriteria(text: string, job: string, extraction: Extraction)
       (criterion.quote !== null && !job.includes(criterion.quote))
     )
       throw new Error('INVALID_ORIGIN');
-    const objectiveBarrier =
-      criterion.quote !== null &&
-      /(?:obrigat[óo]ri|exigid|indispens[aá]vel)/i.test(criterion.quote) &&
-      /(?:\bCNH\b|\bCREA\b|\bCOREN\b|\bCRMV\b|\bCRM\b|\bOAB\b|\bNR[- ]?\d+|forma[çc][ãa]o|diploma|disponibilidade|presencial|idioma)/i.test(
-        criterion.quote,
-      ) &&
-      !/(?:desej[aá]vel|diferencial|prefer[eê]ncia)/i.test(criterion.quote);
-    if (criterion.kind === 'implicit' || !criterion.objectiveBasis || !objectiveBarrier)
-      criterion.category = criterion.category === 'ELIMINATORY' ? 'NEGOTIABLE' : criterion.category;
+    if (criterion.category === 'ELIMINATORY' && !isObjectiveBarrier(criterion))
+      criterion.category = 'NEGOTIABLE';
   }
   for (const link of result.links) {
     if (
@@ -193,8 +198,7 @@ export function validatePreparation(
   const s = result.session;
   if (
     result.version !== 1 ||
-    !s ||
-    s.version !== 1 ||
+    s?.version !== 1 ||
     s.phase !== 'interview' ||
     !s.objective ||
     !s.plan?.valid ||

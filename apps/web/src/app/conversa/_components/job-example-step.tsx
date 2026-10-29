@@ -86,14 +86,14 @@ export function JobExampleStep({
       const result = await analyzeGuest(documents, draft, verifiedChallenge);
       onComplete(result, await inputFingerprint(documents, draft));
     } catch (caught) {
-      setNotice(
-        caught instanceof AnalysisFailure
-          ? caught.message
-          : caught instanceof Error &&
-              ['LOCAL_STORAGE_UNAVAILABLE', 'REVISION_CONFLICT'].includes(caught.message)
-            ? new AnalysisFailure(caught.message).message
-            : 'Verifique sua conexão e tente novamente em alguns instantes.',
-      );
+      let message = 'Verifique sua conexão e tente novamente em alguns instantes.';
+      if (caught instanceof AnalysisFailure) message = caught.message;
+      else if (
+        caught instanceof Error &&
+        ['LOCAL_STORAGE_UNAVAILABLE', 'REVISION_CONFLICT'].includes(caught.message)
+      )
+        message = new AnalysisFailure(caught.message).message;
+      setNotice(message);
     } finally {
       setLoading(false);
       setChallenge(undefined);
@@ -137,7 +137,7 @@ export function JobExampleStep({
           local; conciliar rotina prioriza horários compatíveis.
         </p>
         <label>
-          Esta escolha é provisória?
+          Esta escolha é provisória?{' '}
           <select
             aria-label="Objetivo provisório"
             value={draft.provisional ? 'yes' : 'no'}
@@ -250,13 +250,13 @@ function Choice<T extends string>({
   value,
   suggested,
   onChange,
-}: {
+}: Readonly<{
   title: string;
   values: Array<{ value: T; label: string }>;
   value: T;
   suggested?: T;
   onChange: (value: T) => void;
-}) {
+}>) {
   return (
     <fieldset className="job-choice">
       <legend>{title}</legend>

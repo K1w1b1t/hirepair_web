@@ -38,13 +38,26 @@
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
-    "eslint": "^9",
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "eslint": "^9.39.5",
     "husky": "^9.1.7",
     "lint-staged": "^16.0.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5"
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3"
   },
-  "packageManager": "npm@11.6.0"
+  "packageManager": "npm@11.6.0",
+  "engines": {
+    "node": ">=22.23.4 <23"
+  },
+  "overrides": {
+    "@isaacs/brace-expansion": "^5.0.1",
+    "axios": "^1.21.0",
+    "form-data": "^4.0.6",
+    "follow-redirects": "^1.16.2",
+    "minimatch@>=10 <10.2.3": "^10.2.6",
+    "multer": "^2.5.0",
+    "js-yaml@>=5 <5.5.0": "^5.5.0",
+    "postcss": "^8.5.32"
+  }
 }
