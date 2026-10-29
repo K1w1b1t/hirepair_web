@@ -1,3 +1,8 @@
+import { preparationFixture } from '../../../../test/preparation';
+jest.mock('../_lib/engine-storage', () => ({
+  readEngine: jest.fn().mockResolvedValue(null),
+  saveEngine: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('./turnstile-challenge', () => ({
   TurnstileChallenge: ({
     onReady,
@@ -29,7 +34,13 @@ const document = {
   findings: [],
   createdAt: 1,
 };
-const initialDraft = { hasJob: true, jobText: '', targetRole: '', accepted: false };
+const initialDraft = {
+  objective: 'ENTER_FAST' as const,
+  hasJob: true,
+  jobText: '',
+  targetRole: '',
+  accepted: false,
+};
 
 function InteractiveJob({ draft: initial }: { draft: JobDraft }) {
   const [draft, setDraft] = useState(initial);
@@ -223,7 +234,7 @@ describe('JobRecommendationsStep', () => {
       />,
     );
     expect(screen.getByText('Engenheiro mecânico')).toBeInTheDocument();
-    expect(screen.getAllByText('Recomendado!')).toHaveLength(3);
+    expect(screen.getAllByText('Recomendado!')).toHaveLength(2);
     expect(screen.getByRole('radio', { name: /especialista/i })).not.toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /especialista/i }));
     expect(onPreferencesChange).toHaveBeenCalledWith(
@@ -318,4 +329,111 @@ it('edits goal and tone and shows no requirement list for an empty result', () =
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Editar vaga' }));
   expect(onEditJob).toHaveBeenCalled();
+});
+
+it('requires a declared objective and accepts a provisional decision explicitly', () => {
+  const onDraftChange = jest.fn();
+  render(
+    <JobExampleStep
+      documents={[document]}
+      draft={{ ...initialDraft, objective: undefined, jobText: 'Atendimento', accepted: true }}
+      onComplete={jest.fn()}
+      onDraftChange={onDraftChange}
+    />,
+  );
+  expect(screen.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Seu objetivo pessoal'), {
+    target: { value: 'CHANGE_FIELD' },
+  });
+  expect(onDraftChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ objective: 'CHANGE_FIELD' }),
+  );
+  fireEvent.change(screen.getByLabelText('Objetivo provisório'), { target: { value: 'yes' } });
+  expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ provisional: true }));
+});
+it('explains each topic in the initial plan without executing interview questions', () => {
+  const session = preparationFixture({
+    sessionId: 's',
+    funnelSessionId: 'f',
+    jobText: 'Atendimento',
+  }).session;
+  render(
+    <JobRecommendationsStep
+      result={{
+        preparation: session,
+        targetRole: 'Atendente',
+        reason: 'r',
+        summary: 's',
+        requirements: [],
+        suggestedArchetype: 'A_FIRST_JOB',
+        suggestedObjective: 'ENTER_FAST',
+        suggestedTone: 'DIRECT',
+      }}
+      preferences={{ archetype: 'A_FIRST_JOB', objective: 'ENTER_FAST', tone: 'DIRECT' }}
+      onPreferencesChange={jest.fn()}
+      onEditJob={jest.fn()}
+    />,
+  );
+  expect(screen.getByRole('region', { name: 'Plano inicial de investigação' })).toHaveTextContent(
+    'Conte um exemplo do que você fez.',
+  );
+});
+it('shows a previously confirmed provisional objective', () => {
+  render(
+    <JobExampleStep
+      documents={[document]}
+      draft={{ ...initialDraft, provisional: true }}
+      onComplete={jest.fn()}
+      onDraftChange={jest.fn()}
+    />,
+  );
+  expect(screen.getByLabelText('Objetivo provisório')).toHaveValue('yes');
+});
+it.each(['LOCAL_STORAGE_UNAVAILABLE', 'REVISION_CONFLICT'])(
+  'explains local persistence failures separately from network errors: %s',
+  async (code) => {
+    const storage = jest.requireMock('../_lib/engine-storage') as { readEngine: jest.Mock };
+    storage.readEngine.mockRejectedValueOnce(new Error(code));
+    const original = global.fetch;
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: jest
+        .fn()
+        .mockResolvedValue({ ok: true, json: async () => ({ accessToken: 'token' }) }),
+    });
+    render(
+      <JobExampleStep
+        documents={[document]}
+        draft={{ ...initialDraft, jobText: 'Atendimento', accepted: true }}
+        onComplete={jest.fn()}
+        onDraftChange={jest.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      code === 'LOCAL_STORAGE_UNAVAILABLE' ? 'A retomada não está garantida' : 'mudou em outra aba',
+    );
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: original });
+  },
+);
+
+it('does not expose an unexpected non-Error failure as personal content', async () => {
+  const storage = jest.requireMock('../_lib/engine-storage') as { readEngine: jest.Mock };
+  storage.readEngine.mockRejectedValueOnce('unexpected private content');
+  const original = global.fetch;
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    value: jest.fn().mockResolvedValue({ ok: true, json: async () => ({ accessToken: 'token' }) }),
+  });
+  render(
+    <JobExampleStep
+      documents={[document]}
+      draft={{ ...initialDraft, jobText: 'Atendimento', accepted: true }}
+      onComplete={jest.fn()}
+      onDraftChange={jest.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+  expect(await screen.findByRole('alert')).not.toHaveTextContent('unexpected private content');
+  Object.defineProperty(globalThis, 'fetch', { configurable: true, value: original });
 });

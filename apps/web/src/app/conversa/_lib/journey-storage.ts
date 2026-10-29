@@ -7,6 +7,7 @@ import {
   type JobDraft,
   type JobPreferences,
 } from './job-analysis';
+import { readEngine } from './engine-storage';
 import { readBrowserValue, writeBrowserValue } from './browser-storage';
 import { inputFingerprint, isJobAnalysisResult } from './guest-api';
 export const initialDraft: JobDraft = {
@@ -56,8 +57,15 @@ export async function restoreJourney(
     const draft = validDraft(saved?.draft)
       ? { ...saved.draft, accepted: false }
       : { ...initialDraft };
+    if (!draft.objective) return { draft };
+    {
+      const engine = await readEngine();
+      if (!engine || engine.objective?.value !== draft.objective) return { draft };
+      if (saved?.result && typeof saved.result === 'object')
+        (saved.result as JobAnalysisResult).preparation = engine;
+    }
     if (
-      saved?.version === 2 &&
+      saved?.version === 3 &&
       documents.length > 0 &&
       isJobAnalysisResult(saved.result) &&
       validPreferences(saved.preferences) &&
@@ -77,6 +85,11 @@ export async function restoreJourney(
 export function persistJourney(snapshot: JourneySnapshot): void {
   writeBrowserValue(
     ANALYSIS_KEY,
-    JSON.stringify({ version: 2, ...snapshot, draft: { ...snapshot.draft, accepted: false } }),
+    JSON.stringify({
+      version: 3,
+      ...snapshot,
+      result: snapshot.result ? { ...snapshot.result, preparation: undefined } : undefined,
+      draft: { ...snapshot.draft, accepted: false },
+    }),
   );
 }

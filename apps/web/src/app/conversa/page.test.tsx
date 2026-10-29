@@ -1,3 +1,11 @@
+import 'fake-indexeddb/auto';
+import { serialize, deserialize } from 'node:v8';
+import { preparationFixture } from '../../../test/preparation';
+import { deleteEngine } from './_lib/engine-storage';
+Object.defineProperty(globalThis, 'structuredClone', {
+  configurable: true,
+  value: (value: unknown) => deserialize(serialize(value)),
+});
 jest.mock('./_components/turnstile-challenge', () => ({
   TurnstileChallenge: ({
     onReady,
@@ -24,6 +32,7 @@ function textFile(content: string, name: string): File {
 describe('ConversationPage', () => {
   beforeEach(async () => {
     await clearStoredResumes();
+    await deleteEngine();
     localStorage.clear();
     window.history.replaceState({}, '', '/conversa');
   });
@@ -85,18 +94,12 @@ describe('ConversationPage', () => {
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          targetRole: 'Engenheiro mecânico',
-          reason: 'Seu histórico aponta para uma transição.',
-          summary: 'Encontramos 1 requisito principal para orientar seu currículo.',
-          requirements: [{ text: 'Graduação em Engenharia', category: 'ELIMINATORY' }],
-          suggestedArchetype: 'B_CAREER_CHANGE',
-          suggestedObjective: 'CHANGE_FIELD',
-          suggestedTone: 'CONSULTATIVE',
+      .mockImplementationOnce((_url: string, options: { body: string }) =>
+        Promise.resolve({
+          ok: true,
+          json: async () => preparationFixture(JSON.parse(options.body)),
         }),
-      });
+      );
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
     render(<ConversationPage />);
     fireEvent.change(screen.getByLabelText(/enviar currículo/i), {
@@ -105,6 +108,9 @@ describe('ConversationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^continuar$/i }));
     fireEvent.change(screen.getByLabelText(/requisitos da vaga/i), {
       target: { value: 'Vaga para engenheiro mecânico' },
+    });
+    fireEvent.change(screen.getByLabelText('Seu objetivo pessoal'), {
+      target: { value: 'ENTER_FAST' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));

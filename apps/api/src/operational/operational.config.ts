@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { createHmac, randomUUID } from 'node:crypto';
 
-export const LEGAL_VERSION = '2026-10-07';
+export const LEGAL_VERSION = '2026-10-28';
 export const DAY_MS = 86_400_000;
 export const WEEK_MS = 7 * DAY_MS;
 export const RECORD_TTL_MS = 30 * DAY_MS;

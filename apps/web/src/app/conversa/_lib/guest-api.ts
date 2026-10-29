@@ -1,3 +1,13 @@
+import {
+  createSession,
+  replan,
+  mergeHistory,
+  interrupt,
+  validatePreparation,
+  type PreparationResult,
+  type Session,
+} from '@hirepair/interview-engine';
+import { readEngine, saveEngine } from './engine-storage';
 import type { JobAnalysisResult, JobDraft } from './job-analysis';
 import { archetypes, objectives, tones } from './job-analysis';
 import { sanitizeMaterial } from './sanitize-material';
@@ -11,8 +21,18 @@ export interface GuestChallenge {
 export const apiRoot = () =>
   (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/$/, '');
 export const GUEST_CREDENTIAL_KEY = 'hirepair_guest_credential';
+let generation = 0;
+let controller: AbortController | null = null;
+export function cancelPreparation(): void {
+  generation++;
+  controller?.abort();
+}
 const PENDING_KEY = 'hirepair_analysis_pending';
 export const ANALYSIS_MESSAGES: Record<string, string> = {
+  LOCAL_STORAGE_UNAVAILABLE:
+    'Não foi possível salvar a jornada neste aparelho. A retomada não está garantida.',
+  REVISION_CONFLICT: 'Esta jornada mudou em outra aba. Reabra para usar a versão atual.',
+  REQUEST_CANCELLED: 'A preparação foi interrompida.',
   AI_INPUT_TOO_LARGE: 'Reduza os materiais e os requisitos da vaga para analisar.',
   VALIDATION_ERROR: 'Revise os materiais e os requisitos da vaga.',
   ANALYSIS_MATERIAL_EMPTY: 'Adicione material com texto antes de analisar.',
@@ -69,6 +89,7 @@ export async function inputFingerprint(
 ): Promise<string> {
   const input = JSON.stringify({
     version: 2,
+    ...(draft.objective ? { objective: draft.objective, provisional: !!draft.provisional } : {}),
     documents: documents.map(({ id, text }) => ({ id, text })),
     hasJob: draft.hasJob,
     target: draft.hasJob ? draft.jobText : draft.targetRole,
@@ -92,17 +113,7 @@ async function requireResponse(response: Response): Promise<unknown> {
   }
   return payload;
 }
-export async function analyzeGuest(
-  documents: Array<{ id: string; text: string }>,
-  draft: JobDraft,
-  challenge: GuestChallenge,
-): Promise<JobAnalysisResult> {
-  if (!draft.accepted) throw new AnalysisFailure('CONSENT_REQUIRED');
-  const size =
-    documents.reduce((sum, { text }) => sum + text.length, 0) +
-    (draft.hasJob ? draft.jobText.length : draft.targetRole.length);
-  if (size > 20_000) throw new AnalysisFailure('AI_INPUT_TOO_LARGE');
-  const fingerprint = await inputFingerprint(documents, draft);
+function pendingKey(fingerprint: string): string {
   let pending: { hash: string; key: string } | undefined;
   try {
     pending = JSON.parse(readBrowserValue(PENDING_KEY) ?? 'null') as typeof pending;
@@ -114,10 +125,89 @@ export async function analyzeGuest(
       ? pending.key
       : crypto.randomUUID();
   writeBrowserValue(PENDING_KEY, JSON.stringify({ hash: fingerprint, key }));
+  return key;
+}
+async function persistInterruption(
+  error: unknown,
+  draft: JobDraft,
+  currentGeneration: number,
+  sessionId: string,
+): Promise<void> {
+  if (draft.objective && currentGeneration === generation && error instanceof AnalysisFailure) {
+    try {
+      const active = await readEngine();
+      if (active?.id === sessionId) {
+        const kind = ['AI_CAPACITY_EXHAUSTED', 'GUEST_ANALYSIS_LIMIT_REACHED'].includes(error.code)
+          ? 'budget_exhausted'
+          : 'paused';
+        await saveEngine(
+          { ...interrupt(active, kind, error.code), revision: active.revision + 1 },
+          active.revision,
+        );
+      }
+    } catch {
+      /* Preserve the original safe error; no successful persistence is claimed. */
+    }
+  }
+}
+async function storePreparation(
+  result: unknown,
+  draft: JobDraft,
+  previous: Session | null,
+  sessionId: string,
+  funnelSessionId: string,
+): Promise<JobAnalysisResult> {
+  try {
+    validatePreparation(result, sanitizeMaterial(draft.hasJob ? draft.jobText : ''));
+  } catch {
+    throw new AnalysisFailure('AI_INVALID_RESPONSE');
+  }
+  const prepared = result as PreparationResult;
+  if (
+    prepared.session.id !== sessionId ||
+    prepared.session.funnelSessionId !== funnelSessionId ||
+    prepared.session.objective!.value !== draft.objective
+  )
+    throw new AnalysisFailure('AI_INVALID_RESPONSE');
+  let session = prepared.session;
+  if (previous) {
+    session = mergeHistory(previous, session);
+    const factHash = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(session.facts)),
+    );
+    session.inputs.facts = Array.from(new Uint8Array(factHash), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('');
+    session.plan = replan(session);
+    session.strategy!.inputs = { ...session.inputs };
+  }
+  session.revision = (previous?.revision ?? 0) + 1;
+  await saveEngine(session, previous?.revision ?? 0);
+  sessionStorage.setItem('hirepair_funnel_session_id', session.funnelSessionId);
+  writeBrowserValue('hirepair_engine_funnel', session.funnelSessionId);
+  const strategy = session.strategy!;
+  removeBrowserValue(PENDING_KEY);
+  return {
+    preparation: session,
+    targetRole: draft.targetRole || 'Sua próxima vaga',
+    summary: `${session.plan!.topics.length} tópico${session.plan!.topics.length === 1 ? '' : 's'} para investigar. Os fatos importados ainda precisam da sua confirmação.`,
+    requirements: session.criteria.map(({ text, category }) => ({ text, category })),
+    suggestedArchetype: strategy.archetype,
+    suggestedObjective: draft.objective!,
+    suggestedTone: strategy.tone,
+    reason: strategy.reason,
+  };
+}
+async function guestAccess(
+  draft: JobDraft,
+  challenge: GuestChallenge,
+): Promise<{ accessToken: string }> {
   const credential = readBrowserValue(GUEST_CREDENTIAL_KEY);
   const access = await requireResponse(
     await fetch(`${apiRoot()}/guest/access`, {
       method: 'POST',
+      ...(draft.objective ? { signal: controller!.signal } : {}),
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         ...(credential ? { guestCredential: credential } : {}),
@@ -138,22 +228,84 @@ export async function analyzeGuest(
     throw new AnalysisFailure('GUEST_ACCESS_INVALID');
   if ('guestCredential' in access && typeof access.guestCredential === 'string')
     writeBrowserValue(GUEST_CREDENTIAL_KEY, access.guestCredential);
-  const result = await requireResponse(
-    await fetch(`${apiRoot()}/guest/job-analysis`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${access.accessToken}`,
-        'Idempotency-Key': key,
-      },
-      body: JSON.stringify({
-        documents: documents.map(({ id, text }) => ({ id, text: sanitizeMaterial(text) })),
-        ...(draft.hasJob
-          ? { jobText: sanitizeMaterial(draft.jobText) }
-          : { targetRole: sanitizeMaterial(draft.targetRole) }),
-      }),
+  return { accessToken: access.accessToken };
+}
+async function requestAnalysis(
+  documents: Array<{ id: string; text: string }>,
+  draft: JobDraft,
+  sessionId: string,
+  funnelSessionId: string,
+  accessToken: string,
+  key: string,
+): Promise<Response> {
+  return fetch(`${apiRoot()}/guest/${draft.objective ? 'interview-preparation' : 'job-analysis'}`, {
+    method: 'POST',
+    ...(draft.objective ? { signal: controller!.signal } : {}),
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': key,
+    },
+    body: JSON.stringify({
+      ...(draft.objective
+        ? {
+            version: 1,
+            sessionId,
+            funnelSessionId,
+            objective: draft.objective,
+            provisional: !!draft.provisional,
+          }
+        : {}),
+      documents: documents.map(({ id, text }) => ({ id, text: sanitizeMaterial(text) })),
+      ...(draft.hasJob
+        ? { jobText: sanitizeMaterial(draft.jobText) }
+        : { targetRole: sanitizeMaterial(draft.targetRole) }),
     }),
-  );
+  });
+}
+export async function analyzeGuest(
+  documents: Array<{ id: string; text: string }>,
+  draft: JobDraft,
+  challenge: GuestChallenge,
+): Promise<JobAnalysisResult> {
+  const currentGeneration = generation;
+  if (draft.objective) controller = new AbortController();
+  if (!draft.accepted) throw new AnalysisFailure('CONSENT_REQUIRED');
+  const size =
+    documents.reduce((sum, { text }) => sum + text.length, 0) +
+    (draft.hasJob ? draft.jobText.length : draft.targetRole.length);
+  if (size > 20_000) throw new AnalysisFailure('AI_INPUT_TOO_LARGE');
+  const fingerprint = await inputFingerprint(documents, draft);
+  const key = pendingKey(fingerprint);
+  const access = await guestAccess(draft, challenge);
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  const previous = draft.objective ? await readEngine() : null;
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  const sessionId = previous?.id ?? crypto.randomUUID();
+  const funnelSessionId =
+    previous?.funnelSessionId ??
+    sessionStorage.getItem('hirepair_funnel_session_id') ??
+    crypto.randomUUID();
+  if (draft.objective && !previous) {
+    const initial = createSession(sessionId, funnelSessionId, {
+      resumes: '',
+      job: '',
+      objective: '',
+      facts: '',
+    });
+    await saveEngine(initial, null);
+    writeBrowserValue('hirepair_engine_funnel', funnelSessionId);
+  }
+  const result = await requireResponse(
+    await requestAnalysis(documents, draft, sessionId, funnelSessionId, access.accessToken, key),
+  ).catch(async (error: unknown) => {
+    await persistInterruption(error, draft, currentGeneration, sessionId);
+    throw error;
+  });
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  if (draft.objective) {
+    return storePreparation(result, draft, previous, sessionId, funnelSessionId);
+  }
   if (!isJobAnalysisResult(result)) throw new AnalysisFailure('AI_INVALID_RESPONSE');
   removeBrowserValue(PENDING_KEY);
   return result;

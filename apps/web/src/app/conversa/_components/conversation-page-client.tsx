@@ -1,8 +1,12 @@
 'use client';
+import { cancelPreparation } from '../_lib/guest-api';
+import { deleteEngine, saveEngine } from '../_lib/engine-storage';
+import { removeBrowserValue } from '../_lib/browser-storage';
+import { ANALYSIS_KEY } from '../_lib/job-analysis';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type JobAnalysisResult, type JobDraft, type JobPreferences } from '../_lib/job-analysis';
-import { listStoredResumes, type StoredResume } from '../_lib/resume-storage';
+import { clearStoredResumes, listStoredResumes, type StoredResume } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
@@ -169,6 +173,8 @@ function ConversationStep({
 }
 
 export function ConversationPageClient() {
+  const [resetKey, setResetKey] = useState(0);
+  const [localError, setLocalError] = useState('');
   const [documents, setDocuments] = useState<StoredResume[]>([]);
   const documentsRef = useRef<StoredResume[]>([]);
   const [phase, setPhase] = useState<JourneyPhase>('materials');
@@ -250,6 +256,8 @@ export function ConversationPageClient() {
   );
   const handleDraftChange = (next: JobDraft) => {
     if (
+      next.objective !== draft.objective ||
+      next.provisional !== draft.provisional ||
       next.hasJob !== draft.hasJob ||
       next.jobText !== draft.jobText ||
       next.targetRole !== draft.targetRole
@@ -289,18 +297,85 @@ export function ConversationPageClient() {
       previewTriggerLabel="Ver resumo"
       totalSteps={5}
     >
-      <ConversationStep
-        phase={phase}
-        documents={documents}
-        draft={draft}
-        result={result}
-        preferences={preferences}
-        onDocumentsChange={handleDocumentsChange}
-        onDraftChange={handleDraftChange}
-        onComplete={handleComplete}
-        onPreferencesChange={setPreferences}
-        onEditJob={() => transitionTo('job')}
-      />
+      <div className="w-full min-w-0">
+        <button
+          type="button"
+          className="button button-outline"
+          onClick={() => {
+            if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
+            cancelPreparation();
+            void deleteEngine()
+              .then(async () => {
+                if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
+              })
+              .then(() => {
+                removeBrowserValue(ANALYSIS_KEY);
+                removeBrowserValue('hirepair_analysis_pending');
+                removeBrowserValue('hirepair_engine_funnel');
+                sessionStorage.removeItem('hirepair_funnel_session_id');
+                sessionStorage.removeItem('hirepair_session_started_captured');
+                documentsRef.current = [];
+                setDocuments([]);
+                setDraft(initialDraft);
+                invalidateAnalysis();
+                setResetKey((value) => value + 1);
+                setLocalError('');
+                transitionTo('materials');
+              })
+              .catch(() =>
+                setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
+              );
+          }}
+        >
+          Excluir minha jornada deste aparelho
+        </button>
+        {localError ? <p role="alert">{localError}</p> : null}
+        <ConversationStep
+          key={resetKey}
+          phase={phase}
+          documents={documents}
+          draft={draft}
+          result={result}
+          preferences={preferences}
+          onDocumentsChange={handleDocumentsChange}
+          onDraftChange={handleDraftChange}
+          onComplete={handleComplete}
+          onPreferencesChange={(next) => {
+            if (next.objective !== draft.objective && draft.objective) {
+              handleDraftChange({ ...draft, objective: next.objective });
+              transitionTo('job');
+              return;
+            }
+            const session = result?.preparation;
+            if (!session) {
+              setPreferences(next);
+              return;
+            }
+            const updated = {
+              ...session,
+              revision: session.revision + 1,
+              strategy: {
+                ...session.strategy!,
+                version: session.strategy!.version + 1,
+                archetype: next.archetype,
+                tone: next.tone,
+              },
+              content: session.content ? { ...session.content, valid: false } : null,
+            };
+            void saveEngine(updated, session.revision)
+              .then(() => {
+                setResult({ ...result, preparation: updated });
+                setPreferences(next);
+              })
+              .catch(() =>
+                setLocalError(
+                  'Não foi possível salvar sua escolha. Reabra a jornada para usar a versão atual.',
+                ),
+              );
+          }}
+          onEditJob={() => transitionTo('job')}
+        />
+      </div>
     </WizardShell>
   );
 }

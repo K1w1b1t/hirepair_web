@@ -39,6 +39,26 @@ describe('bounded business AI execution', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
+
+  it('honors an exhausted shared deadline and disables fallback for a preparation stage', async () => {
+    await expect(
+      service().generateText({ ...input, deadline: Date.now() - 1, maxAttempts: 1 }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(reserve).not.toHaveBeenCalled();
+    await expect(
+      service().generateText({ ...input, maxAttempts: 0 as never }),
+    ).rejects.toMatchObject({ status: 503 });
+    global.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+    await expect(
+      service().generateText({ ...input, deadline: Date.now() + 30000, maxAttempts: 1 }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    global.fetch = jest.fn().mockResolvedValue(response(503));
+    await expect(service().generateText({ ...input, maxAttempts: 1 })).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
   it('uses Groq with strict schema and reserves before sending', async () => {
     global.fetch = jest.fn(() => {
       expect(reserve).toHaveBeenCalledTimes(1);

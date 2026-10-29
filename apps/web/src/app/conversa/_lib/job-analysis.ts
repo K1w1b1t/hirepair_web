@@ -1,3 +1,4 @@
+import type { Session } from '@hirepair/interview-engine';
 export type Archetype =
   'A_FIRST_JOB' | 'B_CAREER_CHANGE' | 'C_OPERATIONAL' | 'D_SAME_FIELD_RETURN' | 'E_SPECIALIST';
 export type Objective =
@@ -5,6 +6,7 @@ export type Objective =
 export type Tone = 'DIRECT' | 'NEUTRAL' | 'CONSULTATIVE' | 'TECHNICAL' | 'WELCOMING';
 
 export interface JobAnalysisResult {
+  preparation?: Session;
   targetRole: string;
   summary: string;
   requirements: Array<{ text: string; category: string }>;
@@ -21,6 +23,8 @@ export interface JobPreferences {
 }
 
 export interface JobDraft {
+  objective?: Objective;
+  provisional?: boolean;
   hasJob: boolean;
   jobText: string;
   targetRole: string;
@@ -28,7 +32,6 @@ export interface JobDraft {
 }
 
 export const ANALYSIS_KEY = 'hirepair_job_analysis';
-export const GUEST_ID_KEY = 'hirepair_guest_id';
 
 export interface AnalysisSignal {
   targetKind?: string;
@@ -78,7 +81,7 @@ export function deriveChoices(signal: AnalysisSignal) {
     tones,
     selected: {
       archetype,
-      objective: archetype === 'B_CAREER_CHANGE' ? 'CHANGE_FIELD' : 'ENTER_FAST',
+      objective: null,
       tone,
     },
   };

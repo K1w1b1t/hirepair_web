@@ -1,3 +1,5 @@
+import { PreparationController } from '../interview/preparation.controller';
+import { PreparationService } from '../interview/preparation.service';
 import { TurnstileService } from './turnstile.service';
 import { OperationalModule } from '../operational/operational.module';
 import { Module } from '@nestjs/common';
@@ -7,7 +9,13 @@ import { GuestController } from './guest.controller';
 import { GuestQuotaService } from './guest-quota.service';
 @Module({
   imports: [OperationalModule],
-  controllers: [GuestController],
-  providers: [GuestAccessService, GuestQuotaService, GuestAnalysisService, TurnstileService],
+  controllers: [GuestController, PreparationController],
+  providers: [
+    PreparationService,
+    GuestAccessService,
+    GuestQuotaService,
+    GuestAnalysisService,
+    TurnstileService,
+  ],
 })
 export class GuestModule {}
