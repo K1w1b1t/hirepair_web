@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { Countdown } from './countdown';
 
-const launchDate = '2026-10-31T00:00:00-03:00';
+const launchDate = '2026-11-01T00:00:00-03:00';
 const whatsappUrl =
   'https://wa.me/5511913165266?text=Ol%C3%A1%21%20Quero%20saber%20mais%20sobre%20o%20HirePair.';
 const emailUrl = 'mailto:tech@kiwibit.com.br?subject=Quero%20conhecer%20o%20HirePair';
@@ -129,7 +129,7 @@ export default function Home() {
           <div>
             <p className="eyebrow">
               <span className="status-dot" />
-              Lançamento em 31 de outubro
+              Lançamento em 1º de novembro
             </p>
             <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-heading)] text-4xl font-extrabold leading-[1.06] tracking-[-0.04em] text-[var(--color-navy)] sm:text-6xl lg:text-7xl">
               Um currículo claro para{' '}
@@ -211,7 +211,7 @@ export default function Home() {
               A contagem para uma nova fase já começou.
             </h2>
             <p className="mt-4 leading-7 text-white/70">
-              Volte em 31 de outubro de 2026 para acompanhar o lançamento do HirePair.
+              Volte em 1º de novembro de 2026 para acompanhar o lançamento do HirePair.
             </p>
           </div>
           <Countdown deadline={launchDate} initialNow={Date.now()} />

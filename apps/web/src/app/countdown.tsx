@@ -76,7 +76,7 @@ export function Countdown({ deadline, initialNow }: CountdownProps) {
         </div>
       ))}
       <span className="sr-only">
-        {countdown.finished ? 'O lançamento chegou.' : 'Lançamento em 31 de outubro de 2026.'}
+        {countdown.finished ? 'O lançamento chegou.' : 'Lançamento em 1º de novembro de 2026.'}
       </span>
     </div>
   );
