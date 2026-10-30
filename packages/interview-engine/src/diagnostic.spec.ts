@@ -306,3 +306,31 @@ it('keeps distinct investigations identifiable even when their literal quotes co
   const report = run('Atendimento', { experiences: [missing, { ...missing, id: 'two' }] });
   expect(new Set(report.findings.map((f) => f.id)).size).toBe(2);
 });
+it('scans unreadable runs without interpreting a lone replacement character as corruption', () => {
+  expect(run('Texto com ' + String.fromCharCode(0xfffd) + ' isolado').findings).toEqual([]);
+  const report = run('Texto ' + String.fromCharCode(0, 0) + ' fim');
+  expect(report.findings[0]).toMatchObject({
+    code: 'UNREADABLE_EXTRACTED_TEXT',
+    evidence: [{ start: 6, end: 8 }],
+  });
+});
+it.each(['Objetivo: trabalhar', 'Objetivo: atendimento ao cliente'])(
+  'requires a direction and a named recipient: %s',
+  (text) => {
+    expect(run(text).findings).toEqual([]);
+  },
+);
+it.each(['Objetivo: trabalhar para a Empresa Aurora', 'Objetivo: trabalhar para Empresa Aurora'])(
+  'recognizes explicit recipient articles: %s',
+  (text) => {
+    expect(run(text).findings[0].code).toBe('TARGETED_RESUME');
+  },
+);
+it('keeps explicit uppercase recipient phrases after tokenizing the direction', () => {
+  expect(run('OBJETIVO: TRABALHAR PARA A EMPRESA AURORA').findings[0]?.code).toBe(
+    'TARGETED_RESUME',
+  );
+});
+it('preserves hyphenated candidacy verbs when recognizing an explicit recipient', () => {
+  expect(run('Objetivo: candidatar-me à Empresa Aurora').findings[0]?.code).toBe('TARGETED_RESUME');
+});

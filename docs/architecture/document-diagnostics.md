@@ -1,6 +1,6 @@
 # Diagnóstico de documentos — #17
 
-Implementação determinística e local. Referências: [ADR 0043](./adr-0043-evidence-interview.md),
+Implementação determinística e local, exclusivamente interna. Por decisão de produto revisada, não há tela, relatório ou lista de achados para o candidato: os dados servem à preparação das perguntas da entrevista. Referências: [ADR 0043](./adr-0043-evidence-interview.md),
 [roteiro de entregas](./product-delivery-roadmap.md),
 [metodologia §§4, 6, 7 e 11](../business/methodology/metodologia-do-sistema.md),
 [fluxo visual](../design/web/README.md) e [modelo de dados](../database/README.md).
@@ -13,7 +13,7 @@ alvo, estrutura opcional e mês de referência explícito. Sem documento retorna
 `status: absent`, sem achados. Relatos importados classificados como tais não
 recebem diagnóstico documental. Isso não implementa a entrevista sem currículo da #15.
 
-Cada `DiagnosticFinding` contém código, severidade, natureza, documento/hash,
+O contrato v1 é preservado; `rulesVersion=2` invalida caches do catálogo anterior após simplificação das regras. Cada `DiagnosticFinding` contém código, severidade, natureza, documento/hash,
 citação e offsets UTF-16 no texto local (fim exclusivo), explicação, ação,
 investigação opcional e restrição de exportação opcional. A regra de páginas usa
 uma evidência textual vazia e a contagem preservada no documento do relatório;
@@ -56,12 +56,12 @@ trecho aparece literalmente no original. Isso não confirma fatos.
 ## Persistência e integrações futuras
 
 O IndexedDB conserva documentos e relatórios por versão. Achados legados sem hash
-não são reaproveitados: a interface recalcula. A revisão local é comparada em uma
+não são reaproveitados: a preparação recalcula. A revisão local é comparada em uma
 transação; alterações concorrentes geram erro explícito. Corrigir texto invalida a paginação antiga e exige nova confirmação de uso; o arquivo
 original permanece local até exclusão explícita e não é vinculado como arquivo da nova versão textual. Exclusão invalida
 processamentos pendentes e não renova franquias de IA.
 
-`attachDiagnostics`, aplicado por `applyCommand` e `saveEngine`, cria somente
+`attachDiagnostics` é aplicado à sessão preparada antes de `saveEngine`, na mesma revisão da preparação. A preparação preserva resoluções diagnósticas vigentes e cria somente
 pendências não bloqueantes. `replan` incorpora tópicos com `criterionId: null` e
 `diagnosticFindingId`; não cria critérios de vaga fictícios. A #15 decide perguntas,
 insistência, coleta e confirmação; chama `resolveDiagnosticFinding` ao resolver a
@@ -74,7 +74,9 @@ precisa validar o novo artefato, cujo hash não herda os achados do antigo. Rest
 trazem correção concreta, nunca impedem entrevista ou confirmação e não são um
 bloqueio genérico de `canWrite`. Nenhum exportador é implementado aqui.
 
-Não há endpoint, chamada ao provedor, alteração de cota, modelo Prisma, migration,
+Os comandos locais futuros de revisão usam `applyCommand` e revisão esperada. O candidato não recebe os achados, limitações ou tópicos internos. A execução da conversa e a entrada na primeira pergunta pertencem à #15; não há entrevistador provisório nesta entrega.
+
+Não há endpoint novo, chamada adicional ao provedor, alteração de cota, modelo Prisma, migration,
 conta implícita ou evento de funil novo. Documentos importados mantêm a política de
 retenção do ADR; texto de turnos da entrevista continua sob `purgeRaw`/confirmação.
 Todos os testes usam fixtures sintéticas. Testes locais não comprovam qualidade

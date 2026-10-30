@@ -7,7 +7,6 @@ import { ANALYSIS_KEY } from '../_lib/job-analysis';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type JobAnalysisResult, type JobDraft, type JobPreferences } from '../_lib/job-analysis';
 import { clearStoredResumes, listStoredResumes, type StoredResume } from '../_lib/resume-storage';
-import { DocumentDiagnostics } from './document-diagnostics';
 import { ImportPanel } from './import-panel';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
@@ -248,18 +247,12 @@ export function ConversationPageClient() {
         JSON.stringify(updatedDocuments.map(({ id, text }) => ({ id, text })))
       ) {
         invalidateAnalysis();
+        documentsRef.current = updatedDocuments;
+        setDocuments(updatedDocuments);
       }
-      documentsRef.current = updatedDocuments;
-      setDocuments(updatedDocuments);
       if (updatedDocuments.length === 0) transitionTo('materials');
     },
     [invalidateAnalysis, transitionTo],
-  );
-  const handleDiagnosticSession = useCallback(
-    (session: import('@hirepair/interview-engine').Session) => {
-      setResult((current) => (current ? { ...current, preparation: session } : current));
-    },
-    [],
   );
   const handleDraftChange = (next: JobDraft) => {
     if (
@@ -337,15 +330,6 @@ export function ConversationPageClient() {
           Excluir minha jornada deste aparelho
         </button>
         {localError ? <p role="alert">{localError}</p> : null}
-        {phase !== 'materials' ? (
-          <DocumentDiagnostics
-            documents={documents}
-            target={draft.hasJob ? draft.jobText : draft.targetRole}
-            archetype={preferences?.archetype}
-            onChange={handleDocumentsChange}
-            onSessionChange={handleDiagnosticSession}
-          />
-        ) : null}
         <ConversationStep
           key={resetKey}
           phase={phase}

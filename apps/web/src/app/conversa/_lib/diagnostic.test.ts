@@ -181,3 +181,22 @@ it('does not bind retained original bytes to a corrected textual version', async
   expect(report.document?.fileHash).toBeUndefined();
   expect(read).not.toHaveBeenCalled();
 });
+it('enriches a legacy session whose source hash already matches but has no diagnostic field', async () => {
+  await clearStoredResumes();
+  await deleteEngine();
+  await saveStoredResume(doc);
+  const text = sanitizeMaterial(doc.text);
+  const sources = [{ id: doc.id, text, version: await sha256(text) }];
+  await saveEngine(
+    createSession('s', 'f', {
+      resumes: await sha256(JSON.stringify(sources)),
+      job: 'j',
+      objective: 'o',
+      facts: 'f',
+    }),
+    null,
+  );
+  const reports = await diagnoseStoredDocuments([doc], '');
+  await persistDiagnosticReports([doc], reports);
+  expect((await readEngine())!.diagnostics).toEqual(reports);
+});

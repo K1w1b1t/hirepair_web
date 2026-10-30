@@ -3,6 +3,7 @@ import { readEngine, saveEngine } from './engine-storage';
 import { resumeStorageGeneration, updateStoredResume } from './resume-storage';
 import {
   diagnoseDocument,
+  DIAGNOSTIC_RULES_VERSION,
   type DiagnosticReport,
   type Strategy,
   type Session,
@@ -14,8 +15,16 @@ export async function sha256(value: string | ArrayBuffer): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+export type DiagnosticMaterial = Pick<StoredResume, 'id' | 'text'> &
+  Partial<
+    Pick<
+      StoredResume,
+      'source' | 'materialKind' | 'usedInApplications' | 'pageCount' | 'pages' | 'original'
+    >
+  >;
+
 export async function diagnoseStoredDocuments(
-  documents: StoredResume[],
+  documents: DiagnosticMaterial[],
   target: string,
   archetype?: Strategy['archetype'],
   session?: Session,
@@ -62,7 +71,14 @@ export async function diagnoseStoredDocuments(
           ...(doc.pages ? { pages: doc.pages } : {}),
         };
         const contextVersion = await sha256(
-          JSON.stringify({ rules: 1, document, target, archetype, experiences, nowMonth }),
+          JSON.stringify({
+            rules: DIAGNOSTIC_RULES_VERSION,
+            document,
+            target,
+            archetype,
+            experiences,
+            nowMonth,
+          }),
         );
         const company = /(?:^|\n)empresa\s*:\s*([^\n]+)/iu.exec(target)?.[1].trim();
         return {
@@ -84,15 +100,13 @@ export async function persistDiagnosticReports(
   reports: DiagnosticReport[],
 ): Promise<StoredResume[]> {
   const generation = resumeStorageGeneration();
-  const updated = [];
-  for (const doc of documents) {
-    const report = reports.find((r) => r.document?.id === doc.id);
-    if (doc.diagnostic?.contextVersion === report?.contextVersion) {
-      updated.push(doc);
-      continue;
-    }
-    updated.push(await updateStoredResume(doc.id, doc.revision ?? 0, { diagnostic: report }));
-  }
+  const updated = await Promise.all(
+    documents.map((doc) => {
+      const report = reports.find((r) => r.document?.id === doc.id);
+      if (doc.diagnostic?.contextVersion === report?.contextVersion) return doc;
+      return updateStoredResume(doc.id, doc.revision ?? 0, { diagnostic: report });
+    }),
+  );
   if (generation !== resumeStorageGeneration()) throw new Error('DOCUMENT_NOT_FOUND');
   const session =
     documents.length === 0 && typeof indexedDB === 'undefined' ? null : await readEngine();
