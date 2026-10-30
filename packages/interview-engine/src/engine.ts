@@ -9,7 +9,9 @@ import type {
   Strategy,
   Fact,
   GroundedContent,
+  Topic,
 } from './contracts';
+import { diagnosticTopics, type DiagnosticReport } from './diagnostic';
 export function createSession(id: string, funnelSessionId: string, inputs: Inputs): Session {
   return {
     version: 1,
@@ -97,37 +99,37 @@ export function evidenceStatus(link: EvidenceLink, facts: Fact[]): EvidenceLink[
 }
 const criterionImpact = { ELIMINATORY: 3, NEGOTIABLE: 2, DECORATIVE: 1 };
 export function replan(s: Session): Plan {
-  const topics = s.criteria
-    .flatMap((criterion) => {
-      const links = s.links.filter((link) => link.criterionId === criterion.id);
-      const candidates: Array<EvidenceLink | null> = links.length ? links : [null];
-      return candidates.flatMap((link) => {
-        const status = link ? evidenceStatus(link, s.facts) : 'unknown';
-        if (status === 'confirmed' || status === 'declared_absence') return [];
-        return [
-          {
-            id: `topic:${criterion.id}:${link?.experienceId ?? 'unknown'}`,
-            criterionId: criterion.id,
-            experienceId: link?.experienceId ?? null,
-            missingEvidence: criterion.evidenceNeeded,
-            reason:
-              status === 'contradiction'
-                ? 'Precisamos esclarecer relatos diferentes antes de usar esta informação.'
-                : criterion.reason,
-            impact: status === 'contradiction' ? 3 : criterionImpact[criterion.category],
-            uncertainty: status === 'candidate' ? 2 : 3,
-            relevance: criterion.relevance,
-          },
-        ];
-      });
-    })
-    .sort(
-      (a, b) =>
-        b.impact - a.impact ||
-        b.uncertainty - a.uncertainty ||
-        b.relevance - a.relevance ||
-        a.id.localeCompare(b.id),
-    );
+  const topics: Topic[] = s.criteria.flatMap((criterion) => {
+    const links = s.links.filter((link) => link.criterionId === criterion.id);
+    const candidates: Array<EvidenceLink | null> = links.length ? links : [null];
+    return candidates.flatMap((link) => {
+      const status = link ? evidenceStatus(link, s.facts) : 'unknown';
+      if (status === 'confirmed' || status === 'declared_absence') return [];
+      return [
+        {
+          id: `topic:${criterion.id}:${link?.experienceId ?? 'unknown'}`,
+          criterionId: criterion.id,
+          experienceId: link?.experienceId ?? null,
+          missingEvidence: criterion.evidenceNeeded,
+          reason:
+            status === 'contradiction'
+              ? 'Precisamos esclarecer relatos diferentes antes de usar esta informação.'
+              : criterion.reason,
+          impact: status === 'contradiction' ? 3 : criterionImpact[criterion.category],
+          uncertainty: status === 'candidate' ? 2 : 3,
+          relevance: criterion.relevance,
+        },
+      ];
+    });
+  });
+  topics.push(...diagnosticTopics(s));
+  topics.sort(
+    (a, b) =>
+      b.impact - a.impact ||
+      b.uncertainty - a.uncertainty ||
+      b.relevance - a.relevance ||
+      a.id.localeCompare(b.id),
+  );
   return {
     id: 'plan',
     version: (s.plan?.version ?? 0) + 1,
@@ -153,6 +155,9 @@ export function changeInput(s: Session, input: keyof Inputs, value: string): Ses
     content: invalidate(s.content),
     criteria: input === 'job' ? [] : s.criteria,
     links: input === 'job' ? [] : s.links,
+    ...(input === 'facts'
+      ? {}
+      : { diagnostics: [], pending: s.pending.filter((p) => !p.diagnosticFindingId) }),
   };
 }
 export function applyCommand(
@@ -413,4 +418,49 @@ export function purgeRaw(s: Session, now: number): Session {
       expired.includes(story.turnId) ? { ...story, text: '' } : story,
     ),
   };
+}
+
+/** Apply through applyCommand/saveEngine; diagnosis never promotes candidate facts. */
+export function attachDiagnostics(s: Session, reports: DiagnosticReport[]): Session {
+  const previous = s.diagnostics ?? [];
+  if (JSON.stringify(previous) === JSON.stringify(reports)) return s;
+  const preserved = new Set(
+    previous
+      .filter((old) =>
+        reports.some(
+          (report) =>
+            report.contextVersion === old.contextVersion &&
+            report.document?.hash === old.document?.hash,
+        ),
+      )
+      .flatMap((report) => report.findings.map((f) => f.id)),
+  );
+  const findings = reports.flatMap((report) => report.findings);
+  const ids = new Set(findings.map((f) => f.id));
+  const pending = s.pending.filter((p) => !p.diagnosticFindingId || ids.has(p.diagnosticFindingId));
+  for (const finding of findings) {
+    if (
+      !finding.investigation ||
+      preserved.has(finding.id) ||
+      pending.some((p) => p.diagnosticFindingId === finding.id)
+    )
+      continue;
+    pending.push({
+      id: `diagnostic:${finding.id}`,
+      diagnosticFindingId: finding.id,
+      criterionId: null,
+      factIds: [],
+      reason: finding.explanation,
+      blocking: false,
+    });
+  }
+  const updated = { ...s, diagnostics: reports, pending };
+  return { ...updated, plan: s.plan ? replan(updated) : null };
+}
+/** #15 calls this after collecting/reviewing an explanation; it never confirms a fact. */
+export function resolveDiagnosticFinding(s: Session, id: string): Session {
+  if (!(s.diagnostics ?? []).some((report) => report.findings.some((f) => f.id === id)))
+    throw new Error('DIAGNOSTIC_FINDING_NOT_FOUND');
+  const updated = { ...s, pending: s.pending.filter((p) => p.diagnosticFindingId !== id) };
+  return { ...updated, plan: s.plan ? replan(updated) : null };
 }

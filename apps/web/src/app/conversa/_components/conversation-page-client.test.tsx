@@ -1,3 +1,4 @@
+jest.mock('./document-diagnostics', () => ({ DocumentDiagnostics: jest.fn(() => null) }));
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { preparationFixture } from '../../../../test/preparation';
 import { saveEngine, deleteEngine } from '../_lib/engine-storage';
@@ -293,3 +294,25 @@ it('does not report full deletion when document storage fails to clear', async (
   expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível excluir');
   confirm.mockRestore();
 });
+
+import { DocumentDiagnostics } from './document-diagnostics';
+it.each([false, true])(
+  'synchronizes the engine revision after diagnosis (existing result: %s)',
+  async (hasResult) => {
+    jest.mocked(DocumentDiagnostics).mockClear();
+    window.history.replaceState({}, '', '/conversa?etapa=job');
+    list.mockResolvedValue([resume]);
+    restore.mockResolvedValue(hasResult ? snapshot : { draft: initialDraft });
+    render(<ConversationPageClient />);
+    await waitFor(() => expect(jest.mocked(DocumentDiagnostics)).toHaveBeenCalled());
+    const calls = jest.mocked(DocumentDiagnostics).mock.calls;
+    const props = calls[calls.length - 1][0];
+    const session = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+    await act(async () => {
+      props.onSessionChange!(session);
+    });
+    expect(persist.mock.calls[persist.mock.calls.length - 1][0].result?.preparation).toEqual(
+      hasResult ? session : undefined,
+    );
+  },
+);

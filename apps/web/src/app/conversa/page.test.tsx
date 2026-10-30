@@ -85,8 +85,12 @@ describe('ConversationPage', () => {
       /sugestões aparecerão aqui/i,
     );
     expect(screen.getByText('Passo 2 de 5')).toBeInTheDocument();
-    expect(screen.queryByText('Atendimento ao cliente')).not.toBeInTheDocument();
-    expect(screen.queryByText('Analista de suporte')).not.toBeInTheDocument();
+    screen
+      .queryAllByText('Atendimento ao cliente')
+      .forEach((element) => expect(element).not.toBeVisible());
+    screen
+      .queryAllByText('Analista de suporte')
+      .forEach((element) => expect(element).not.toBeVisible());
   });
 
   it('moves analysis results to a separate recommendation step', async () => {

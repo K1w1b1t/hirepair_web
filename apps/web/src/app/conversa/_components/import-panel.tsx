@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { diagnoseResumeText } from '../_lib/diagnostic';
 import {
   extractTextFromFile,
   extractedTextFromPaste,
@@ -15,6 +14,7 @@ import {
   toStoredResume,
   type StoredResume,
 } from '../_lib/resume-storage';
+import { DocumentDiagnostics } from './document-diagnostics';
 import { FileDropzone } from './file-dropzone';
 import { VoiceTextField } from './voice-text-field';
 
@@ -22,12 +22,12 @@ export interface ImportPanelProps {
   readonly onDocumentsChange?: (documents: StoredResume[]) => void;
 }
 
-function createPastedResume(value: string): StoredResume {
+function createPastedResume(value: string, materialKind: 'resume' | 'story'): StoredResume {
   const document = {
     ...extractedTextFromPaste(value),
     fileName: 'Adicionado manualmente',
   };
-  return toStoredResume(document, diagnoseResumeText(document.text));
+  return { ...toStoredResume(document, []), materialKind };
 }
 
 function ImportErrorToast({
@@ -73,6 +73,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string[]>([]);
   const [pastedText, setPastedText] = useState('');
+  const [materialKind, setMaterialKind] = useState<'resume' | 'story'>('resume');
   const [voiceBusy, setVoiceBusy] = useState(false);
   const hasLocalChanges = useRef(false);
 
@@ -96,7 +97,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const addDocument = async (document: ExtractedText, original: File, generation: number) => {
     hasLocalChanges.current = true;
     const storedDocument = {
-      ...toStoredResume(document, diagnoseResumeText(document.text)),
+      ...toStoredResume(document, []),
       original,
     };
     const saved = await saveStoredResume(storedDocument, generation);
@@ -131,7 +132,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
 
     try {
       hasLocalChanges.current = true;
-      const storedDocument = createPastedResume(pastedText);
+      const storedDocument = createPastedResume(pastedText, materialKind);
       void saveStoredResume(storedDocument).then((saved) => {
         if (!saved)
           setError([
@@ -186,6 +187,17 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
         >
           Prefere escrever ou falar?
         </label>
+        <label className="import-material-kind">
+          Tipo do texto que vou adicionar
+          <select
+            aria-label="Tipo do texto que vou adicionar"
+            value={materialKind}
+            onChange={(event) => setMaterialKind(event.target.value as 'resume' | 'story')}
+          >
+            <option value="resume">Texto de um currículo</option>
+            <option value="story">Relato da minha história</option>
+          </select>
+        </label>
         <VoiceTextField
           className="import-textarea"
           disabled={isProcessing}
@@ -208,6 +220,8 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
           </button>
         </div>
       </form>
+
+      <DocumentDiagnostics documents={documents} onChange={setDocuments} />
 
       <ImportErrorToast messages={error} onDismiss={() => setError([])} />
     </div>

@@ -1,4 +1,4 @@
-import type { DiagnosticFinding } from './diagnostic';
+import type { DiagnosticReport } from '@hirepair/interview-engine';
 import type { ExtractedText } from './extract-text';
 
 const DATABASE_NAME = 'hirepair-resumes';
@@ -9,7 +9,11 @@ let fallbackId = 0;
 export type StoredResume = ExtractedText & {
   original?: File;
   id: string;
-  findings: DiagnosticFinding[];
+  findings: unknown[];
+  materialKind?: 'resume' | 'story';
+  usedInApplications?: 'yes' | 'no' | 'unknown';
+  revision?: number;
+  diagnostic?: DiagnosticReport;
   createdAt: number;
 };
 
@@ -118,6 +122,7 @@ export async function saveStoredResume(
 }
 
 export async function deleteStoredResume(id: string): Promise<void> {
+  generation++;
   fallbackResumes = fallbackResumes.filter((resume) => resume.id !== id);
   if (!canUseIndexedDb()) return;
   try {
@@ -151,14 +156,56 @@ export async function clearStoredResumes(): Promise<boolean> {
   }
 }
 
-export function toStoredResume(
-  document: ExtractedText,
-  findings: DiagnosticFinding[],
-): StoredResume {
+export function toStoredResume(document: ExtractedText, findings: unknown[]): StoredResume {
   return {
     ...document,
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${fallbackId++}`,
     findings,
     createdAt: Date.now(),
   };
+}
+
+/** Compare and write in one transaction. Metadata writes cannot resurrect deleted materials. */
+export async function updateStoredResume(
+  id: string,
+  revision: number,
+  changes: Partial<
+    Pick<StoredResume, 'materialKind' | 'usedInApplications' | 'diagnostic' | 'text'>
+  >,
+): Promise<StoredResume> {
+  if (!canUseIndexedDb()) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
+  const updated = await runTransaction<StoredResume>('readwrite', (store, resolve, reject) => {
+    const request = store.get(id);
+    request.addEventListener('success', () => {
+      const current = request.result as StoredResume | undefined;
+      if (!current || (current.revision ?? 0) !== revision) {
+        reject(new Error(current ? 'REVISION_CONFLICT' : 'DOCUMENT_NOT_FOUND'));
+        return;
+      }
+      const replaced = changes.text !== undefined && changes.text !== current.text;
+      const next: StoredResume = {
+        ...current,
+        diagnostic: undefined,
+        ...changes,
+        revision: revision + 1,
+        ...(replaced
+          ? {
+              pageCount: undefined,
+              pages: undefined,
+              diagnostic: undefined,
+              findings: [],
+              usedInApplications: 'unknown',
+              source: 'pasted',
+              fileType: 'TXT',
+            }
+          : {}),
+      };
+      const write = store.put(next);
+      write.addEventListener('success', () => resolve(next));
+      write.addEventListener('error', () => reject(new Error('LOCAL_STORAGE_UNAVAILABLE')));
+    });
+    request.addEventListener('error', () => reject(new Error('LOCAL_STORAGE_UNAVAILABLE')));
+  });
+  fallbackResumes = fallbackResumes.map((doc) => (doc.id === id ? updated : doc));
+  return updated;
 }

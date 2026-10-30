@@ -1,3 +1,4 @@
+jest.mock('./document-diagnostics', () => ({ DocumentDiagnostics: () => null }));
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { ImportPanel } from './import-panel';
@@ -246,4 +247,17 @@ it('does not warn when pasted material was durably saved', async () => {
   await waitFor(() => expect(save).toHaveBeenCalled());
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   save.mockRestore();
+});
+it('classifies a narrated material before any document diagnosis', async () => {
+  render(<ImportPanel />);
+  fireEvent.change(screen.getByLabelText('Tipo do texto que vou adicionar'), {
+    target: { value: 'story' },
+  });
+  fireEvent.change(screen.getByLabelText(/colar o texto/i), {
+    target: { value: 'Relato sintético de atendimento.' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar material' }));
+  await waitFor(async () =>
+    expect((await storage.listStoredResumes())[0]).toMatchObject({ materialKind: 'story' }),
+  );
 });

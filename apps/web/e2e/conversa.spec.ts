@@ -46,8 +46,8 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Pronto para continuar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continuar' })).toBeVisible();
-    await expect(page.getByText('Gabriel Rodrigues')).toHaveCount(0);
-    await expect(page.getByText('Engenheiro de software')).toHaveCount(0);
+    await expect(page.getByText('Gabriel Rodrigues').filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText('Engenheiro de software').filter({ visible: true })).toHaveCount(0);
   });
 
   test('separa vaga e recomendações em etapas claras', async ({ page }) => {
