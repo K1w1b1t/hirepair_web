@@ -146,13 +146,13 @@ function sensitiveMatches(text: string): RegExpExecArray[] {
 function* unreadableMatches(text: string) {
   let start = 0;
   while (start < text.length) {
-    const code = text.charCodeAt(start);
+    const code = text.codePointAt(start);
     if (code !== 0 && code !== 0xfffd) {
       start++;
       continue;
     }
     let end = start + 1;
-    while (text.charCodeAt(end) === code) end++;
+    while (text.codePointAt(end) === code) end++;
     if (code === 0 || end - start >= 2) yield { index: start, 0: text.slice(start, end) };
     start = end;
   }
@@ -170,11 +170,13 @@ function directedCompany(value: string): string | null {
   );
   if (prep < 0) return null;
   const article = normalized[prep] === 'para' && normalized[prep + 1] === 'a';
-  const company = words
-    .slice(prep + (article ? 2 : 1))
-    .join(' ')
-    .replace(/[.!]+$/, '');
-  return company;
+  return trimRecipientPunctuation(words.slice(prep + (article ? 2 : 1)).join(' '));
+}
+
+function trimRecipientPunctuation(value: string): string {
+  let end = value.length;
+  while (end > 0 && (value[end - 1] === '.' || value[end - 1] === '!')) end--;
+  return value.slice(0, end);
 }
 
 /** Month bounds preserve the uncertainty of year-only dates. */

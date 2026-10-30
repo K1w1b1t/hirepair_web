@@ -334,3 +334,10 @@ it('keeps explicit uppercase recipient phrases after tokenizing the direction', 
 it('preserves hyphenated candidacy verbs when recognizing an explicit recipient', () => {
   expect(run('Objetivo: candidatar-me à Empresa Aurora').findings[0]?.code).toBe('TARGETED_RESUME');
 });
+it('trims recipient punctuation without retrying long suffixes', () => {
+  expect(
+    run('Objetivo: trabalhar na Empresa Aurora.!', { target: { company: 'Empresa Aurora' } })
+      .findings[0].explanation,
+  ).not.toContain('diferente');
+  expect(run('Objetivo: trabalhar na .!').findings).toEqual([]);
+});

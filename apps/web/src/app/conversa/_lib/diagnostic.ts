@@ -101,7 +101,7 @@ export async function persistDiagnosticReports(
 ): Promise<StoredResume[]> {
   const generation = resumeStorageGeneration();
   const updated = await Promise.all(
-    documents.map((doc) => {
+    documents.map(async (doc) => {
       const report = reports.find((r) => r.document?.id === doc.id);
       if (doc.diagnostic?.contextVersion === report?.contextVersion) return doc;
       return updateStoredResume(doc.id, doc.revision ?? 0, { diagnostic: report });
