@@ -204,6 +204,7 @@ async function storePreparation(
     },
     reports,
   );
+  session.plan = replan(session);
   session.revision = (previous?.revision ?? 0) + 1;
   await saveEngine(session, previous?.revision ?? 0);
   sessionStorage.setItem('hirepair_funnel_session_id', session.funnelSessionId);

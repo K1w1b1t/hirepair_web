@@ -286,9 +286,13 @@ it('preserves unresolved diagnostic pending items and does not reopen a resolved
   await analyzeGuest(docs, draft, challenge);
   const current = (await readEngine())!;
   expect(current.pending.some((p) => p.diagnosticFindingId === finding.id)).toBe(true);
+  expect(current.plan!.topics.filter((t) => t.diagnosticFindingId)).toEqual(
+    previous.plan!.topics.filter((t) => t.diagnosticFindingId),
+  );
   const resolved = resolveDiagnosticFinding(current, finding.id);
   await saveEngine({ ...resolved, revision: current.revision + 1 }, current.revision);
   success();
   const result = await analyzeGuest(docs, draft, challenge);
   expect(result.preparation!.pending.filter((p) => p.diagnosticFindingId)).toEqual([]);
+  expect(result.preparation!.plan!.topics.filter((t) => t.diagnosticFindingId)).toEqual([]);
 });
