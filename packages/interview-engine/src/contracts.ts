@@ -1,3 +1,4 @@
+import type { DiagnosticReport } from './diagnostic';
 export const VERSION = 1 as const;
 export const OBJECTIVES = [
   'ENTER_FAST',
@@ -64,7 +65,8 @@ export interface EvidenceLink {
 }
 export interface Topic {
   id: string;
-  criterionId: string;
+  diagnosticFindingId?: string;
+  criterionId: string | null;
   experienceId: string | null;
   missingEvidence: string;
   reason: string;
@@ -81,6 +83,7 @@ export interface Turn {
 }
 export interface Pending {
   id: string;
+  diagnosticFindingId?: string;
   criterionId: string | null;
   factIds: string[];
   reason: string;
@@ -131,6 +134,7 @@ export interface Session {
   links: EvidenceLink[];
   turns: Turn[];
   pending: Pending[];
+  diagnostics?: DiagnosticReport[];
   plan: Plan | null;
   strategy: Strategy | null;
   confirmation: Confirmation | null;

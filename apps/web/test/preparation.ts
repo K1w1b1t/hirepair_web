@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import { createSession, prepare, type PreparationRequest } from '@hirepair/interview-engine';
 export function preparationFixture(
   request: Pick<PreparationRequest, 'sessionId' | 'funnelSessionId'> &
-    Partial<Pick<PreparationRequest, 'objective' | 'provisional' | 'jobText'>>,
+    Partial<Pick<PreparationRequest, 'objective' | 'provisional' | 'jobText' | 'documents'>>,
 ) {
   const s = createSession(request.sessionId, request.funnelSessionId, {
     resumes: 'r',
@@ -9,6 +10,12 @@ export function preparationFixture(
     objective: 'o',
     facts: 'f',
   });
+  const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+  s.sources = (request.documents ?? []).map((document) => ({
+    ...document,
+    version: hash(document.text),
+  }));
+  s.inputs.resumes = hash(JSON.stringify(s.sources));
   s.objective = {
     value: request.objective ?? 'ENTER_FAST',
     provisional: request.provisional ?? false,

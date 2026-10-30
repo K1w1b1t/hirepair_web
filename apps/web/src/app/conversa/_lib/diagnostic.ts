@@ -1,155 +1,137 @@
-export type FindingKind = 'PARSING' | 'SENSITIVE_DATA' | 'EMBEDDED_IMAGE';
-export type FindingSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-
-export interface DiagnosticFinding {
-  kind: FindingKind;
-  severity: FindingSeverity;
-  title: string;
-  detail: string;
-  fact: string;
+import { applyCommand, attachDiagnostics, changeInput } from '@hirepair/interview-engine';
+import { readEngine, saveEngine } from './engine-storage';
+import { resumeStorageGeneration, updateStoredResume } from './resume-storage';
+import {
+  diagnoseDocument,
+  DIAGNOSTIC_RULES_VERSION,
+  type DiagnosticReport,
+  type Strategy,
+  type Session,
+} from '@hirepair/interview-engine';
+import type { StoredResume } from './resume-storage';
+import { sanitizeMaterial } from './sanitize-material';
+export async function sha256(value: string | ArrayBuffer): Promise<string> {
+  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+export type DiagnosticMaterial = Pick<StoredResume, 'id' | 'text'> &
+  Partial<
+    Pick<
+      StoredResume,
+      'source' | 'materialKind' | 'usedInApplications' | 'pageCount' | 'pages' | 'original'
+    >
+  >;
 
-const severityOrder: Record<FindingSeverity, number> = {
-  CRITICAL: 0,
-  HIGH: 1,
-  MEDIUM: 2,
-  LOW: 3,
-};
-
-const camelLegitimate = new Set([
-  'javascript',
-  'typescript',
-  'postgresql',
-  'mysql',
-  'mongodb',
-  'nodejs',
-  'nestjs',
-  'nextjs',
-  'reactjs',
-  'github',
-  'gitlab',
-  'linkedin',
-  'youtube',
-  'whatsapp',
-  'powerbi',
-  'powerpoint',
-  'wordpress',
-  'hubspot',
-  'salesforce',
-  'openai',
-  'hackerone',
-  'bugcrowd',
-  'tryhackme',
-  'hackthebox',
-  'devops',
-  'appsec',
-  'docker',
-  'kubernetes',
-  'autocad',
-  'totvs',
-  'iphone',
-  'macos',
-  'ios',
-]);
-
-const wordPattern = /\b\p{L}+\b/gu;
-const camelWordPattern = /\p{Ll}{2}\p{Lu}\p{Ll}/u;
-const repeatedPattern = /\b(\p{L}{2,})\s+\1\b/giu;
-const gluedFunctionalPattern = /(?:de|da|do|dos|das|em|no|na|com|para|e)[A-ZÀ-Þ]/;
-const nominalSuffixes = [
-  'ção',
-  'ções',
-  'são',
-  'mento',
-  'mentos',
-  'ência',
-  'ância',
-  'ura',
-  'ista',
-  'ário',
-];
-const prepositions = ['de', 'da', 'do', 'dos', 'das', 'em', 'no', 'na', 'com', 'para', 'e'];
-
-const sensitivePatterns: Array<[RegExp, string]> = [
-  [/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/, 'CPF'],
-  [/\bRG\b|\bregistro geral\b/i, 'RG'],
-  [/estado civil/i, 'estado civil'],
-  [/data de nascimento|nascimento\s*:|\bnascid[oa]\b/i, 'data de nascimento'],
-  [/filia[çc][ãa]o|nome do pai|nome da m[ãa]e/i, 'filiação'],
-];
-
-function unique(values: string[]): string[] {
-  return [...new Set(values)];
-}
-
-function appearsGlued(token: string): boolean {
-  if (camelLegitimate.has(token.toLowerCase())) return false;
-  return token.length >= 16 || (token.length >= 12 && gluedFunctionalPattern.test(token));
-}
-
-function parsingFindings(text: string): DiagnosticFinding[] {
-  const glued = [...text.matchAll(wordPattern)]
-    .map((match) => match[0])
-    .filter((token) => camelWordPattern.test(token))
-    .filter(appearsGlued);
-
-  for (const token of text.match(/\b[A-Za-zÀ-ÿ]{8,}\b/g) ?? []) {
-    const lower = token.toLowerCase();
-    const preposition = prepositions.find((value) => lower.endsWith(value));
-    if (!preposition) continue;
-    const root = lower.slice(0, -preposition.length);
-    if (root.length >= 7 && nominalSuffixes.some((suffix) => root.endsWith(suffix))) {
-      glued.push(token);
-    }
-  }
-
-  const uniqueGlued = unique(glued);
-  const findings: DiagnosticFinding[] = [];
-  if (uniqueGlued.length > 0) {
-    findings.push({
-      kind: 'PARSING',
-      severity: 'CRITICAL',
-      title: 'Palavras coladas no texto extraído',
-      fact: `O texto contém palavras que parecem ter perdido espaços: ${uniqueGlued.join(', ')}.`,
-      detail: `Exemplos encontrados: ${uniqueGlued.join(', ')}. Isso costuma derrubar candidatura porque o sistema de triagem pode interpretar o trecho como uma palavra desconhecida.`,
-    });
-  }
-
-  const repeated = unique([...text.matchAll(repeatedPattern)].map((match) => match[0]));
-  if (repeated.length > 0) {
-    findings.push({
-      kind: 'PARSING',
-      severity: 'LOW',
-      title: 'Termo repetido em sequência',
-      fact: `O texto mostra repetição imediata: ${repeated.join(', ')}.`,
-      detail: `Exemplos encontrados: ${repeated.join(', ')}. Isso costuma indicar um erro de digitação que pode tirar clareza da leitura.`,
-    });
-  }
-  return findings;
-}
-
-function sensitiveFindings(text: string): DiagnosticFinding[] {
-  const found = unique(
-    sensitivePatterns.filter(([pattern]) => pattern.test(text)).map(([, label]) => label),
-  );
-  if (found.length === 0) return [];
-  return [
-    {
-      kind: 'SENSITIVE_DATA',
-      severity: 'HIGH',
-      title: 'Dado pessoal desnecessário no documento',
-      fact: `O parser encontrou: ${found.join(', ')}.`,
-      detail: `Encontrado: ${found.join(', ')}. Esse dado não ajuda a aferir competência, ocupa espaço de palavras-chave e aumenta sua exposição sem necessidade.`,
-    },
-  ];
-}
-
-export function sortDiagnosticFindings(findings: DiagnosticFinding[]): DiagnosticFinding[] {
-  return [...findings].sort(
-    (first, second) => severityOrder[first.severity] - severityOrder[second.severity],
+export async function diagnoseStoredDocuments(
+  documents: DiagnosticMaterial[],
+  target: string,
+  archetype?: Strategy['archetype'],
+  session?: Session,
+): Promise<DiagnosticReport[]> {
+  const now = new Date();
+  const nowMonth = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  return Promise.all(
+    documents
+      .filter((doc) => doc.materialKind !== 'story')
+      .map(async (doc) => {
+        const hash = await sha256(doc.text);
+        const sourceVersion = await sha256(sanitizeMaterial(doc.text));
+        const source = session?.sources.find(
+          (source) => source.id === doc.id && source.version === sourceVersion,
+        );
+        // Quotes are mapped by exact content, never by offsets from the sanitized source.
+        const experiences = source
+          ? session!.experiences
+              .filter(
+                (e) =>
+                  e.origin.sourceId === doc.id &&
+                  e.origin.sourceVersion === sourceVersion &&
+                  doc.text.includes(e.origin.quote),
+              )
+              .map((e) => ({
+                id: e.id,
+                quote: e.origin.quote,
+                start: e.start,
+                end: e.end,
+                current: e.current,
+              }))
+          : [];
+        const fileHash =
+          doc.source === 'file' && doc.original && typeof doc.original.arrayBuffer === 'function'
+            ? await sha256(await doc.original.arrayBuffer())
+            : undefined;
+        const document = {
+          id: doc.id,
+          hash,
+          ...(fileHash ? { fileHash } : {}),
+          text: doc.text,
+          usedInApplications: doc.usedInApplications ?? 'unknown',
+          ...(doc.pageCount === undefined ? {} : { pageCount: doc.pageCount }),
+          ...(doc.pages ? { pages: doc.pages } : {}),
+        };
+        const contextVersion = await sha256(
+          JSON.stringify({
+            rules: DIAGNOSTIC_RULES_VERSION,
+            document,
+            target,
+            archetype,
+            experiences,
+            nowMonth,
+          }),
+        );
+        const company = /(?:^|\n)empresa\s*:\s*([^\n]+)/iu.exec(target)?.[1].trim();
+        return {
+          ...diagnoseDocument({
+            document,
+            contextVersion,
+            nowMonth,
+            archetype,
+            target: { company },
+            experiences,
+          }),
+          sourceVersion,
+        };
+      }),
   );
 }
-
-export function diagnoseResumeText(text: string): DiagnosticFinding[] {
-  return sortDiagnosticFindings([...parsingFindings(text), ...sensitiveFindings(text)]);
+export async function persistDiagnosticReports(
+  documents: StoredResume[],
+  reports: DiagnosticReport[],
+): Promise<StoredResume[]> {
+  const generation = resumeStorageGeneration();
+  const updated = await Promise.all(
+    documents.map(async (doc) => {
+      const report = reports.find((r) => r.document?.id === doc.id);
+      if (doc.diagnostic?.contextVersion === report?.contextVersion) return doc;
+      return updateStoredResume(doc.id, doc.revision ?? 0, { diagnostic: report });
+    }),
+  );
+  if (generation !== resumeStorageGeneration()) throw new Error('DOCUMENT_NOT_FOUND');
+  const session =
+    documents.length === 0 && typeof indexedDB === 'undefined' ? null : await readEngine();
+  const sources = await Promise.all(
+    documents.map(async (doc) => {
+      const text = sanitizeMaterial(doc.text);
+      return { id: doc.id, text, version: await sha256(text) };
+    }),
+  );
+  const resumesHash = await sha256(JSON.stringify(sources));
+  if (
+    session &&
+    (session.inputs.resumes !== resumesHash ||
+      JSON.stringify(session.diagnostics ?? []) !== JSON.stringify(reports))
+  ) {
+    const hash = await sha256(JSON.stringify(reports.map((r) => r.contextVersion)));
+    // Revision is part of the command identity: returning to an earlier context is a new change.
+    const next = applyCommand(
+      session,
+      `diagnostics:${session.revision}:${hash}`,
+      hash,
+      session.revision,
+      (s) => attachDiagnostics(changeInput(s, 'resumes', resumesHash), reports),
+    );
+    await saveEngine(next, session.revision);
+  }
+  return updated;
 }

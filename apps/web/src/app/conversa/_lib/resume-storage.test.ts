@@ -152,3 +152,80 @@ it('does not resurrect an import whose extraction started before deletion', asyn
   expect(await saveStoredResume(firstResume, generation)).toBe(false);
   expect(await listStoredResumes()).toEqual([]);
 });
+
+import { updateStoredResume } from './resume-storage';
+it('compares local revisions and cannot recreate a deleted document', async () => {
+  await clearStoredResumes();
+  await saveStoredResume(firstResume);
+  const updated = await updateStoredResume(firstResume.id, 0, { usedInApplications: 'yes' });
+  expect(updated).toMatchObject({ revision: 1, usedInApplications: 'yes' });
+  await expect(updateStoredResume(firstResume.id, 0, { usedInApplications: 'no' })).rejects.toThrow(
+    'REVISION_CONFLICT',
+  );
+  await deleteStoredResume(firstResume.id);
+  await expect(updateStoredResume(firstResume.id, 1, {})).rejects.toThrow('DOCUMENT_NOT_FOUND');
+});
+it('drops obsolete pagination and findings when replacing text', async () => {
+  await clearStoredResumes();
+  await saveStoredResume({ ...firstResume, pageCount: 3, pages: [{ page: 1, start: 0, end: 2 }] });
+  const same = await updateStoredResume(firstResume.id, 0, { text: firstResume.text });
+  expect(same.pageCount).toBe(3);
+  const updated = await updateStoredResume(firstResume.id, 1, { text: 'Novo currículo sintético' });
+  expect(updated).toMatchObject({
+    text: 'Novo currículo sintético',
+    revision: 2,
+    usedInApplications: 'unknown',
+    source: 'pasted',
+    fileType: 'TXT',
+  });
+  expect(updated.pageCount).toBeUndefined();
+  expect(updated.pages).toBeUndefined();
+});
+it('rejects metadata writes without durable storage', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB')!;
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: undefined });
+  try {
+    await expect(updateStoredResume('missing', 0, {})).rejects.toThrow('LOCAL_STORAGE_UNAVAILABLE');
+  } finally {
+    Object.defineProperty(globalThis, 'indexedDB', descriptor);
+  }
+});
+it.each(['get', 'put'] as const)('reports a failed metadata %s request', async (method) => {
+  await clearStoredResumes();
+  await saveStoredResume(firstResume);
+  const spy = jest.spyOn(IDBObjectStore.prototype, method).mockImplementation(() => {
+    const request = new EventTarget();
+    queueMicrotask(() => request.dispatchEvent(new Event('error')));
+    return request as IDBRequest;
+  });
+  try {
+    await expect(updateStoredResume(firstResume.id, 0, {})).rejects.toThrow(
+      'LOCAL_STORAGE_UNAVAILABLE',
+    );
+  } finally {
+    spy.mockRestore();
+  }
+});
+it('updates one document without dropping its neighbors from the fallback', async () => {
+  await clearStoredResumes();
+  await saveStoredResume(firstResume);
+  await saveStoredResume(secondResume);
+  await updateStoredResume(firstResume.id, 0, { usedInApplications: 'yes' });
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB')!;
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: undefined });
+  try {
+    expect(await listStoredResumes()).toEqual([
+      expect.objectContaining({ usedInApplications: 'yes' }),
+      secondResume,
+    ]);
+  } finally {
+    Object.defineProperty(globalThis, 'indexedDB', descriptor);
+  }
+});
+it('preserves the imported original until explicit deletion when correcting its extracted text', async () => {
+  await clearStoredResumes();
+  const original = new File(['synthetic bytes'], 'original.pdf', { type: 'application/pdf' });
+  await saveStoredResume({ ...firstResume, original });
+  const updated = await updateStoredResume(firstResume.id, 0, { text: 'Texto corrigido' });
+  expect(updated.original).toBeDefined();
+});

@@ -309,20 +309,6 @@ export function JobRecommendationsStep({
           </ul>
         ) : null}
       </div>
-      {result.preparation?.plan ? (
-        <section aria-label="Plano inicial de investigação">
-          <h2>O que vamos entender melhor</h2>
-          <p>Conte do seu jeito. Você não precisa conhecer termos de currículo.</p>
-          <ol>
-            {result.preparation.plan.topics.map((topic) => (
-              <li key={topic.id}>
-                <strong>{topic.missingEvidence}</strong>
-                <p>{topic.reason}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
       <div className="job-recommendation-choices">
         <Choice<Archetype>
           title="Estrutura do currículo"

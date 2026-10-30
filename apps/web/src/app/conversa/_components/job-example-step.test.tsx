@@ -351,7 +351,7 @@ it('requires a declared objective and accepts a provisional decision explicitly'
   fireEvent.change(screen.getByLabelText('Objetivo provisório'), { target: { value: 'yes' } });
   expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ provisional: true }));
 });
-it('explains each topic in the initial plan without executing interview questions', () => {
+it('keeps internal investigation topics out of the candidate interface', () => {
   const session = preparationFixture({
     sessionId: 's',
     funnelSessionId: 'f',
@@ -374,9 +374,10 @@ it('explains each topic in the initial plan without executing interview question
       onEditJob={jest.fn()}
     />,
   );
-  expect(screen.getByRole('region', { name: 'Plano inicial de investigação' })).toHaveTextContent(
-    'Conte um exemplo do que você fez.',
-  );
+  expect(
+    screen.queryByRole('region', { name: 'Plano inicial de investigação' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Conte um exemplo do que você fez.')).not.toBeInTheDocument();
 });
 it('shows a previously confirmed provisional objective', () => {
   render(

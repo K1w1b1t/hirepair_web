@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { diagnoseResumeText } from '../_lib/diagnostic';
 import {
   extractTextFromFile,
   extractedTextFromPaste,
@@ -27,7 +26,7 @@ function createPastedResume(value: string): StoredResume {
     ...extractedTextFromPaste(value),
     fileName: 'Adicionado manualmente',
   };
-  return toStoredResume(document, diagnoseResumeText(document.text));
+  return toStoredResume(document, []);
 }
 
 function ImportErrorToast({
@@ -96,7 +95,7 @@ export function ImportPanel({ onDocumentsChange }: ImportPanelProps) {
   const addDocument = async (document: ExtractedText, original: File, generation: number) => {
     hasLocalChanges.current = true;
     const storedDocument = {
-      ...toStoredResume(document, diagnoseResumeText(document.text)),
+      ...toStoredResume(document, []),
       original,
     };
     const saved = await saveStoredResume(storedDocument, generation);

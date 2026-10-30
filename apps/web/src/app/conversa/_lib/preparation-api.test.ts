@@ -1,3 +1,4 @@
+jest.mock('./diagnostic', () => ({ __esModule: true, ...jest.requireActual('./diagnostic') }));
 jest.mock('./engine-storage', () => {
   const actual = jest.requireActual<typeof import('./engine-storage')>('./engine-storage');
   return { __esModule: true, ...actual, readEngine: jest.fn(actual.readEngine) };
@@ -229,4 +230,69 @@ it('does not advance for an invalid response implementation at the HTTP boundary
   });
   await expect(analyzeGuest(documents, draft, challenge)).rejects.toThrow('invalid JSON reader');
   expect((await readEngine())?.phase).toBe('preparation');
+});
+it('uses internal document findings to enrich the interview plan without an extra provider request', async () => {
+  success();
+  const result = await analyzeGuest(
+    [{ id: 'cv', text: 'CPF: 123.456.789-09\nDomínio completo da operação.' }],
+    draft,
+    challenge,
+  );
+  expect(result.preparation?.diagnostics?.[0].findings.map((f) => f.code)).toEqual(
+    expect.arrayContaining(['UNNECESSARY_PERSONAL_DATA', 'SCOPE_NEEDS_SUPPORT']),
+  );
+  expect(result.preparation?.plan?.topics.some((t) => t.diagnosticFindingId)).toBe(true);
+  expect((await readEngine())?.diagnostics).toEqual(result.preparation?.diagnostics);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(JSON.stringify(fetchMock.mock.calls)).not.toContain('123.456.789-09');
+});
+
+import * as diagnostic from './diagnostic';
+import { resolveDiagnosticFinding } from '@hirepair/interview-engine';
+it('cancels during local diagnosis without committing a stale prepared session', async () => {
+  const actual = jest.requireActual<typeof import('./diagnostic')>('./diagnostic');
+  const spy = jest
+    .spyOn(diagnostic, 'diagnoseStoredDocuments')
+    .mockImplementationOnce(async (...args) => {
+      const reports = await actual.diagnoseStoredDocuments(...args);
+      cancelPreparation();
+      return reports;
+    });
+  try {
+    success();
+    await expect(analyzeGuest(documents, draft, challenge)).rejects.toMatchObject({
+      code: 'REQUEST_CANCELLED',
+    });
+    expect((await readEngine())?.phase).toBe('preparation');
+  } finally {
+    spy.mockRestore();
+  }
+});
+it('preserves unresolved diagnostic pending items and does not reopen a resolved finding on reprepare', async () => {
+  const docs = [{ id: 'cv', text: 'Domínio completo' }];
+  success();
+  await analyzeGuest(docs, draft, challenge);
+  const previous = (await readEngine())!;
+  const finding = previous.diagnostics![0].findings[0];
+  previous.pending.push({
+    id: 'unrelated',
+    criterionId: null,
+    factIds: [],
+    reason: 'unrelated',
+    blocking: false,
+  });
+  await saveEngine(previous, previous.revision);
+  success();
+  await analyzeGuest(docs, draft, challenge);
+  const current = (await readEngine())!;
+  expect(current.pending.some((p) => p.diagnosticFindingId === finding.id)).toBe(true);
+  expect(current.plan!.topics.filter((t) => t.diagnosticFindingId)).toEqual(
+    previous.plan!.topics.filter((t) => t.diagnosticFindingId),
+  );
+  const resolved = resolveDiagnosticFinding(current, finding.id);
+  await saveEngine({ ...resolved, revision: current.revision + 1 }, current.revision);
+  success();
+  const result = await analyzeGuest(docs, draft, challenge);
+  expect(result.preparation!.pending.filter((p) => p.diagnosticFindingId)).toEqual([]);
+  expect(result.preparation!.plan!.topics.filter((t) => t.diagnosticFindingId)).toEqual([]);
 });

@@ -7,6 +7,8 @@ export interface ExtractedText {
   fileName: string;
   source: ExtractionSource;
   fileType: 'PDF' | 'DOCX' | 'TXT' | 'MD';
+  pageCount?: number;
+  pages?: Array<{ page: number; start: number; end: number }>;
 }
 
 const supportedExtensions = new Map<ExtractedText['fileType'], string[]>([
@@ -37,7 +39,9 @@ function ensureText(text: string): string {
   return normalized;
 }
 
-async function extractPdf(file: File): Promise<string> {
+async function extractPdf(
+  file: File,
+): Promise<Pick<ExtractedText, 'text' | 'pageCount' | 'pages'>> {
   const [pdfjs, pdfWorker] = await Promise.all([
     import('pdfjs-dist/legacy/build/pdf.mjs'),
     import('pdfjs-dist/legacy/build/pdf.worker.mjs?url'),
@@ -56,7 +60,23 @@ async function extractPdf(file: File): Promise<string> {
         .join(' '),
     );
   }
-  return pages.join('\n');
+  const normalized = pages.map((text) => text.replace(/\r\n/g, '\n'));
+  const joined = normalized.join('\n');
+  const leading = joined.length - joined.trimStart().length;
+  let offset = 0;
+  return {
+    text: joined.trim(),
+    pageCount: document.numPages,
+    pages: normalized.map((text, i) => {
+      const start = Math.max(0, offset - leading);
+      offset += text.length + 1;
+      return {
+        page: i + 1,
+        start,
+        end: Math.max(start, Math.min(joined.trim().length, offset - 1 - leading)),
+      };
+    }),
+  };
 }
 
 async function extractDocx(file: File): Promise<string> {
@@ -72,16 +92,21 @@ async function readPlainText(file: File): Promise<string> {
 export async function extractTextFromFile(file: File): Promise<ExtractedText> {
   const fileType = ensureValidFile(file);
   let text: string;
+  let pagination: Pick<ExtractedText, 'pageCount' | 'pages'> = {};
   try {
     if (fileType === 'TXT' || fileType === 'MD') text = await readPlainText(file);
-    else if (fileType === 'PDF') text = await extractPdf(file);
-    else text = await extractDocx(file);
+    else if (fileType === 'PDF') {
+      const extracted = await extractPdf(file);
+      text = extracted.text;
+      pagination = { pageCount: extracted.pageCount, pages: extracted.pages };
+    } else text = await extractDocx(file);
   } catch {
     throw new Error('Não foi possível ler esse arquivo. Tente outro arquivo ou cole o texto.');
   }
 
   return {
     text: ensureText(text),
+    ...pagination,
     fileName: file.name,
     source: 'file',
     fileType,

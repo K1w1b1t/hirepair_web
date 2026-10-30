@@ -110,6 +110,8 @@ describe('extractTextFromFile', () => {
       fileName: 'curriculo.pdf',
       source: 'file',
       fileType: 'PDF',
+      pageCount: 1,
+      pages: [{ page: 1, start: 0, end: 40 }],
     });
     expect(mockGetDocument).toHaveBeenCalledWith({ data: expect.anything() });
   });
@@ -140,6 +142,11 @@ describe('extractTextFromFile', () => {
       fileName: 'curriculo.pdf',
       source: 'file',
       fileType: 'PDF',
+      pageCount: 2,
+      pages: [
+        { page: 1, start: 0, end: 15 },
+        { page: 2, start: 16, end: 30 },
+      ],
     });
   });
 

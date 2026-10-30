@@ -1,5 +1,7 @@
+import { diagnoseStoredDocuments, type DiagnosticMaterial } from './diagnostic';
 import {
   createSession,
+  attachDiagnostics,
   replan,
   mergeHistory,
   interrupt,
@@ -156,6 +158,8 @@ async function storePreparation(
   previous: Session | null,
   sessionId: string,
   funnelSessionId: string,
+  documents: DiagnosticMaterial[],
+  currentGeneration: number,
 ): Promise<JobAnalysisResult> {
   try {
     validatePreparation(result, sanitizeMaterial(draft.hasJob ? draft.jobText : ''));
@@ -182,6 +186,25 @@ async function storePreparation(
     session.plan = replan(session);
     session.strategy!.inputs = { ...session.inputs };
   }
+  const reports = await diagnoseStoredDocuments(
+    documents,
+    draft.hasJob ? draft.jobText : draft.targetRole,
+    session.strategy!.archetype,
+    session,
+  );
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  session = attachDiagnostics(
+    {
+      ...session,
+      diagnostics: previous?.diagnostics,
+      pending: [
+        ...session.pending,
+        ...(previous?.pending ?? []).filter((p) => p.diagnosticFindingId),
+      ],
+    },
+    reports,
+  );
+  session.plan = replan(session);
   session.revision = (previous?.revision ?? 0) + 1;
   await saveEngine(session, previous?.revision ?? 0);
   sessionStorage.setItem('hirepair_funnel_session_id', session.funnelSessionId);
@@ -191,7 +214,7 @@ async function storePreparation(
   return {
     preparation: session,
     targetRole: draft.targetRole || 'Sua próxima vaga',
-    summary: `${session.plan!.topics.length} tópico${session.plan!.topics.length === 1 ? '' : 's'} para investigar. Os fatos importados ainda precisam da sua confirmação.`,
+    summary: 'Sua conversa está preparada. Vamos conhecer melhor sua experiência.',
     requirements: session.criteria.map(({ text, category }) => ({ text, category })),
     suggestedArchetype: strategy.archetype,
     suggestedObjective: draft.objective!,
@@ -264,7 +287,7 @@ async function requestAnalysis(
   });
 }
 export async function analyzeGuest(
-  documents: Array<{ id: string; text: string }>,
+  documents: DiagnosticMaterial[],
   draft: JobDraft,
   challenge: GuestChallenge,
 ): Promise<JobAnalysisResult> {
@@ -304,7 +327,15 @@ export async function analyzeGuest(
   });
   if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
   if (draft.objective) {
-    return storePreparation(result, draft, previous, sessionId, funnelSessionId);
+    return storePreparation(
+      result,
+      draft,
+      previous,
+      sessionId,
+      funnelSessionId,
+      documents,
+      currentGeneration,
+    );
   }
   if (!isJobAnalysisResult(result)) throw new AnalysisFailure('AI_INVALID_RESPONSE');
   removeBrowserValue(PENDING_KEY);

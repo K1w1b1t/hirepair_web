@@ -46,8 +46,8 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Pronto para continuar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continuar' })).toBeVisible();
-    await expect(page.getByText('Gabriel Rodrigues')).toHaveCount(0);
-    await expect(page.getByText('Engenheiro de software')).toHaveCount(0);
+    await expect(page.getByText('Gabriel Rodrigues').filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText('Engenheiro de software').filter({ visible: true })).toHaveCount(0);
   });
 
   test('separa vaga e recomendações em etapas claras', async ({ page }) => {
@@ -88,7 +88,9 @@ test.describe('wizard acolhedor', () => {
 
     await expect(page.getByText('Passo 3 de 5')).toBeVisible();
     await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Plano inicial de investigação' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Plano inicial de investigação' })).toHaveCount(
+      0,
+    );
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: '../../docs/backend/evidence/43-plano.png', fullPage: true });
     await expect(page.getByRole('radio', { name: /transição de carreira/i })).toBeChecked();
