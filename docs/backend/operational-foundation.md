@@ -140,3 +140,30 @@ Ver [ADR 0043](../architecture/adr-0043-evidence-interview.md) e
 [roteiro de entregas](../architecture/product-delivery-roadmap.md). O pacote de domínio
 é compilado no postinstall e antes dos builds/testes/typecheck; instalações devem
 executar os scripts normais do npm, incluindo a geração do Prisma já exigida.
+
+## Entrevista incremental (#15)
+
+`POST /guest/interview-block` usa Bearer visitante, consentimento vigente obtido na
+emissão de acesso, `Idempotency-Key`, throttle de seis requisições/minuto e contrato
+v1 fechado compartilhado. Recebe contexto mínimo, alvo, turnos e tópicos; não
+aceita prompt nem operação enviados pelo cliente. O servidor escolhe
+`interview-extraction`, schema e instruções, minimiza identificadores reconhecidos,
+estima tokens e reserva capacidade antes de chamar o provedor. O limite HTTP é
+20.000 caracteres do JSON; cada resposta tem limite adicional de 10.000 caracteres.
+A operação usa uma tentativa, até 1.200 tokens de saída e prazo de 15 segundos.
+
+Blocos compartilham lock por visitante, idempotência por identidade/insumos e teto
+de rede das análises legadas. O contador de tentativas de blocos é separado do
+limite de três análises legadas; isso não abre nova franquia de IA. Todas as
+chamadas anteriores à redação usam os mesmos contadores centrais com teto de cinco
+chamadas/30.000 tokens por sessão e visitante em sete dias, reservando uma chamada
+e 6.000 tokens para #18 dentro do total de seis/36.000. Limites globais, por
+ambiente, modelo, rede e minuto continuam simultâneos. A concorrência é validada
+contra Redis isolado por `npm run test:operational -w @hirepair/api`.
+
+O cliente preserva a chave do bloco se o resultado fica incerto. Uma repetição
+já processada não refaz a chamada nem recupera conteúdo pessoal do servidor.
+Falha de Redis bloqueia IA; indisponibilidade mantém os relatos locais e permite
+revisão parcial. Logs, Redis e telemetria não recebem relatos, fatos ou perfil.
+Não há migração Prisma, nova variável obrigatória ou ativação automática da IA.
+O rollback é reverter a entrega; os campos adicionais da sessão v1 são opcionais.

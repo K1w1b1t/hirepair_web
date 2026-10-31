@@ -60,3 +60,27 @@ it('reports missing IndexedDB as an explicit local persistence failure', async (
     Object.defineProperty(globalThis, 'indexedDB', descriptor);
   }
 });
+import { readHeaderProfile, saveHeaderProfile } from './engine-storage';
+it('keeps the optional confirmed header separate from the engine and deletes both', async () => {
+  await deleteEngine();
+  expect(await readHeaderProfile()).toBeNull();
+  await saveEngine(s(), null);
+  const profile = {
+    name: 'Pessoa sintética',
+    email: 'sintetico@example.test',
+    phone: '',
+    confirmed: true,
+  };
+  await saveHeaderProfile(profile);
+  expect(await readHeaderProfile()).toEqual(profile);
+  expect(await readEngine()).not.toHaveProperty('profile');
+  await deleteEngine();
+  expect(await readHeaderProfile()).toBeNull();
+});
+it('does not restore a header profile after the active journey was deleted', async () => {
+  await deleteEngine();
+  await expect(
+    saveHeaderProfile({ name: 'Tarde', email: '', phone: '', confirmed: true }),
+  ).rejects.toThrow('REVISION_CONFLICT');
+  expect(await readHeaderProfile()).toBeNull();
+});

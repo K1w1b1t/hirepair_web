@@ -775,3 +775,60 @@
     animation: none;
   }
 }
+
+.interview-workspace {
+  display: grid;
+  gap: 1rem;
+}
+.interview-workspace h1:focus {
+  outline: none;
+}
+.interview-workspace h1:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+.interview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.interview-facts {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+.interview-facts li {
+  border-top: 1px solid var(--color-text-dim);
+  padding-top: 1rem;
+}
+.interview-answer,
+.interview-workspace textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-text-dim);
+  border-radius: 0.75rem;
+}
+
+.interview-workspace h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 600;
+  color: var(--color-navy);
+  line-height: 1.25;
+  scroll-margin-top: 8rem;
+}
+.interview-workspace h2 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.interview-workspace .job-result-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+.interview-workspace label {
+  display: grid;
+  gap: 0.4rem;
+}

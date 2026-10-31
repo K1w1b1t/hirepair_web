@@ -49,3 +49,18 @@ describe('GuestQuotaService', () => {
     ).resolves.toBeUndefined();
   });
 });
+it('shares the visitor lock and network quota while keeping block attempts separate from legacy analyses', async () => {
+  process.env.GUEST_ACCESS_SECRET = 's'.repeat(32);
+  const run = jest.fn().mockResolvedValue(['OK', 0]);
+  const quota = new GuestQuotaService({ run } as never);
+  await quota.reserveInterviewBlock('visitor', 'network', 'key', 'hash');
+  const block = run.mock.calls[0] as [string, string[], Array<string | number>];
+  await quota.reserveAnalysis('visitor', 'network', 'other', 'hash2');
+  const legacy = run.mock.calls[1] as [string, string[], Array<string | number>];
+  expect(block[1][0]).not.toBe(legacy[1][0]);
+  expect(block[1][1]).toBe(legacy[1][1]);
+  expect(block[1][2]).toContain(':blocks:');
+  expect(block[1][3]).toBe(legacy[1][3]);
+  expect(block[2][2]).toBe(100);
+  expect(legacy[2][2]).toBe(3);
+});

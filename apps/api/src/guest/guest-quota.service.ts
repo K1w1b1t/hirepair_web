@@ -52,25 +52,42 @@ export class GuestQuotaService {
     );
     if (blocked) throw operationalError('NETWORK_LIMIT_REACHED', 429, Math.ceil(ttl / 1000));
   }
+  async reserveInterviewBlock(
+    visitorId: string,
+    network: string,
+    key: string,
+    hash: string,
+  ): Promise<AnalysisLease> {
+    return this.beginOperation(visitorId, network, key, hash, true);
+  }
   async reserveAnalysis(
     visitorId: string,
     network: string,
     key: string,
     hash: string,
   ): Promise<AnalysisLease> {
+    return this.beginOperation(visitorId, network, key, hash, false);
+  }
+  private async beginOperation(
+    visitorId: string,
+    network: string,
+    key: string,
+    hash: string,
+    block: boolean,
+  ): Promise<AnalysisLease> {
     const subject = opaqueId(visitorId);
     const prefix = this.prefix();
     const keys = [
       `${prefix}:idempotency:${subject}:${opaqueId(key)}`,
       `${prefix}:lock:${subject}`,
-      `${prefix}:attempts:${subject}`,
+      `${prefix}:${block ? 'blocks' : 'attempts'}:${subject}`,
       `${prefix}:network:${opaqueId(network)}`,
     ];
     const owner = randomUUID();
     const [code, ttl] = await this.redis.run<[string, number]>(BEGIN_ANALYSIS_SCRIPT, keys, [
       hash,
       owner,
-      3,
+      block ? 100 : 3,
       30,
       RECORD_TTL_MS,
     ]);

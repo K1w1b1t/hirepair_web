@@ -118,7 +118,7 @@ describe('ConversationPage', () => {
     expect(window.location.search).toBe('?etapa=recommendations');
     expect(screen.getByText('Passo 3 de 5')).toBeInTheDocument();
     expect(screen.queryByLabelText(/requisitos da vaga/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /começar entrevista/i })).toBeEnabled();
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
 

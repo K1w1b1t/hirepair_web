@@ -66,7 +66,6 @@ export async function restoreJourney(
     }
     if (
       saved?.version === 3 &&
-      documents.length > 0 &&
       isJobAnalysisResult(saved.result) &&
       validPreferences(saved.preferences) &&
       saved.inputHash === (await inputFingerprint(documents, draft))

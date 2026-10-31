@@ -73,6 +73,19 @@ jest.mock('./job-example-step', () => ({
   }) => (
     <div>
       <button onClick={() => onComplete(result, 'hash')}>Analyze</button>
+      <button
+        onClick={() =>
+          onComplete(
+            {
+              ...result,
+              preparation: preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session,
+            },
+            'hash',
+          )
+        }
+      >
+        Analyze prepared
+      </button>
       <button onClick={() => onDraftChange({ ...draft, hasJob: false })}>Change mode</button>
       <button onClick={() => onDraftChange({ ...draft, targetRole: 'New role' })}>
         Change target
@@ -84,13 +97,16 @@ jest.mock('./job-example-step', () => ({
     </div>
   ),
   JobRecommendationsStep: ({
+    onContinue,
     onEditJob,
     onPreferencesChange,
   }: {
+    onContinue: () => void;
     onEditJob: () => void;
     onPreferencesChange: (preferences: typeof snapshot.preferences) => void;
   }) => (
     <div>
+      <button onClick={onContinue}>Interview</button>
       Recommendations<button onClick={onEditJob}>Edit job</button>
       <button onClick={() => onPreferencesChange(preferences)}>Preferences</button>
       <button onClick={() => onPreferencesChange({ ...preferences, objective: 'CHANGE_FIELD' })}>
@@ -98,6 +114,27 @@ jest.mock('./job-example-step', () => ({
       </button>
     </div>
   ),
+}));
+let lateSessionChange:
+  ((session: import('@hirepair/interview-engine').Session) => void) | undefined;
+jest.mock('./interview-workspace', () => ({
+  InterviewWorkspace: ({
+    session,
+    onChange,
+  }: {
+    session: import('@hirepair/interview-engine').Session;
+    onChange: (s: import('@hirepair/interview-engine').Session) => void;
+  }) => {
+    lateSessionChange = onChange;
+    return (
+      <div>
+        Interview view
+        <button onClick={() => onChange({ ...session, phase: 'confirmation' })}>
+          Review block
+        </button>
+      </div>
+    );
+  },
 }));
 describe('conversation persistence and transitions', () => {
   beforeEach(() => {
@@ -292,4 +329,79 @@ it('does not report full deletion when document storage fails to clear', async (
   fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível excluir');
   confirm.mockRestore();
+});
+it('starts without documents, saves the same session and restores the relevant interview screen', async () => {
+  window.history.replaceState({}, '', '/conversa');
+  list.mockResolvedValue([]);
+  restore.mockResolvedValue({ draft: initialDraft });
+  const view = render(<ConversationPageClient />);
+  await screen.findByText('Começar sem currículo');
+  fireEvent.click(screen.getByText('Começar sem currículo'));
+  expect(window.location.search).toContain('sem-curriculo=1');
+  await screen.findByText('Analyze prepared');
+  fireEvent.click(screen.getByText('Analyze prepared'));
+  await screen.findByText('Interview view');
+  fireEvent.click(screen.getByText('Review block'));
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
+  fireEvent.click(screen.getByRole('button', { name: /voltar para a etapa anterior/i }));
+  await screen.findByText('Analyze');
+  view.unmount();
+  window.history.replaceState({}, '', '/conversa?etapa=recommendations&sem-curriculo=1');
+  restore.mockResolvedValue({
+    ...snapshot,
+    result: {
+      ...result,
+      preparation: preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session,
+    },
+  });
+  render(<ConversationPageClient />);
+  await screen.findByText('Interview view');
+});
+it.each(['confirmation', 'ready'] as const)(
+  'restores the %s screen even when the requested entry is outdated',
+  async (phase) => {
+    window.history.replaceState({}, '', '/conversa');
+    list.mockResolvedValue([resume]);
+    const s = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+    s.phase = phase;
+    restore.mockResolvedValue({ ...snapshot, result: { ...result, preparation: s } });
+    render(<ConversationPageClient />);
+    await screen.findByText('Interview view');
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
+    fireEvent.click(screen.getByRole('button', { name: /voltar para a etapa anterior/i }));
+    await screen.findByText('Recommendations');
+  },
+);
+it('continues from imported recommendations and cannot resurrect state through a late child update after deletion', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=recommendations');
+  list.mockResolvedValue([resume]);
+  const s = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+  restore.mockResolvedValue({ ...snapshot, result: { ...result, preparation: s } });
+  render(<ConversationPageClient />);
+  await screen.findByText('Recommendations');
+  fireEvent.click(screen.getByText('Interview'));
+  await screen.findByText('Interview view');
+  const late = lateSessionChange!;
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  fireEvent.click(screen.getByText('Excluir minha jornada deste aparelho'));
+  await screen.findByText('Começar sem currículo');
+  act(() => late(s));
+  expect(screen.queryByText('Interview view')).not.toBeInTheDocument();
+  confirm.mockRestore();
+});
+it('allows vacancy entry without documents when the explicit mode was selected', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=job&sem-curriculo=1');
+  list.mockResolvedValue([]);
+  restore.mockResolvedValue({ draft: initialDraft });
+  render(<ConversationPageClient />);
+  await screen.findByText('Analyze');
+  expect(window.location.search).toContain('etapa=job');
+});
+it('does not imply a review phase for a legacy result without a prepared aggregate', async () => {
+  window.history.replaceState({}, '', '/conversa?etapa=interview');
+  list.mockResolvedValue([resume]);
+  restore.mockResolvedValue(snapshot);
+  render(<ConversationPageClient />);
+  await screen.findByText('Recommendations');
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4');
 });

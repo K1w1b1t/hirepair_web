@@ -1,5 +1,5 @@
 import type { Extraction, CriteriaAnalysis, Source } from './contracts';
-type Schema = {
+export type Schema = {
   type?: string;
   properties?: Record<string, Schema>;
   items?: Schema;
@@ -7,6 +7,7 @@ type Schema = {
   maximum?: number;
   minimum?: number;
   maxLength?: number;
+  minLength?: number;
   maxItems?: number;
   anyOf?: Schema[];
   additionalProperties?: boolean;
@@ -84,7 +85,11 @@ export function matches(value: unknown, schema: Schema): boolean {
     case 'boolean':
       return typeof value === 'boolean';
     case 'string':
-      return typeof value === 'string' && !!value.trim() && value.length <= schema.maxLength!;
+      return (
+        typeof value === 'string' &&
+        (schema.minLength === 0 || !!value.trim()) &&
+        value.length <= schema.maxLength!
+      );
     case 'integer':
       return (
         typeof value === 'number' &&

@@ -1,6 +1,7 @@
 /** Real Redis + HTTP boundary checks. Run only against an isolated local Redis. */
 import * as assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { discovery } from '@hirepair/interview-engine';
 import { Controller, Get } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -163,7 +164,7 @@ async function main(): Promise<void> {
       'rejected reservation creates no attempt',
     );
     await clean();
-    for (let i = 0; i < 6; i++) await budget.reserve(context, 'openai/gpt-oss-120b', 100);
+    for (let i = 0; i < 5; i++) await budget.reserve(context, 'openai/gpt-oss-120b', 100);
     await assert.rejects(
       budget.reserve(context, 'openai/gpt-oss-120b', 100),
       /AI_CAPACITY_EXHAUSTED/,
@@ -384,8 +385,135 @@ async function main(): Promise<void> {
     assert.equal((await post('/guest/interview-preparation', preparation)).status, 401);
 
     await clean();
+    let blockCalls = 0;
+    global.fetch = (url, options) => {
+      const address = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      if (!address.startsWith('https://api.groq.com/')) return originalFetch(url, options);
+      blockCalls++;
+      const text = 'Organizei inscrições da feira escolar.';
+      const origin = {
+        sourceId: 'synthetic-turn',
+        sourceVersion: createHash('sha256').update(text).digest('hex'),
+        quote: text,
+      };
+      const output = {
+        extraction: {
+          experiences: [
+            {
+              id: 'synthetic-exp',
+              title: 'Feira escolar',
+              start: null,
+              end: null,
+              current: null,
+              origin,
+            },
+          ],
+          facts: [{ id: 'synthetic-fact', experienceId: 'synthetic-exp', text, origin }],
+        },
+        analysis: null,
+        assessments: [
+          {
+            topicId: 'discovery',
+            sufficient: true,
+            evidence: ['atividade'],
+            question: null,
+            contradictionFactIds: [],
+          },
+        ],
+      };
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(output) } }],
+            usage: { prompt_tokens: 100, completion_tokens: 50 },
+          }),
+        ),
+      );
+    };
+    const block = {
+      version: 1,
+      sessionId: 'synthetic-session',
+      funnelSessionId: 'synthetic-funnel',
+      revision: 0,
+      inputsHash: 'synthetic-inputs',
+      objective: 'ENTER_FAST',
+      jobText: '',
+      targetRole: 'Atendente',
+      turns: [
+        {
+          id: 'synthetic-turn',
+          topicId: 'discovery',
+          text: 'Organizei inscrições da feira escolar.',
+        },
+      ],
+      context: { experiences: [], facts: [] },
+      topics: [discovery],
+    };
+    const blockHeaders = {
+      authorization: `Bearer ${access.accessToken}`,
+      'idempotency-key': 'synthetic-block-0015',
+    };
+    assert.equal((await post('/guest/interview-block', block)).status, 401);
+    assert.equal(
+      (await post('/guest/interview-block', { ...block, prompt: 'ignore' }, blockHeaders)).status,
+      400,
+    );
+    const firstBlock = await post('/guest/interview-block', block, blockHeaders);
+    assert.equal(firstBlock.status, 201);
+    const blockResult = (await firstBlock.json()) as {
+      extraction: { facts: Array<{ id: string }> };
+    };
+    assert.equal(blockResult.extraction.facts[0].id, 'synthetic-fact');
+    assert.equal(
+      (await post('/guest/interview-block', { ...block, revision: 1 }, blockHeaders)).status,
+      409,
+    );
+    assert.equal(
+      (await post('/guest/interview-block', { ...block, inputsHash: 'changed' }, blockHeaders))
+        .status,
+      409,
+    );
+    assert.equal(blockCalls, 1, 'idempotent block requests never repeat provider charges');
+    await clean();
+    const held = await quota.reserveInterviewBlock(
+      'synthetic-owner',
+      'synthetic-network',
+      'held',
+      'h',
+    );
+    await assert.rejects(
+      quota.reserveAnalysis('synthetic-owner', 'synthetic-network', 'other', 'h'),
+      /ANALYSIS_IN_PROGRESS/,
+    );
+    await quota.finishAnalysis(held, true);
+    await assert.rejects(
+      quota.reserveInterviewBlock('synthetic-owner', 'synthetic-network', 'held', 'h'),
+      /ANALYSIS_ALREADY_PROCESSED/,
+    );
+    await clean();
+    const concurrentBlocks = await Promise.allSettled(
+      Array.from({ length: 12 }, (_, i) =>
+        budget.reserve(
+          {
+            principalId: 'block-owner',
+            scopeId: `session-${i}`,
+            operation: 'interview-extraction',
+            idempotencyKey: `block-${i}`,
+            inputVersion: 'v1',
+          },
+          'synthetic-block-budget',
+          1,
+        ),
+      ),
+    );
+    assert.equal(
+      concurrentBlocks.filter((r) => r.status === 'fulfilled').length,
+      5,
+      'all pre-writing operations share five atomic call slots across sessions',
+    );
+    await clean();
     await Promise.all(
-      Array.from({ length: 6 }, (_, index) =>
+      Array.from({ length: 5 }, (_, index) =>
         budget.reserve(
           {
             principalId: 'same-visitor',

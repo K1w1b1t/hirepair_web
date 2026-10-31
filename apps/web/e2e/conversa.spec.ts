@@ -79,7 +79,7 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
     await page.getByLabel(/requisitos da vaga/i).blur();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: '../../docs/backend/evidence/43-objetivo.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/43-objetivo.png', fullPage: true });
     await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
     await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
     await page.getByLabel('Objetivo provisório').selectOption('yes');
@@ -92,9 +92,9 @@ test.describe('wizard acolhedor', () => {
       0,
     );
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: '../../docs/backend/evidence/43-plano.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/43-plano.png', fullPage: true });
     await expect(page.getByRole('radio', { name: /transição de carreira/i })).toBeChecked();
-    await expect(page.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /começar entrevista/i })).toBeEnabled();
     await page.reload();
     await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
     await page.getByRole('button', { name: /editar vaga/i }).click();

@@ -1,3 +1,4 @@
+import { interviewAction } from './interview';
 import type {
   Session,
   Inputs,
@@ -55,7 +56,11 @@ export function canWrite(s: Session): boolean {
     ) &&
     !s.pending.some((p) => p.blocking) &&
     !s.links.some((l) => l.status === 'contradiction') &&
-    !s.interruption
+    !s.interruption &&
+    (!s.confirmation.factVersions ||
+      s.confirmation.factVersions.every((v) =>
+        s.facts.some((f) => f.id === v.id && f.revision === v.revision),
+      ))
   );
 }
 export function equalInputs(a: Inputs, b: Inputs): boolean {
@@ -217,6 +222,8 @@ export function prepare(s: Session, extraction: Extraction, analysis: CriteriaAn
 export function confirm(s: Session, factIds: string[]): Session {
   if (
     s.phase !== 'confirmation' ||
+    s.pending.some((pending) => pending.blocking) ||
+    s.links.some((link) => link.status === 'contradiction') ||
     !factIds.length ||
     new Set(factIds).size !== factIds.length ||
     factIds.some(
@@ -235,6 +242,10 @@ export function confirm(s: Session, factIds: string[]): Session {
       dependencies: ['resumes', 'job', 'objective', 'facts'],
       valid: true,
       factIds,
+      factVersions: factIds.map((id) => ({
+        id,
+        revision: s.facts.find((f) => f.id === id)!.revision,
+      })),
     },
   };
 }
@@ -380,28 +391,7 @@ export function nextAction(s: Session): import('./contracts').NextAction {
       confirmationVersion: s.confirmation!.version,
       reason: 'A confirmação vigente permite redigir somente os fatos selecionados.',
     };
-  const plan = replan(s);
-  if (plan.topics.length)
-    return {
-      version: 1,
-      kind: 'investigate',
-      topic: plan.topics[0],
-      reason: plan.topics[0].reason,
-    };
-  const factIds = s.facts.filter((f) => f.confirmation !== 'rejected' && f.usable).map((f) => f.id);
-  if (factIds.length)
-    return {
-      version: 1,
-      kind: 'confirm',
-      factIds,
-      reason: 'Revisar os fatos utilizáveis antes de escrever.',
-    };
-  return {
-    version: 1,
-    kind: 'investigate',
-    topic: null,
-    reason: 'Conhecer uma experiência concreta antes de preparar a confirmação.',
-  };
+  return interviewAction(s);
 }
 /** Raw conversation text expires independently of documents and confirmed facts. */
 export function purgeRaw(s: Session, now: number): Session {

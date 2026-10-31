@@ -1,3 +1,4 @@
+import { BlockService } from '../interview/block.service';
 import { PreparationController } from '../interview/preparation.controller';
 import { PreparationService } from '../interview/preparation.service';
 import { TurnstileService } from './turnstile.service';
@@ -12,6 +13,7 @@ import { GuestQuotaService } from './guest-quota.service';
   controllers: [GuestController, PreparationController],
   providers: [
     PreparationService,
+    BlockService,
     GuestAccessService,
     GuestQuotaService,
     GuestAnalysisService,

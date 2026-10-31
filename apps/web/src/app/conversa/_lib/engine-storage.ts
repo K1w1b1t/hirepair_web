@@ -78,3 +78,28 @@ export function deleteEngine(): Promise<void> {
     set(undefined);
   });
 }
+export interface HeaderProfile {
+  name: string;
+  email: string;
+  phone: string;
+  confirmed: boolean;
+}
+export function readHeaderProfile(): Promise<HeaderProfile | null> {
+  return transaction('readonly', (store, set) => {
+    const request = store.get('header-profile');
+    request.onsuccess = () => set((request.result as HeaderProfile | undefined) ?? null);
+  });
+}
+export function saveHeaderProfile(profile: HeaderProfile): Promise<void> {
+  return transaction('readwrite', (store, set, fail) => {
+    const request = store.get('active');
+    request.onsuccess = () => {
+      if (!request.result) {
+        fail(new Error('REVISION_CONFLICT'));
+        return;
+      }
+      store.put(profile, 'header-profile');
+      set(undefined);
+    };
+  });
+}

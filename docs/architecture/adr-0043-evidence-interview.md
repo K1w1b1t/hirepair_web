@@ -118,3 +118,41 @@ recuperável do servidor. Logs não recebem prompts, currículos, relatos ou res
   contratos e regras; não demonstram qualidade semântica dos modelos em produção.
 - IA pública mantém o opt-in operacional da #41; testes locais não autorizam
   ativação nem comprovam Turnstile, ZDR ou quotas dos ambientes publicados.
+
+## Execução da entrevista e confirmação — #15
+
+A interface de `/conversa` consome o mesmo agregado v1 nos caminhos com e sem
+currículo. A entrada sem documentos inicia a descoberta local; não chama a
+preparação com documentos vazios. A política compartilhada escolhe perguntar,
+aprofundar, esclarecer ou revisar, mantendo preparação, confirmação, encerramento
+e futura redação na mesma máquina de estados. Turnos registram a ação, o motivo
+curto e os IDs pertinentes; não guardam raciocínio interno do modelo.
+
+Mensagens locais não equivalem a chamadas ao provedor. A pessoa pode analisar um
+bloco de relatos e então rever os fatos candidatos. O endpoint fechado
+`POST /guest/interview-block` valida origens, referências, suficiência declarada
+pelo extrator e pendências; o modelo nunca confirma os fatos. Ditado preenche um
+rascunho editável e só entra no motor quando a pessoa envia a resposta.
+
+Os defaults locais são duas reformulações sem ganho de evidência por tópico,
+100 turnos, 10.000 caracteres por resposta e 20 minutos de tela de entrevista
+visível, excluindo pausa, revisão e espera de comandos. O tempo acumulado persiste
+na sessão; o relógio é contabilizado em intervalos de cinco segundos. O limite
+menor de payload/tokens do servidor também se aplica. Ao alcançar um limite, a
+interface oferece revisão parcial e explicita as lacunas, sem completar dados.
+
+Manter confirma a versão exibida; editar fato ou experiência torna as versões
+pertinentes candidatas novamente; remover rejeita. A confirmação consolidada
+registra IDs e revisões dos fatos, além dos hashes dos insumos, e descarta os
+relatos brutos. Contradições impedem confirmar até correção ou remoção explícita.
+Reabrir a conversa invalida confirmação e conteúdo dependente. Nome e contatos
+opcionais ficam no registro local separado `header-profile`, nunca no payload
+do provedor, e são apagados junto com a jornada.
+
+Uma chamada e até 6.000 tokens ficam reservados para a futura redação. Todas as
+operações anteriores à redação compartilham atomicamente cinco chamadas/30.000
+tokens por sessão e visitante em sete dias, incluindo preparação e operações
+legadas. A #18 deverá usar os mesmos contadores e admitir a sexta chamada somente
+para uma operação de redação escolhida no servidor. Essa reserva não garante
+capacidade global nem permite repor chamadas consumidas com falhas. O teto total
+continua sendo seis chamadas/36.000 tokens.

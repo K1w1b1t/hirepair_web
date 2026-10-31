@@ -284,11 +284,13 @@ export function JobRecommendationsStep({
   preferences,
   onPreferencesChange,
   onEditJob,
+  onContinue,
 }: {
   result: JobAnalysisResult;
   preferences: JobPreferences;
   onPreferencesChange: (preferences: JobPreferences) => void;
   onEditJob: () => void;
+  onContinue?: () => void;
 }) {
   const update = (next: Partial<JobPreferences>) =>
     onPreferencesChange({ ...preferences, ...next });
@@ -335,13 +337,8 @@ export function JobRecommendationsStep({
         <button className="button button-outline" onClick={onEditJob} type="button">
           Editar vaga
         </button>
-        <button
-          className="button button-primary"
-          disabled
-          title="A próxima etapa ainda está em construção."
-          type="button"
-        >
-          Continuar · em breve
+        <button className="button button-primary" onClick={onContinue} type="button">
+          Começar entrevista
         </button>
       </div>
     </section>
