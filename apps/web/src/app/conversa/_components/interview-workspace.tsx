@@ -1,4 +1,5 @@
 'use client';
+import { ResumeReview } from './resume-review';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   startGuided,
@@ -62,7 +63,7 @@ export function InterviewWorkspace({
   const done = g.status === 'complete',
     partial = g.status === 'partial';
   useEffect(() => {
-    heading.current!.focus({ preventScroll: true });
+    heading.current?.focus({ preventScroll: true });
   }, [question?.text, done, partial]);
   const pending = pendingInterviewTurns(normalized);
   const repeated = pending.some(
@@ -301,20 +302,14 @@ export function InterviewWorkspace({
         </div>
       </div>
       {done ? (
-        <div className="guided-success">
-          <span aria-hidden="true">✓</span>
-          <h1 ref={heading} tabIndex={-1}>
-            Entrevista concluída
-          </h1>
-          <p>Organizamos suas informações para preparar seu currículo.</p>
-        </div>
+        <ResumeReview session={session} draft={draft} onChange={onChange} />
       ) : partial ? (
         <div className="guided-success">
           <h1 ref={heading} tabIndex={-1}>
             Suas respostas estão salvas
           </h1>
           <p>Ainda precisamos organizar algumas informações antes de preparar seu currículo.</p>
-          <p role="status">{error}</p>
+          <p role="status">{error || normalized.interruption?.reason}</p>
         </div>
       ) : (
         <>

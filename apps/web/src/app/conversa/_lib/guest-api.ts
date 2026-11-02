@@ -475,3 +475,72 @@ export async function analyzeInterviewBlock(
 export function finishInterviewRequest(): void {
   removeBrowserValue('hirepair_interview_pending');
 }
+
+export async function generateResume(
+  session: import('@hirepair/interview-engine').Session,
+  targetRole: string,
+  key: string,
+): Promise<import('@hirepair/interview-engine').ResumeDraft | { kind: 'pending'; reason: string }> {
+  if (!interviewAccessToken) throw new AnalysisFailure('GUEST_ACCESS_INVALID');
+  const currentGeneration = generation;
+  controller = new AbortController();
+  const response = await fetch(`${apiRoot()}/guest/resume-writing`, {
+    method: 'POST',
+    signal: controller.signal,
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${interviewAccessToken}`,
+      'Idempotency-Key': key,
+    },
+    body: JSON.stringify({
+      version: 1,
+      session: {
+        ...session,
+        sources: [],
+        stories: [],
+        turns: [],
+        factHistory: [],
+        diagnostics: [],
+        plan: null,
+        content: null,
+        writing: undefined,
+      },
+      targetRole,
+    }),
+  });
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  if (response.status === 401) interviewAccessToken = undefined;
+  const result = (await requireResponse(response)) as {
+    version: number;
+    revision: number;
+    content: unknown;
+    pending?: { reason: string };
+  };
+  if (result.version !== 1 || result.revision !== session.revision)
+    throw new AnalysisFailure('AI_INVALID_RESPONSE');
+  if (
+    result.pending &&
+    typeof result.pending.reason === 'string' &&
+    result.pending.reason.length <= 1200
+  )
+    return { kind: 'pending', reason: result.pending.reason };
+  const { parseResumeWriting } = await import('@hirepair/interview-engine');
+  return parseResumeWriting(JSON.stringify(result.content), session);
+}
+
+export async function authorizeResume(draft: JobDraft, challenge: GuestChallenge) {
+  controller = new AbortController();
+  const receipt = JSON.parse(readBrowserValue('hirepair_ai_consent') ?? 'null') as {
+    termsVersion?: string;
+    privacyVersion?: string;
+    acceptedAt?: number;
+  } | null;
+  const reusable =
+    !!receipt &&
+    receipt.termsVersion === challenge.termsVersion &&
+    receipt.privacyVersion === challenge.privacyVersion &&
+    typeof receipt.acceptedAt === 'number' &&
+    Date.now() - receipt.acceptedAt < 30 * 86400000;
+  if (!draft.accepted && !reusable) throw new AnalysisFailure('CONSENT_REQUIRED');
+  await guestAccess({ ...draft, accepted: true }, challenge);
+}

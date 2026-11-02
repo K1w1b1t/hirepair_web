@@ -1,0 +1,459 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import {
+  canWrite,
+  manualResumeFacts,
+  approveResume,
+  writingAuthorization,
+  type Session,
+  type ResumeSection,
+} from '@hirepair/interview-engine';
+import { TurnstileChallenge } from './turnstile-challenge';
+import {
+  generateResume,
+  hasInterviewAccess,
+  authorizeResume,
+  type GuestChallenge,
+} from '../_lib/guest-api';
+import { commitInterview, hashValue } from '../_lib/interview-session';
+import { readHeaderProfile, type HeaderProfile } from '../_lib/engine-storage';
+import { captureAnalyticsEvent } from '../../../analytics/analytics';
+import type { JobDraft } from '../_lib/job-analysis';
+const emptyProfile: HeaderProfile = { name: '', email: '', phone: '', confirmed: false };
+export function ResumeReview({
+  session,
+  draft,
+  onChange,
+}: {
+  session: Session;
+  draft: JobDraft;
+  onChange: (session: Session) => void;
+}) {
+  const [challenge, setChallenge] = useState<GuestChallenge>();
+  const [profile, setProfile] = useState(emptyProfile);
+  const [profileReady, setProfileReady] = useState(false);
+  const [editing, setEditing] = useState<ResumeSection | 'profile' | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const writing = session.writing;
+  const currentAuthorization =
+    !writing?.authorization || writing.authorization === writingAuthorization(session);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [editing, writing?.status]);
+  useEffect(() => {
+    let live = true;
+    void readHeaderProfile()
+      .then((value) => {
+        if (live) {
+          setProfile({
+            ...(value ?? emptyProfile),
+            professionalTitle: value?.professionalTitle ?? draft.targetRole,
+          });
+          setProfileReady(true);
+        }
+      })
+      .catch(() => {
+        if (live) setError('Não foi possível abrir seus contatos. Reabra a página.');
+      });
+    return () => {
+      live = false;
+    };
+  }, [draft.targetRole]);
+  async function commit(next: Session, confirmedProfile?: HeaderProfile) {
+    const saved = await commitInterview(session, next.writing, () => next, confirmedProfile);
+    onChange(saved);
+    return saved;
+  }
+  async function generate() {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    let pending: Session | undefined;
+    try {
+      if (!hasInterviewAccess()) {
+        if (!challenge) throw new Error('ACCESS_REQUIRED');
+        await authorizeResume(draft, challenge);
+        setChallenge(undefined);
+      }
+      const inputHash = await hashValue({
+        inputs: session.inputs,
+        selection: session.selection,
+        confirmation: session.confirmation,
+        strategy: session.strategy,
+      });
+      pending = await commit({
+        ...session,
+        writing: {
+          status: 'pending',
+          authorization: writingAuthorization(session),
+          key: crypto.randomUUID(),
+          inputHash,
+          original: null,
+          draft: null,
+          approval: null,
+        },
+      });
+      const content = await generateResume(
+        pending,
+        draft.targetRole || 'Objetivo profissional',
+        pending.writing!.key,
+      );
+      if ('kind' in content) {
+        const partial = await commitInterview(pending, content, (current) => ({
+          ...current,
+          writing: { ...current.writing!, status: 'failed' },
+          guided: current.guided ? { ...current.guided, status: 'partial' } : undefined,
+          pending: [
+            ...current.pending,
+            {
+              id: 'writing-evidence',
+              criterionId: null,
+              factIds: current.facts.map((fact) => fact.id),
+              reason: content.reason,
+              blocking: true,
+            },
+          ],
+          interruption: { kind: 'partial', reason: content.reason, resumePhase: 'interview' },
+        }));
+        onChange(partial);
+        return;
+      }
+      const next = await commitInterview(pending, content, (current) => ({
+        ...current,
+        phase: 'writing',
+        writing: { ...current.writing!, status: 'review', original: content, draft: content },
+      }));
+      onChange(next);
+      captureAnalyticsEvent('resume_generated', { funnel_session_id: next.funnelSessionId });
+    } catch {
+      setError(
+        'Não foi possível concluir a redação. Sua história está salva. Não faremos outra chamada automaticamente.',
+      );
+      if (pending) {
+        try {
+          const failed = await commitInterview(pending, 'writing-failed', (current) => ({
+            ...current,
+            writing: { ...current.writing!, status: 'failed' },
+          }));
+          onChange(failed);
+        } catch {
+          setError(
+            'Não foi possível salvar o resultado. Reabra a página para conferir o estado salvo.',
+          );
+        }
+      }
+    } finally {
+      setBusy(false);
+      lock.current = false;
+    }
+  }
+  async function saveSection(section: ResumeSection | null) {
+    const document = writing!.draft!;
+    const sectionId = (editing as ResumeSection).id;
+    const sections = document.sections.filter((item) => item.id !== sectionId);
+    const index = document.sections.findIndex((item) => item.id === sectionId);
+    if (section) sections.splice(index < 0 ? sections.length : index, 0, section);
+    setBusy(true);
+    setError('');
+    try {
+      await commit({
+        ...session,
+        writing: {
+          ...writing!,
+          status: 'review',
+          approval: null,
+          manualFacts: manualResumeFacts({ ...document, sections }),
+          draft: { ...document, sections },
+        },
+      });
+      setEditing(null);
+    } catch {
+      setError('Não foi possível salvar. Suas alterações continuam abertas.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function approve() {
+    setBusy(true);
+    setError('');
+    try {
+      const hash = await hashValue(writing!.draft),
+        profileHash = await hashValue({ ...profile, confirmed: true });
+      const approved = approveResume(
+        session,
+        { hash, profileHash, approvedAt: Date.now() },
+        profileReady,
+      );
+      await commit(approved, { ...profile, confirmed: true });
+    } catch {
+      setError('Não foi possível aprovar. Tente salvar novamente.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="resume-review" aria-busy={busy}>
+      <h1 ref={heading} tabIndex={-1}>
+        {editing
+          ? 'Editar seção'
+          : writing?.status === 'approved'
+            ? 'Currículo aprovado'
+            : 'Confira seu currículo'}
+      </h1>
+      {error && <p role="alert">{error}</p>}
+      {!currentAuthorization && (
+        <p role="alert">
+          As informações usadas neste currículo mudaram. Revise os fatos e as afirmações dependentes
+          antes de aprovar uma nova versão.
+        </p>
+      )}
+      {!writing && !hasInterviewAccess() && <TurnstileChallenge onReady={setChallenge} />}
+      {!writing && (
+        <>
+          <p>Vamos transformar sua história em um currículo direcionado à vaga.</p>
+          <button
+            className="button button-primary"
+            disabled={busy || !canWrite(session) || (!hasInterviewAccess() && !challenge)}
+            onClick={() => void generate()}
+          >
+            Preparar meu currículo
+          </button>
+        </>
+      )}
+      {writing?.status === 'pending' && (
+        <p role="status">
+          {busy
+            ? 'Estamos escrevendo seu currículo…'
+            : 'A redação foi iniciada. Se a resposta foi perdida, ela não pode ser recuperada neste aparelho. Sua história permanece salva.'}
+        </p>
+      )}
+      {writing?.status === 'failed' && (
+        <p>Não conseguimos concluir uma versão válida. Sua história permanece salva.</p>
+      )}
+      {writing?.draft &&
+        (editing === 'profile' ? (
+          <ProfileEditor
+            profile={profile}
+            busy={busy}
+            onCancel={() => setEditing(null)}
+            onSave={async (value) => {
+              setBusy(true);
+              setError('');
+              try {
+                await commit(
+                  {
+                    ...session,
+                    writing: { ...writing, status: 'review', approval: null },
+                  },
+                  value,
+                );
+                setProfile(value);
+                setEditing(null);
+              } catch {
+                setError('Não foi possível salvar seus contatos.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        ) : editing ? (
+          <SectionEditor
+            key={editing.id}
+            section={editing}
+            busy={busy}
+            onCancel={() => setEditing(null)}
+            onSave={(value) => void saveSection(value)}
+          />
+        ) : (
+          <>
+            <p>
+              {writing.status === 'approved'
+                ? 'Você concluiu a revisão. Seu currículo está salvo neste aparelho.'
+                : 'Toque em uma seção para editar. Ao aprovar o currículo, você confirma todas as informações, incluindo suas alterações.'}
+            </p>
+            <article className="resume-document" aria-label="Currículo">
+              <button
+                className="resume-edit-block"
+                onClick={() => setEditing('profile')}
+                disabled={!profileReady}
+                aria-label="Editar nome e contatos"
+              >
+                <strong>{profile.name || 'Nome e contatos'}</strong>
+                <span>
+                  {[profile.professionalTitle, profile.email, profile.phone]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </button>
+              {writing.draft.sections.map((section) => (
+                <section key={section.id}>
+                  <button
+                    className="resume-edit-block"
+                    aria-label={`Editar ${section.title}`}
+                    onClick={() => setEditing(structuredClone(section))}
+                  >
+                    <h2>{section.title}</h2>
+                    {section.units.map((unit) => (
+                      <p key={unit.id}>{unit.text}</p>
+                    ))}
+                  </button>
+                </section>
+              ))}
+            </article>
+            {writing.status !== 'approved' && (
+              <>
+                <button
+                  className="button button-outline"
+                  onClick={() =>
+                    setEditing({
+                      id: crypto.randomUUID(),
+                      title: '',
+                      experienceId: null,
+                      units: [],
+                    })
+                  }
+                >
+                  Adicionar seção
+                </button>
+                <button
+                  className="button button-primary"
+                  disabled={
+                    busy ||
+                    !profileReady ||
+                    !writing.draft.sections.length ||
+                    !canWrite(session) ||
+                    !currentAuthorization
+                  }
+                  onClick={() => void approve()}
+                >
+                  Aprovar currículo
+                </button>
+              </>
+            )}
+            <details>
+              <summary>Por que valorizamos estas experiências?</summary>
+              <p>{writing.original?.explanation}</p>
+            </details>
+          </>
+        ))}
+    </section>
+  );
+}
+export function ProfileEditor({
+  profile,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  profile: HeaderProfile;
+  busy: boolean;
+  onSave: (profile: HeaderProfile) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(profile);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSave({ ...value, confirmed: false });
+      }}
+    >
+      <p>Nome e contatos ficam neste aparelho e não são enviados à IA.</p>
+      {(['name', 'professionalTitle', 'email', 'phone'] as const).map((key) => (
+        <label key={key}>
+          {
+            {
+              name: 'Nome',
+              professionalTitle: 'Título profissional',
+              email: 'E-mail',
+              phone: 'Telefone',
+            }[key]
+          }
+          <input
+            maxLength={200}
+            value={value[key] ?? ''}
+            onChange={(event) => setValue({ ...value, [key]: event.target.value })}
+          />
+        </label>
+      ))}
+      <button disabled={busy} className="button button-primary">
+        Salvar alterações
+      </button>
+      <button type="button" disabled={busy} onClick={onCancel}>
+        Cancelar
+      </button>
+    </form>
+  );
+}
+export function SectionEditor({
+  section,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  section: ResumeSection;
+  busy: boolean;
+  onSave: (section: ResumeSection | null) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(section.title),
+    [text, setText] = useState(section.units.map((unit) => unit.text).join('\n'));
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave({
+          ...section,
+          title: title.trim(),
+          units: text
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line, index) => {
+              const old = section.units[index];
+              return old?.text === line
+                ? old
+                : { id: crypto.randomUUID(), text: line, factIds: [], criterionIds: [] };
+            }),
+        });
+      }}
+    >
+      <label htmlFor="resume-section-title">
+        Título da seção
+        <input
+          id="resume-section-title"
+          required
+          maxLength={120}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </label>
+      <label htmlFor="resume-section-content">
+        Conteúdo
+        <textarea
+          id="resume-section-content"
+          required
+          maxLength={6000}
+          rows={10}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+      </label>
+      <p>Use uma linha para cada item.</p>
+      <button className="button button-primary" disabled={busy || !title.trim() || !text.trim()}>
+        Salvar alterações
+      </button>
+      <button type="button" disabled={busy} onClick={onCancel}>
+        Cancelar
+      </button>
+      <button type="button" disabled={busy} onClick={() => onSave(null)}>
+        Remover seção
+      </button>
+    </form>
+  );
+}

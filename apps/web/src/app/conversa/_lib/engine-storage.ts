@@ -55,7 +55,11 @@ export function readEngine(): Promise<Session | null> {
     };
   });
 }
-export function saveEngine(session: Session, expectedRevision: number | null): Promise<void> {
+export function saveEngine(
+  session: Session,
+  expectedRevision: number | null,
+  profile?: HeaderProfile,
+): Promise<void> {
   return transaction('readwrite', (store, set, fail) => {
     const request = store.get('active');
     request.onsuccess = () => {
@@ -68,6 +72,7 @@ export function saveEngine(session: Session, expectedRevision: number | null): P
         return;
       }
       store.put(session, 'active');
+      if (profile) store.put(profile, 'header-profile');
       set(undefined);
     };
   });
@@ -79,6 +84,7 @@ export function deleteEngine(): Promise<void> {
   });
 }
 export interface HeaderProfile {
+  professionalTitle?: string;
   name: string;
   email: string;
   phone: string;

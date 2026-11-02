@@ -47,3 +47,12 @@ anunciados. Conclusão exige seleção utilizável persistida; falha mantém os 
 e mostra encerramento parcial. A redação pertence à #18.
 
 [Evidências e validação](../../backend/evidence/15-validation.md).
+
+## Redação e revisão final (#18)
+
+Após concluir a entrevista, a pessoa prepara uma única versão do currículo e
+confere um documento simples de uma coluna. Cada seção abre um editor dedicado;
+salvar retorna à conferência, cancelar descarta a edição e adicionar seção abre
+campos vazios. Nome, título profissional e contatos ficam no aparelho. A aprovação
+geral confirma o documento inteiro e encerra a jornada. Não há seletor de tom,
+regeneração, exportação ou compartilhamento nesta etapa. Ver ADR 0018.

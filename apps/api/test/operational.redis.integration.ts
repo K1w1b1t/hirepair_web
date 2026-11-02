@@ -542,6 +542,26 @@ async function main(): Promise<void> {
         ),
       /AI_CAPACITY_EXHAUSTED/,
     );
+    const writingRaces = await Promise.allSettled(
+      Array.from({ length: 8 }, (_, index) =>
+        budget.reserve(
+          {
+            principalId: 'same-visitor',
+            scopeId: `writing-${index}`,
+            operation: 'resume-writing',
+            idempotencyKey: `writing-${index}`,
+            inputVersion: 'v1',
+          },
+          'synthetic-budget-model',
+          1,
+        ),
+      ),
+    );
+    assert.equal(
+      writingRaces.filter((result) => result.status === 'fulfilled').length,
+      1,
+      'only the sixth shared visitor slot is available to writing',
+    );
     console.log(
       'PASS: real Redis concurrency, network/visitor quotas, failure accounting, idempotency, token reservation, fallback/circuit and HTTP contracts.',
     );

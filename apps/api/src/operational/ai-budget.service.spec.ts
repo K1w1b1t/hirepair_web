@@ -148,3 +148,21 @@ it('preserves one call and 6000 tokens for writing in the shared principal and s
   const shared = specs.filter((s) => /:(scope|principal):/.test(s.key));
   expect(shared.map((s) => s.limit)).toEqual([5, 30000, 5, 30000]);
 });
+it('lets only writing reach the sixth call using the same scope and visitor keys', async () => {
+  process.env.AI_PUBLIC_ENABLED = 'true';
+  const run = jest.fn().mockResolvedValue([0, 0, 0]);
+  await new AiBudgetService({ run } as never, { sendAiBudget: jest.fn() } as never).reserve(
+    { ...context, operation: 'resume-writing' },
+    'model',
+    6000,
+  );
+  const specs = JSON.parse(
+    String((run.mock.calls[0] as [string, string[], Array<string | number>])[2][3]),
+  ) as Array<{
+    key: string;
+    limit: number;
+  }>;
+  expect(specs.filter((s) => /:(scope|principal):/.test(s.key)).map((s) => s.limit)).toEqual([
+    6, 36000, 6, 36000,
+  ]);
+});

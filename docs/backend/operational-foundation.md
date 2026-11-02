@@ -208,3 +208,13 @@ infraestrutura ou orçamento retorna erro; falha de qualidade retorna exit code 
 Não há job automático com IA real nem novo endpoint de prompt/judge. Só fixtures
 sintéticas são usadas. Execução real requer as mesmas condições operacionais
 da IA pública e não foi realizada como evidência desta entrega.
+
+## Redação (#18)
+
+`POST /guest/resume-writing` usa acesso visitante e idempotência existentes. A
+operação é escolhida no servidor e usa uma tentativa sem fallback. Somente
+`resume-writing` pode chegar ao teto compartilhado de seis chamadas/36.000 tokens;
+as demais operações continuam em cinco/30.000. A escrita admite até 3.000 tokens
+de saída, dentro dos mesmos 6.000 totais por chamada. Não há mudança de pool,
+limites globais, consentimento ou persistência pessoal no servidor. O contrato e
+as limitações semânticas estão no ADR 0018.

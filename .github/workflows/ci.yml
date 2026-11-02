@@ -91,6 +91,9 @@ jobs:
       - name: Evaluate guided interview fixtures without provider calls
         run: npm run eval:interview -w apps/api
 
+      - name: Evaluate grounded writing fixtures without provider calls
+        run: npm run eval:writing -w apps/api
+
       - name: Run build
         run: npm run build
 

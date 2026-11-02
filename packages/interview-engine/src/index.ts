@@ -7,3 +7,5 @@ export * from './block';
 export * from './guided';
 export * from './resume-knowledge';
 export * from './guided-eval';
+export * from './writing';
+export * from './writing-evaluation';
