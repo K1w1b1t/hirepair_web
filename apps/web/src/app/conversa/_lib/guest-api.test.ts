@@ -1,3 +1,4 @@
+import { createWritingTestSession } from '../../../../test/writing';
 import {
   analyzeGuest,
   inputFingerprint,
@@ -229,30 +230,7 @@ describe('resume writing boundary', () => {
 });
 it('accepts a grounded written version and refuses a stale response or cancellation', async () => {
   const { authorizeResume, generateResume, cancelPreparation } = await import('./guest-api');
-  const { createSession } = await import('@hirepair/interview-engine');
-  const s = createSession('s', 'f', { resumes: 'r', job: 'j', objective: 'o', facts: 'f' });
-  s.objective = { value: 'ENTER_FAST', provisional: false };
-  s.facts = [
-    {
-      id: 'f',
-      revision: 1,
-      experienceId: 'e',
-      storyId: null,
-      text: 'Atendeu clientes',
-      origin: { sourceId: 's', sourceVersion: '1', quote: 'Atendeu clientes' },
-      usable: true,
-      confirmation: 'confirmed',
-      externallyVerified: false,
-    },
-  ];
-  s.confirmation = {
-    id: 'c',
-    version: 1,
-    valid: true,
-    inputs: s.inputs,
-    dependencies: [],
-    factIds: ['f'],
-  };
+  const s = createWritingTestSession();
   const content = {
     version: 1,
     explanation: 'Atendimento relevante.',

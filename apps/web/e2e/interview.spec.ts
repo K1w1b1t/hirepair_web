@@ -257,11 +257,40 @@ for (const withResume of [false, true])
       });
     });
     await page.getByRole('button', { name: 'Preparar meu currículo' }).click();
+    await expect(page.getByRole('button', { name: 'Aprovar currículo' })).toBeVisible();
+    await page.screenshot({
+      path: `../../docs/backend/evidence/18-review-${withResume ? 'desktop' : 'mobile'}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
     await page.getByRole('button', { name: 'Editar Experiências' }).click();
     await page
       .getByRole('textbox', { name: 'Conteúdo', exact: true })
       .fill('Atendeu clientes no comércio local.');
+    await page.screenshot({
+      path: `../../docs/backend/evidence/18-edit-${withResume ? 'desktop' : 'mobile'}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
+    await page.getByRole('button', { name: 'Adicionar seção' }).click();
+    await expect(page.getByLabel('Título da seção')).toHaveValue('');
+    await page.screenshot({
+      path: `../../docs/backend/evidence/18-add-empty-${withResume ? 'desktop' : 'mobile'}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await page.getByLabel('Título da seção').fill('Cursos');
+    await page
+      .getByRole('textbox', { name: 'Conteúdo', exact: true })
+      .fill('Curso de atendimento ao cliente — exemplo sintético.');
+    await page.screenshot({
+      path: `../../docs/backend/evidence/18-add-filled-${withResume ? 'desktop' : 'mobile'}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await page.getByRole('button', { name: 'Salvar alterações' }).click();
+    await expect(page.getByRole('button', { name: 'Editar Cursos' })).toBeVisible();
     await page.getByRole('button', { name: 'Aprovar currículo' }).click();
     await expect(page.getByRole('heading', { name: 'Currículo aprovado' })).toBeVisible();
     await page.screenshot({

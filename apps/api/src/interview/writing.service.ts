@@ -38,7 +38,7 @@ export class WritingService {
         body.targetRole.length > 200 ||
         JSON.stringify(body).length > 80000
       )
-        throw new Error();
+        throw new Error('INVALID_WRITING_REQUEST');
       session = body.session;
       if (
         session.version !== 1 ||
@@ -51,14 +51,14 @@ export class WritingService {
         !Number.isInteger(session.revision) ||
         session.revision < 0
       )
-        throw new Error();
+        throw new Error('INVALID_WRITING_REQUEST');
       if (
         !['ready', 'writing'].includes(session.phase) ||
         !canWrite(session) ||
         !session.strategy?.valid ||
         JSON.stringify(session.strategy.inputs) !== JSON.stringify(session.inputs)
       )
-        throw new Error();
+        throw new Error('INVALID_WRITING_REQUEST');
     } catch {
       throw operationalError('VALIDATION_ERROR', 400);
     }

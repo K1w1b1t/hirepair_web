@@ -24,11 +24,11 @@ export function ResumeReview({
   session,
   draft,
   onChange,
-}: {
+}: Readonly<{
   session: Session;
   draft: JobDraft;
   onChange: (session: Session) => void;
-}) {
+}>) {
   const [challenge, setChallenge] = useState<GuestChallenge>();
   const [profile, setProfile] = useState(emptyProfile);
   const [profileReady, setProfileReady] = useState(false);
@@ -335,10 +335,6 @@ export function ResumeReview({
                 </button>
               </>
             )}
-            <details>
-              <summary>Por que valorizamos estas experiências?</summary>
-              <p>{writing.original?.explanation}</p>
-            </details>
           </>
         ))}
     </section>
@@ -349,12 +345,12 @@ export function ProfileEditor({
   busy,
   onSave,
   onCancel,
-}: {
+}: Readonly<{
   profile: HeaderProfile;
   busy: boolean;
   onSave: (profile: HeaderProfile) => Promise<void>;
   onCancel: () => void;
-}) {
+}>) {
   const [value, setValue] = useState(profile);
   return (
     <form
@@ -381,7 +377,7 @@ export function ProfileEditor({
           />
         </label>
       ))}
-      <button disabled={busy} className="button button-primary">
+      <button type="submit" disabled={busy} className="button button-primary">
         Salvar alterações
       </button>
       <button type="button" disabled={busy} onClick={onCancel}>
@@ -395,12 +391,12 @@ export function SectionEditor({
   busy,
   onSave,
   onCancel,
-}: {
+}: Readonly<{
   section: ResumeSection;
   busy: boolean;
   onSave: (section: ResumeSection | null) => void;
   onCancel: () => void;
-}) {
+}>) {
   const [title, setTitle] = useState(section.title),
     [text, setText] = useState(section.units.map((unit) => unit.text).join('\n'));
   return (
@@ -424,7 +420,7 @@ export function SectionEditor({
       }}
     >
       <label htmlFor="resume-section-title">
-        Título da seção
+        Título da seção{' '}
         <input
           id="resume-section-title"
           required
@@ -434,7 +430,7 @@ export function SectionEditor({
         />
       </label>
       <label htmlFor="resume-section-content">
-        Conteúdo
+        Conteúdo{' '}
         <textarea
           id="resume-section-content"
           required
@@ -445,7 +441,11 @@ export function SectionEditor({
         />
       </label>
       <p>Use uma linha para cada item.</p>
-      <button className="button button-primary" disabled={busy || !title.trim() || !text.trim()}>
+      <button
+        type="submit"
+        className="button button-primary"
+        disabled={busy || !title.trim() || !text.trim()}
+      >
         Salvar alterações
       </button>
       <button type="button" disabled={busy} onClick={onCancel}>

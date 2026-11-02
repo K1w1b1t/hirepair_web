@@ -50,7 +50,10 @@ falta do comportamento antes da correção.
 Imagens usam dados sintéticos e provedor simulado; não são currículos reais nem
 avaliações de qualidade do modelo em produção.
 
-- [Antes da redação](18-before-writing-desktop.png)
+- [Conferência antes de aprovar](18-review-desktop.png)
+- [Editando uma experiência](18-edit-desktop.png)
+- [Nova seção vazia](18-add-empty-desktop.png)
+- [Nova seção preenchida](18-add-filled-desktop.png)
 - [Currículo aprovado no desktop](18-approved-desktop.png)
 - [Currículo aprovado no celular](18-approved-mobile.png)
 

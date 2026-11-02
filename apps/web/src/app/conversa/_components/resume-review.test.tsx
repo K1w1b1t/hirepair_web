@@ -1,11 +1,7 @@
+import { createWritingTestSession } from '../../../../test/writing';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import {
-  createSession,
-  startGuided,
-  type Session,
-  type ResumeDraft,
-} from '@hirepair/interview-engine';
+import { startGuided, type Session, type ResumeDraft } from '@hirepair/interview-engine';
 import { ResumeReview, SectionEditor, ProfileEditor } from './resume-review';
 import { generateResume, hasInterviewAccess } from '../_lib/guest-api';
 import { readHeaderProfile } from '../_lib/engine-storage';
@@ -44,33 +40,21 @@ const content: ResumeDraft = {
     },
   ],
 };
-function fixture() {
-  const s = createSession('s', 'funnel', { resumes: 'r', job: 'j', objective: 'o', facts: 'f' });
-  s.phase = 'ready';
-  s.objective = { value: 'ENTER_FAST', provisional: false };
-  s.facts = [
-    {
-      id: 'f',
-      revision: 1,
-      experienceId: 'e',
-      storyId: null,
-      text: 'Atendeu clientes',
-      origin: { sourceId: 'x', sourceVersion: '1', quote: 'Atendeu clientes' },
-      usable: true,
-      confirmation: 'confirmed',
-      externallyVerified: false,
-    },
-  ];
-  s.confirmation = {
-    id: 'c',
-    version: 1,
-    valid: true,
-    inputs: s.inputs,
-    dependencies: [],
-    factIds: ['f'],
+const fixture = createWritingTestSession;
+
+function reviewingSession() {
+  const s = fixture();
+  s.writing = {
+    status: 'review',
+    key: 'review-key',
+    inputHash: 'h',
+    original: content,
+    draft: content,
+    approval: null,
   };
   return s;
 }
+
 function Harness({
   initial = fixture(),
   role = 'Atendente',
@@ -107,6 +91,7 @@ it('generates once, reviews, edits and approves without further AI calls', async
   fireEvent.click(screen.getByRole('button', { name: 'Preparar meu currículo' }));
   await screen.findByRole('button', { name: 'Editar Resumo' });
   expect(generateResume).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText('Por que valorizamos estas experiências?')).not.toBeInTheDocument();
   expect(captureAnalyticsEvent).toHaveBeenCalledWith('resume_generated', {
     funnel_session_id: 'funnel',
   });
@@ -132,15 +117,7 @@ it('generates once, reviews, edits and approves without further AI calls', async
   );
 });
 it('opens an empty section editor, cancels, then adds and removes content', async () => {
-  const s = fixture();
-  s.writing = {
-    status: 'review',
-    key: 'key',
-    inputHash: 'h',
-    original: content,
-    draft: content,
-    approval: null,
-  };
+  const s = reviewingSession();
   render(<Harness initial={s} />);
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar seção' }));
   expect(screen.getByLabelText('Título da seção')).toHaveValue('');
@@ -159,15 +136,7 @@ it('opens an empty section editor, cancels, then adds and removes content', asyn
   );
 });
 it('edits contacts locally and returns to review', async () => {
-  const s = fixture();
-  s.writing = {
-    status: 'review',
-    key: 'key',
-    inputHash: 'h',
-    original: content,
-    draft: content,
-    approval: null,
-  };
+  const s = reviewingSession();
   render(<Harness initial={s} />);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Editar nome e contatos' })).toBeEnabled(),
@@ -211,7 +180,9 @@ it('keeps references for unchanged text and drops them for manual declarations',
 it('reports profile read failure and avoids updates after unmount', async () => {
   (readHeaderProfile as jest.Mock).mockRejectedValueOnce(new Error('offline'));
   const view = render(<Harness />);
-  await screen.findByRole('alert');
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Não foi possível abrir seus contatos.',
+  );
   view.unmount();
   let resolve!: (value: unknown) => void;
   (readHeaderProfile as jest.Mock).mockReturnValueOnce(
@@ -224,15 +195,7 @@ it('reports profile read failure and avoids updates after unmount', async () => 
   resolve(null);
 });
 it('keeps the section editor open when saving fails', async () => {
-  const s = fixture();
-  s.writing = {
-    status: 'review',
-    key: 'k',
-    inputHash: 'h',
-    original: content,
-    draft: content,
-    approval: null,
-  };
+  const s = reviewingSession();
   render(<Harness initial={s} />);
   fireEvent.click(screen.getByRole('button', { name: 'Editar Resumo' }));
   (commitInterview as jest.Mock).mockRejectedValueOnce(new Error('conflict'));
@@ -241,15 +204,7 @@ it('keeps the section editor open when saving fails', async () => {
   expect(screen.getByLabelText('Conteúdo')).toBeInTheDocument();
 });
 it('reports approval failure without claiming completion', async () => {
-  const s = fixture();
-  s.writing = {
-    status: 'review',
-    key: 'k',
-    inputHash: 'h',
-    original: content,
-    draft: content,
-    approval: null,
-  };
+  const s = reviewingSession();
   render(<Harness initial={s} />);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
@@ -259,15 +214,7 @@ it('reports approval failure without claiming completion', async () => {
   await screen.findByText('Não foi possível aprovar. Tente salvar novamente.');
 });
 it('reports contact save failure and allows cancellation', async () => {
-  const s = fixture();
-  s.writing = {
-    status: 'review',
-    key: 'k',
-    inputHash: 'h',
-    original: content,
-    draft: content,
-    approval: null,
-  };
+  const s = reviewingSession();
   render(<Harness initial={s} />);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Editar nome e contatos' })).toBeEnabled(),
@@ -377,6 +324,7 @@ it('ignores a profile read rejection after the screen is closed', async () => {
   await act(async () => {
     reject(new Error('closed'));
   });
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 it('supports a legacy profile without a professional title in the dedicated editor', () => {

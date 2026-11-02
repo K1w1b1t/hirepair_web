@@ -3,71 +3,43 @@ import { parseResumeWriting, type ResumeDraft } from './writing';
 import type { Experience, Strategy } from './contracts';
 export const WRITING_RUBRIC_VERSION = 1;
 /** Synthetic fixtures only. Structural checks do not establish semantic fidelity. */
-export const WRITING_CASES: Array<{
-  id: string;
-  kind: Experience['kind'];
-  archetype: Strategy['archetype'];
-  fact: string;
-  output: string;
-  accepted: boolean;
-}> = [
-  {
-    id: 'school',
-    kind: 'project',
-    archetype: 'A_FIRST_JOB',
-    fact: 'Organizou inscrições na feira escolar.',
-    output: 'Organizou inscrições na feira escolar.',
-    accepted: true,
-  },
-  {
-    id: 'informal',
-    kind: 'informal',
-    archetype: 'A_FIRST_JOB',
-    fact: 'Atendeu clientes em uma feira.',
-    output: 'Atendeu clientes em uma feira.',
-    accepted: true,
-  },
-  {
-    id: 'operational',
-    kind: 'work',
-    archetype: 'C_OPERATIONAL',
-    fact: 'Conferiu entradas e saídas do estoque.',
-    output: 'Conferiu entradas e saídas do estoque.',
-    accepted: true,
-  },
-  {
-    id: 'transition',
-    kind: 'work',
-    archetype: 'B_CAREER_CHANGE',
-    fact: 'Preparou materiais para atendimento.',
-    output: 'Preparou materiais para atendimento.',
-    accepted: true,
-  },
-  {
-    id: 'specialist',
-    kind: 'work',
-    archetype: 'E_SPECIALIST',
-    fact: 'Desenvolveu consultas SQL para relatórios internos.',
-    output: 'Desenvolveu consultas SQL para relatórios internos.',
-    accepted: true,
-  },
-  {
-    id: 'inflated',
-    kind: 'project',
-    archetype: 'A_FIRST_JOB',
-    fact: 'Participou de projeto escolar.',
-    output: 'Liderou a produção e ampliou a receita em 900%.',
-    accepted: false,
-  },
-  {
-    id: 'unsupported-keyword',
-    kind: 'work',
-    archetype: 'C_OPERATIONAL',
-    fact: 'Conferiu entradas no estoque.',
-    output: 'Conferiu entradas usando SAP.',
-    accepted: false,
-  },
+type WritingCaseInput = [
+  id: string,
+  kind: Experience['kind'],
+  archetype: Strategy['archetype'],
+  fact: string,
+  rejectedOutput?: string,
 ];
+const writingInputs: WritingCaseInput[] = [
+  ['school', 'project', 'A_FIRST_JOB', 'Organizou inscrições na feira escolar.'],
+  ['informal', 'informal', 'A_FIRST_JOB', 'Atendeu clientes em uma feira.'],
+  ['operational', 'work', 'C_OPERATIONAL', 'Conferiu entradas e saídas do estoque.'],
+  ['transition', 'work', 'B_CAREER_CHANGE', 'Preparou materiais para atendimento.'],
+  ['specialist', 'work', 'E_SPECIALIST', 'Desenvolveu consultas SQL para relatórios internos.'],
+  [
+    'inflated',
+    'project',
+    'A_FIRST_JOB',
+    'Participou de projeto escolar.',
+    'Liderou a produção e ampliou a receita em 900%.',
+  ],
+  [
+    'unsupported-keyword',
+    'work',
+    'C_OPERATIONAL',
+    'Conferiu entradas no estoque.',
+    'Conferiu entradas usando SAP.',
+  ],
+];
+export const WRITING_CASES = writingInputs.map(([id, kind, archetype, fact, rejectedOutput]) => ({
+  id,
+  kind,
+  archetype,
+  fact,
+  output: rejectedOutput ?? fact,
+  accepted: rejectedOutput === undefined,
+}));
+
 export function evaluateWritingFixture(item: (typeof WRITING_CASES)[number]) {
   const session = createSession('synthetic-writing', 'synthetic-funnel', {
     resumes: 'r',
