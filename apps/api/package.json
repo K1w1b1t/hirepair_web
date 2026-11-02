@@ -24,7 +24,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "test:operational": "ts-node test/operational.redis.integration.ts",
-    "prebuild": "npm run build -w @hirepair/interview-engine"
+    "prebuild": "npm run build -w @hirepair/interview-engine",
+    "eval:interview": "ts-node scripts/interview-eval.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

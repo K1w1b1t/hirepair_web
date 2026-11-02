@@ -1,43 +1,30 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  nextAction,
-  interviewState,
-  answerInterview,
-  addActiveTime,
-  requestReview,
-  reopenInterview,
-  incorporateBlock,
-  editFact,
-  editExperience,
-  decideFact,
-  resolveFactConflict,
-  confirm,
-  transition,
-  canWrite,
-  interrupt,
+  startGuided,
+  guidedQuestion,
+  guidedAnswer,
+  completeGuided,
+  applyGuidedBlock,
   discovery,
-  replan,
+  interviewState,
   type Session,
-  type Turn,
   type InterviewBlockRequest,
 } from '@hirepair/interview-engine';
-import { captureAnalyticsEvent } from '../../../analytics/analytics';
 import { commitInterview, hashValue } from '../_lib/interview-session';
 import {
   analyzeInterviewBlock,
-  finishInterviewRequest,
   hasInterviewAccess,
-  AnalysisFailure,
+  finishInterviewRequest,
   cancelPreparation,
+  AnalysisFailure,
   type GuestChallenge,
 } from '../_lib/guest-api';
 import { sanitizeMaterial } from '../_lib/sanitize-material';
 import type { JobDraft } from '../_lib/job-analysis';
-import { HeaderProfile } from './header-profile';
-import { VoiceTextField } from './voice-text-field';
+import { captureAnalyticsEvent } from '../../../analytics/analytics';
 import { TurnstileChallenge } from './turnstile-challenge';
-
+import { useGuidedVoice } from './use-guided-voice';
 export function InterviewWorkspace({
   session,
   draft,
@@ -45,164 +32,54 @@ export function InterviewWorkspace({
 }: {
   session: Session;
   draft: JobDraft;
-  onChange: (session: Session) => void;
+  onChange: (s: Session) => void;
 }) {
-  const [answer, setAnswer] = useState('');
-  const [modality, setModality] = useState<'text' | 'dictation'>('text');
-  const [voiceBusy, setVoiceBusy] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const normalized = startGuided(session),
+    g = normalized.guided!;
+  const [text, setText] = useState(''),
+    [mode, setMode] = useState<'voice' | 'text'>('voice'),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
   const [challenge, setChallenge] = useState<GuestChallenge>();
-  const [accepted, setAccepted] = useState(draft.accepted);
-  const [experienceEdit, setExperienceEdit] = useState<{
-    id: string;
-    title: string;
-    start: string;
-    end: string;
-  } | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
-  const title = useRef<HTMLHeadingElement>(null);
-  const live = useRef(true);
-  const lock = useRef(false);
-  const current = useRef(session);
-  current.current = session;
+  const current = useRef(normalized);
+  current.current = normalized;
   const changed = useRef(onChange);
   changed.current = onChange;
-  const action = nextAction(session);
-  const state = interviewState(session);
-  const review =
-    action.kind === 'review' || action.kind === 'confirm' || session.phase === 'confirmation';
-  const ready = session.phase === 'ready' && canWrite(session);
-  const paused = !!session.interruption;
-  const pendingTurns = session.turns.filter(
+  const live = useRef(true),
+    lock = useRef(false),
+    ended = useRef(false);
+  const savingTime = useRef<Promise<void> | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const question = guidedQuestion(normalized);
+  const done = g.status === 'complete',
+    partial = g.status === 'partial';
+  useEffect(() => {
+    heading.current!.focus();
+  }, [question?.text, done, partial]);
+  const pending = normalized.turns.filter(
     (t) =>
-      !state.analyzedTurnIds.includes(t.id) &&
-      ['specific', 'vague'].includes(t.answer.kind) &&
-      t.answer.text,
+      !interviewState(normalized).analyzedTurnIds.includes(t.id) &&
+      t.answer.text &&
+      ['specific', 'vague'].includes(t.answer.kind),
   );
-  const speak = 'question' in action ? action.question : '';
-  useEffect(() => {
-    title.current?.focus();
-  }, [review, ready, speak, paused]);
-  useEffect(() => {
-    live.current = true;
-    return () => {
-      live.current = false;
-      cancelPreparation();
-    };
-  }, []);
-  const run = useCallback(
-    async (payload: unknown, command: (s: Session, hash: string) => Session) => {
-      if (lock.current) return;
-      lock.current = true;
-      setBusy(true);
-      setError('');
-      try {
-        const next = await commitInterview(
-          current.current,
-          { payload, revision: current.current.revision },
-          command,
-        );
-        if (live.current) {
-          current.current = next;
-          changed.current(next);
-        }
-        return next;
-      } catch (caught) {
-        if (live.current)
-          setError(
-            caught instanceof AnalysisFailure
-              ? caught.message
-              : 'Não foi possível salvar. Reabra a jornada para conferir a versão atual.',
-          );
-      } finally {
-        lock.current = false;
-        if (live.current) setBusy(false);
-      }
-    },
-    [],
+  const repeated = pending.some(
+    (t) => g.answered.filter((id) => id === t.question.topicId).length > 1,
   );
-  useEffect(() => {
-    let last = Date.now();
-    const timer = window.setInterval(() => {
-      const now = Date.now();
-      const delta = now - last;
-      last = now;
-      const s = current.current;
-      if (
-        document.visibilityState !== 'visible' ||
-        lock.current ||
-        s.phase !== 'interview' ||
-        s.interruption ||
-        interviewState(s).reviewRequested
-      )
-        return;
-      void run({ elapsed: delta }, (value) => addActiveTime(value, delta));
-    }, 5000);
-    const visibility = () => {
-      last = Date.now();
-    };
-    document.addEventListener('visibilitychange', visibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', visibility);
-    };
-    // run reads the current aggregate through refs; restarting the clock on each save loses elapsed time.
-  }, [run]);
-  async function submit(kind: Turn['answer']['kind'], text: string) {
-    if (!('topic' in action) || !action.topic || !speak) return;
-    const turn: Turn = {
-      id: crypto.randomUUID(),
-      recordedAt: Date.now(),
-      modality,
-      question: { text: speak, topicId: action.topic.id },
-      answer: { text: sanitizeMaterial(text), kind },
-      factIds: [],
-    };
-    const saved = await run(turn, (s) => answerInterview(s, turn));
-    if (saved) {
-      setAnswer('');
-      setModality('text');
-    }
-  }
-  async function analyze() {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError('');
-    const s = current.current;
-    try {
+  const readyToAnalyze = pending.length >= 3 || !question || repeated;
+  const process = useCallback(
+    async (s: Session) => {
       const turns = s.turns.filter(
         (t) =>
           !interviewState(s).analyzedTurnIds.includes(t.id) &&
-          ['specific', 'vague'].includes(t.answer.kind) &&
-          t.answer.text,
+          t.answer.text &&
+          ['specific', 'vague'].includes(t.answer.kind),
       );
-      const ids = new Set(turns.map((t) => t.question.topicId));
-      const topics = [...replan(s).topics, discovery]
-        .filter((t) => ids.has(t.id))
-        .map(
-          ({
-            id,
-            criterionId,
-            experienceId,
-            missingEvidence,
-            reason,
-            impact,
-            uncertainty,
-            relevance,
-          }) => ({
-            id,
-            criterionId,
-            experienceId,
-            missingEvidence,
-            reason,
-            impact,
-            uncertainty,
-            relevance,
-          }),
-        );
+      if (!turns.length) return s;
+      const topics = Array.from(new Set(turns.map((t) => t.question.topicId))).map((id) => ({
+        ...discovery,
+        id,
+        missingEvidence: id.replace('guided:', ''),
+      }));
       const request: InterviewBlockRequest = {
         version: 1,
         sessionId: s.id,
@@ -214,8 +91,8 @@ export function InterviewWorkspace({
         targetRole: sanitizeMaterial(draft.targetRole),
         turns: turns.map((t) => ({
           id: t.id,
-          text: sanitizeMaterial(t.answer.text),
           topicId: t.question.topicId,
+          text: sanitizeMaterial(t.answer.text),
         })),
         context: {
           experiences: s.experiences.map(({ id, title, start, end, current, origin }) => ({
@@ -232,437 +109,320 @@ export function InterviewWorkspace({
         },
         topics,
       };
-      const result = await analyzeInterviewBlock(request, { ...draft, accepted }, challenge);
-      if (!live.current) return;
-      const next = await commitInterview(s, { request, result }, (value, factsHash) =>
-        requestReview(
-          incorporateBlock(
-            value,
-            result,
-            turns.map((t) => t.id),
-            factsHash,
-          ),
+      const result = await analyzeInterviewBlock(request, draft, challenge);
+      if (!live.current) throw new Error('REQUEST_CANCELLED');
+      const next = await commitInterview(s, { request, result }, (value, hash) =>
+        applyGuidedBlock(
+          value,
+          result,
+          turns.map((t) => t.id),
+          hash,
         ),
       );
       finishInterviewRequest();
-      if (live.current) {
-        current.current = next;
-        changed.current(next);
-      }
-    } catch (caught) {
-      if (live.current)
-        setError(
-          caught instanceof AnalysisFailure
-            ? caught.message
-            : 'Não foi possível analisar este bloco. Seus relatos foram preservados. Você pode revisar o material parcial.',
-        );
-    } finally {
-      lock.current = false;
-      if (live.current) {
-        setBusy(false);
-        setChallenge(undefined);
-      }
+      setChallenge(undefined);
+      return next;
+    },
+    [draft, challenge],
+  );
+  const publish = useCallback((s: Session) => {
+    if (live.current) {
+      current.current = s;
+      changed.current(s);
     }
-  }
-  async function decide(id: string, kind: 'keep' | 'remove' | 'edit') {
-    const text = editText;
-    const saved = await run({ id, kind, text }, (s, hash) => {
-      let next = s;
-      if (!['interview', 'confirmation'].includes(next.phase)) next = reopenInterview(next);
-      if (kind === 'edit') next = resolveFactConflict(editFact(next, id, text, hash), id);
-      else {
-        next = decideFact(
-          next,
-          id,
-          kind === 'keep' ? 'confirmed' : 'rejected',
-          kind === 'keep',
-          hash,
+  }, []);
+  const send = useCallback(
+    async (answer: string) => {
+      if (savingTime.current) await savingTime.current;
+      if (!live.current) return;
+      if (lock.current || !answer.trim()) return;
+      const s = current.current,
+        q = guidedQuestion(s);
+      if (!q) return;
+      lock.current = true;
+      setBusy(true);
+      setError('');
+      try {
+        const lower = answer.trim().toLocaleLowerCase('pt-BR');
+        const kind =
+          /^(?:(?:quero\s+)?(?:parar|encerrar)|prefiro n[aã]o responder|n[aã]o quero responder)[.!]?$/i.test(
+            lower,
+          )
+            ? 'declined'
+            : /^n[aã]o (?:sei|tenho ideia)[.!]?$/i.test(lower)
+              ? 'unknown'
+              : /^n[aã]o (?:lembro|recordo)[.!]?$/i.test(lower)
+                ? 'forgotten'
+                : /^n[aã]o (?:tenho|tive)(?: essa experi[eê]ncia)?[.!]?$/i.test(lower)
+                  ? 'absence'
+                  : 'specific';
+        const next = await commitInterview(s, { answer, topic: q.topic.id }, (value) =>
+          guidedAnswer(value, {
+            id: crypto.randomUUID(),
+            recordedAt: Date.now(),
+            modality: mode === 'voice' ? 'dictation' : 'text',
+            question: { text: q.text, topicId: q.topic.id },
+            answer: { text: sanitizeMaterial(answer), kind },
+            factIds: [],
+          }),
         );
-        if (kind === 'remove') next = resolveFactConflict(next, id);
+        publish(next);
+        setText('');
+      } catch {
+        if (live.current) setError('Sua resposta não foi salva. Tente enviar novamente.');
+      } finally {
+        lock.current = false;
+        if (live.current) setBusy(false);
       }
-      return requestReview(next);
-    });
-    if (saved) setEditing(null);
-  }
-  async function consolidate() {
-    const selected = session.facts
-      .filter((f) => f.confirmation === 'confirmed' && f.usable)
-      .map((f) => f.id);
-    const saved = await run({ confirm: selected, inputs: session.inputs }, (s) =>
-      transition(confirm(requestReview(s), selected), 'ready'),
-    );
-    if (saved)
-      captureAnalyticsEvent('facts_confirmed', { funnel_session_id: saved.funnelSessionId });
-  }
-  const facts = session.facts;
+    },
+    [mode, publish],
+  );
+  const voice = useGuidedVoice(
+    !busy && !done && !partial ? (question?.text ?? '') : '',
+    setText,
+    (value) => void send(value),
+  );
+  useEffect(() => {
+    if (
+      (typeof (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition !==
+        'function' &&
+        typeof (window as unknown as { webkitSpeechRecognition?: unknown })
+          .webkitSpeechRecognition !== 'function') ||
+      window.matchMedia?.('(min-width: 768px)').matches
+    )
+      setMode('text');
+  }, []);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+      cancelPreparation();
+    };
+  }, []);
+  useEffect(() => {
+    if (done || partial || lock.current || !readyToAnalyze || error) return;
+    if (pending.length && !hasInterviewAccess() && !challenge) return;
+    lock.current = true;
+    setBusy(true);
+    void (async () => {
+      try {
+        let next = await process(current.current);
+        const shouldFinish =
+          !guidedQuestion(next) ||
+          (next.guided!.answered.length >= 8 && !next.guided!.clarification);
+        if (shouldFinish)
+          next = await commitInterview(next, { complete: next.inputs }, completeGuided);
+        publish(next);
+        if (next.guided!.status === 'complete' && !ended.current) {
+          ended.current = true;
+          captureAnalyticsEvent('interview_completed', { funnel_session_id: next.funnelSessionId });
+        }
+      } catch (caught) {
+        if (live.current) {
+          setError(
+            caught instanceof AnalysisFailure
+              ? caught.message
+              : 'Não conseguimos organizar este trecho agora. Suas respostas estão salvas.',
+          );
+          const partialSession = {
+            ...current.current,
+            guided: { ...current.current.guided!, status: 'partial' as const },
+          };
+          try {
+            publish(await commitInterview(current.current, 'partial', () => partialSession));
+          } catch {
+            /* The original saved history remains authoritative. */
+          }
+        }
+      } finally {
+        lock.current = false;
+        if (live.current) setBusy(false);
+      }
+    })();
+  }, [readyToAnalyze, pending.length, done, partial, challenge, error, publish, process]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const s = current.current;
+      if (
+        lock.current ||
+        document.visibilityState !== 'visible' ||
+        s.guided!.status !== 'interview'
+      )
+        return;
+      lock.current = true;
+      const pendingSave = commitInterview(s, 'active-time', (value) => ({
+        ...value,
+        guided: { ...value.guided!, activeMs: value.guided!.activeMs + 5000 },
+      }))
+        .then((next) => {
+          lock.current = false;
+          publish(next);
+        })
+        .catch(() => setError('Não foi possível salvar seu progresso.'))
+        .finally(() => {
+          lock.current = false;
+          savingTime.current = null;
+        });
+      savingTime.current = pendingSave;
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [publish]);
+  const stateText = busy
+    ? 'Organizando sua resposta…'
+    : voice.status === 'speaking'
+      ? 'Falando a pergunta…'
+      : voice.status === 'listening'
+        ? 'Ouvindo você…'
+        : voice.status === 'preview'
+          ? 'Entendi. Enviando em 2 segundos…'
+          : 'Pode responder do seu jeito.';
+  const stage = done ? 3 : g.answered.length < 3 ? 1 : g.answered.length < 6 ? 2 : 3;
   return (
-    <section className="interview-workspace" aria-busy={busy}>
-      <p className="section-kicker">
-        {ready
-          ? 'Seu próximo passo'
-          : review
-            ? 'Revisar seus fatos'
-            : 'Vamos conhecer sua história'}
-      </p>
-      <h1 ref={title} tabIndex={-1}>
-        {ready
-          ? 'Fatos confirmados para preparar seu currículo'
-          : review
-            ? 'O que você quer manter?'
-            : paused
-              ? 'Sua conversa está pausada'
-              : 'Uma experiência de cada vez'}
-      </h1>
-      <p>
-        Você pode contar do seu jeito. Áudio é opcional. O que você confirma é uma informação
-        declarada por você.
-      </p>
-      {error && <p role="alert">{error}</p>}
-      <p role="status" aria-live="polite">
-        {busy
-          ? 'Salvando seu progresso…'
-          : `${session.turns.length} ${session.turns.length === 1 ? 'resposta salva' : 'respostas salvas'} neste aparelho.`}
-      </p>
-      {!ready && !review && !paused && (
-        <>
-          <div className="job-result-summary">
-            <h2>{speak}</h2>
-            <p>{action.reason}</p>
-          </div>
-          <label htmlFor="interview-answer">Sua resposta</label>
-          <VoiceTextField
-            id="interview-answer"
-            label="Sua resposta"
-            kind="textarea"
-            className="interview-answer"
-            value={answer}
-            placeholder="Conte uma situação que você lembra…"
-            rows={5}
-            disabled={busy}
-            onChange={setAnswer}
-            onBusyChange={(value) => {
-              setVoiceBusy(value);
-              if (value) setModality('dictation');
-            }}
-          />
-          <p>Depois de ditar, confira e corrija o texto antes de enviar.</p>
-          <p>
-            {answer.length} de {state.limits.answerChars} caracteres
-          </p>
-          <button
-            className="button button-primary"
-            disabled={
-              busy || voiceBusy || !answer.trim() || answer.length > state.limits.answerChars
-            }
-            onClick={() => void submit('specific', answer)}
-          >
-            Enviar resposta
-          </button>
-          <div className="interview-actions">
-            {(
-              [
-                ['skipped', 'Pular'],
-                ['unknown', 'Não sei'],
-                ['forgotten', 'Não lembro'],
-                ['absence', 'Não tenho essa experiência'],
-                ['declined', 'Prefiro não responder'],
-              ] as const
-            ).map(([kind, label]) => (
-              <button
-                className="button button-outline"
-                disabled={busy || voiceBusy}
-                key={kind}
-                onClick={() => void submit(kind, label)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            className="button button-outline"
-            disabled={busy || voiceBusy}
-            onClick={() =>
-              void run('pause', (s) => interrupt(s, 'paused', 'Você escolheu pausar.'))
-            }
-          >
-            Pausar conversa
-          </button>
-        </>
-      )}
-      {paused && (
-        <>
-          <p>{session.interruption!.reason}</p>
-          <button
-            className="button button-primary"
-            disabled={busy}
-            onClick={() => void run('resume', (s) => reopenInterview(s))}
-          >
-            Retomar conversa
-          </button>
-        </>
-      )}
-      {!ready && pendingTurns.length > 0 && (
-        <section className="job-result-summary" aria-label="Analisar relatos do bloco">
-          <h2>Vamos revisar este bloco?</h2>
-          <p>
-            Você contou {pendingTurns.length} respostas ainda não analisadas. Vamos identificar os
-            fatos e o que precisa de mais detalhes.
-          </p>
-          {!hasInterviewAccess() && (
-            <>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={accepted}
-                  onChange={(e) => setAccepted(e.target.checked)}
-                />{' '}
-                Aceito enviar estes relatos à IA conforme os Termos e a Política de Privacidade.
-              </label>
-              <TurnstileChallenge onReady={setChallenge} />
-            </>
-          )}
-          <button
-            className="button button-primary"
-            disabled={busy || voiceBusy || (!hasInterviewAccess() && (!accepted || !challenge))}
-            onClick={() => void analyze()}
-          >
-            Analisar este bloco
-          </button>
-        </section>
-      )}
-      {!ready && !review && (
-        <button
-          className="button button-outline"
-          disabled={busy || voiceBusy}
-          onClick={() => void run('review', requestReview)}
+    <section className="guided-interview" aria-busy={busy}>
+      <div className="guided-progress">
+        <span>
+          {done
+            ? 'Concluído'
+            : `${stage} de 3 · ${['Sua história', 'Exemplos para a vaga', 'Organização final'][stage - 1]}`}
+        </span>
+        <span>{g.answered.length} respostas recebidas</span>
+        <div
+          role="progressbar"
+          aria-label="Progresso da entrevista"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={done ? 100 : Math.min(90, g.answered.length * 11)}
         >
-          Encerrar conversa e revisar
-        </button>
-      )}
-      {(review || ready) && (
+          <i style={{ width: `${done ? 100 : Math.min(90, g.answered.length * 11)}%` }} />
+        </div>
+      </div>
+      {done ? (
+        <div className="guided-success">
+          <span aria-hidden="true">✓</span>
+          <h1 ref={heading} tabIndex={-1}>
+            Entrevista concluída
+          </h1>
+          <p>Organizamos suas informações para preparar seu currículo.</p>
+        </div>
+      ) : partial ? (
+        <div className="guided-success">
+          <h1 ref={heading} tabIndex={-1}>
+            Suas respostas estão salvas
+          </h1>
+          <p>Ainda precisamos organizar algumas informações antes de preparar seu currículo.</p>
+          <p role="status">{error}</p>
+        </div>
+      ) : (
         <>
-          <p>{action.reason}</p>
-          <HeaderProfile />
-          <button
-            className="button button-outline"
-            disabled={busy}
-            onClick={() => void run('add-experience', (s) => reopenInterview(s, 'discovery'))}
-          >
-            Incluir outra experiência, formação, curso ou idioma
-          </button>
-          <p>
-            Confira cada fato. Números, ferramentas e competências só serão mantidos se você
-            confirmar a versão mostrada.
+          <p className="guided-kicker">
+            {g.answered.length === 0 ? 'Vamos começar' : 'Estamos conhecendo sua história'}
           </p>
-          {!facts.length && (
-            <p>
-              Ainda não há fatos candidatos. Seus relatos podem ser analisados acima, ou você pode
-              voltar à conversa.
-            </p>
+          <h1 className="guided-question" ref={heading} tabIndex={-1}>
+            {question?.text ?? 'Já temos suas respostas. Vamos organizar tudo.'}
+          </h1>
+          <p className="guided-remaining">
+            {g.answered.length < 6
+              ? `A conversa costuma ter de 6 a 8 respostas.`
+              : 'Estamos na parte final da entrevista.'}
+          </p>
+          <p className="guided-status" role="status" aria-live="polite">
+            {stateText}
+          </p>
+          {error && <p role="alert">{error}</p>}
+          {voice.notice && <p role="status">{voice.notice}</p>}
+          {readyToAnalyze && pending.length > 0 && !hasInterviewAccess() && (
+            <TurnstileChallenge onReady={setChallenge} />
           )}
-          {session.experiences.map((experience) => (
-            <section className="job-result-summary" key={experience.id}>
-              <h2>{experience.title}</h2>
-              {experienceEdit?.id === experience.id ? (
-                <div>
-                  {(['title', 'start', 'end'] as const).map((key) => (
-                    <label key={key} htmlFor={`experience-${key}`}>
-                      {
-                        {
-                          title: 'Atividade e lugar',
-                          start: 'Início (se lembrar)',
-                          end: 'Fim (se houver)',
-                        }[key]
-                      }
-                      <input
-                        id={`experience-${key}`}
-                        maxLength={key === 'title' ? 200 : 40}
-                        value={experienceEdit[key]}
-                        onChange={(e) =>
-                          setExperienceEdit({ ...experienceEdit, [key]: e.target.value })
-                        }
-                      />
-                    </label>
-                  ))}
-                  <button
-                    disabled={busy || !experienceEdit.title.trim()}
-                    onClick={() => {
-                      const patch = experienceEdit;
-                      void run({ experience: patch }, (s, hash) =>
-                        requestReview(
-                          editExperience(
-                            s.phase === 'ready' ? reopenInterview(s) : s,
-                            patch.id,
-                            {
-                              title: patch.title,
-                              start: patch.start || null,
-                              end: patch.end || null,
-                            },
-                            hash,
-                          ),
-                        ),
-                      ).then((saved) => {
-                        if (saved) setExperienceEdit(null);
-                      });
-                    }}
-                  >
-                    Salvar experiência
-                  </button>
-                  <button onClick={() => setExperienceEdit(null)}>
-                    Cancelar edição da experiência
-                  </button>
-                </div>
-              ) : (
+          {mode === 'text' ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send(text);
+              }}
+            >
+              <label htmlFor="guided-answer">Sua resposta</label>
+              <textarea
+                id="guided-answer"
+                value={text}
+                maxLength={10000}
+                rows={3}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  voice.replaceDraft(e.target.value);
+                }}
+                disabled={busy}
+                placeholder="Escreva como você contaria para alguém…"
+              />
+              <div className="guided-controls">
+                <button
+                  className="button button-primary"
+                  disabled={busy || !text.trim()}
+                  type="submit"
+                >
+                  Enviar resposta
+                </button>
                 <button
                   className="button button-outline"
+                  type="button"
                   disabled={busy}
-                  onClick={() =>
-                    setExperienceEdit({
-                      id: experience.id,
-                      title: experience.title,
-                      start: experience.start ?? '',
-                      end: experience.end ?? '',
-                    })
-                  }
+                  onClick={() => setMode('voice')}
                 >
-                  Corrigir atividade ou período
+                  Falar
                 </button>
-              )}
+              </div>
+            </form>
+          ) : (
+            <div className="guided-voice">
+              <p className="guided-transcript" aria-live="polite">
+                {text}
+              </p>
               <button
-                className="button button-outline"
-                disabled={busy}
-                onClick={() =>
-                  void run({ revisit: experience.id }, (s) =>
-                    reopenInterview(
-                      s,
-                      replan(s).topics.find((t) => t.experienceId === experience.id)?.id,
-                    ),
-                  )
+                className={`guided-microphone ${voice.status}`}
+                disabled={busy || voice.status === 'speaking' || !question}
+                onClick={voice.microphone}
+                aria-label={
+                  voice.status === 'listening'
+                    ? 'Pausar microfone'
+                    : voice.status === 'preview'
+                      ? 'Continuar falando'
+                      : 'Ouvir e responder'
                 }
               >
-                Conversar sobre esta experiência
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                  <rect
+                    x="9"
+                    y="2"
+                    width="6"
+                    height="13"
+                    rx="3"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                </svg>
+                <span>
+                  {voice.status === 'listening'
+                    ? 'Estou ouvindo'
+                    : voice.status === 'preview'
+                      ? 'Continuar falando'
+                      : 'Toque para responder'}
+                </span>
               </button>
-              <p>
-                {experience.start ?? 'Período não informado'}
-                {experience.end ? ` até ${experience.end}` : ''}
-              </p>
-              <ul className="interview-facts">
-                {facts
-                  .filter((f) => f.experienceId === experience.id)
-                  .map((fact) => (
-                    <li key={fact.id}>
-                      <p>{fact.text}</p>
-                      <p>
-                        {fact.confirmation === 'confirmed'
-                          ? 'Você quer manter este fato.'
-                          : fact.confirmation === 'rejected'
-                            ? 'Este fato será removido.'
-                            : 'Aguardando sua confirmação.'}{' '}
-                        Versão {fact.revision}.
-                      </p>
-                      <details>
-                        <summary>De onde veio</summary>
-                        <p>{fact.origin.quote}</p>
-                      </details>
-                      {editing === fact.id ? (
-                        <>
-                          <label htmlFor="fact-edit">Corrigir fato</label>
-                          <textarea
-                            id="fact-edit"
-                            maxLength={500}
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                          />
-                          <button
-                            disabled={busy || !editText.trim()}
-                            onClick={() => void decide(fact.id, 'edit')}
-                          >
-                            Salvar correção
-                          </button>
-                          <button onClick={() => setEditing(null)}>Cancelar correção</button>
-                        </>
-                      ) : (
-                        <div className="interview-actions">
-                          <button
-                            className="button button-outline"
-                            disabled={busy || !fact.usable}
-                            onClick={() => void decide(fact.id, 'keep')}
-                          >
-                            Manter este fato
-                          </button>
-                          <button
-                            className="button button-outline"
-                            disabled={busy}
-                            onClick={() => {
-                              setEditing(fact.id);
-                              setEditText(fact.text);
-                            }}
-                          >
-                            Editar este fato
-                          </button>
-                          <button
-                            className="button button-outline"
-                            disabled={busy}
-                            onClick={() => void decide(fact.id, 'remove')}
-                          >
-                            Remover este fato
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          ))}
-          <section aria-label="Pendências e lacunas">
-            <h2>O que ainda falta esclarecer</h2>
-            {session.pending.length ? (
-              <ul>
-                {session.pending.map((p) => (
-                  <li key={p.id}>
-                    {p.diagnosticFindingId
-                      ? 'Há um detalhe da sua experiência para conferir.'
-                      : p.reason}
-                    {p.blocking ? ' Este ponto impede a confirmação.' : ''}
-                    <button
-                      className="button button-outline"
-                      disabled={busy}
-                      onClick={() =>
-                        void run({ reopen: p.id }, (s) => reopenInterview(s, p.topicId))
-                      }
-                    >
-                      Esclarecer este ponto
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>Nenhuma pendência registrada. Você pode manter uma versão parcial e honesta.</p>
-            )}
-          </section>
-          {!ready && (
-            <button
-              className="button button-primary"
-              disabled={
-                busy ||
-                !facts.some((f) => f.usable && f.confirmation === 'confirmed') ||
-                session.pending.some((p) => p.blocking) ||
-                session.links.some((l) => l.status === 'contradiction')
-              }
-              onClick={() => void consolidate()}
-            >
-              Confirmar os fatos que quero manter
-            </button>
-          )}
-          <button
-            className="button button-outline"
-            disabled={busy}
-            onClick={() => void run('reopen', (s) => reopenInterview(s))}
-          >
-            Voltar à conversa
-          </button>
-          {ready && (
-            <p>Seu conjunto está confirmado. A redação será disponibilizada na próxima etapa.</p>
+              <button
+                className="guided-write"
+                disabled={busy}
+                onClick={() => {
+                  voice.pause();
+                  setMode('text');
+                }}
+              >
+                Escrever
+              </button>
+            </div>
           )}
         </>
       )}

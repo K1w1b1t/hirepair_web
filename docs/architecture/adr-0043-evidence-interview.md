@@ -2,6 +2,11 @@
 
 Status: aceito para a fundação da #43. Data: 28/10/2026.
 
+A jornada da #15 foi revisada por decisão de produto em 01/11/2026. O
+[ADR 0015](adr-0015-guided-interview.md) substitui a confirmação humana obrigatória
+e os controles de revisão descritos abaixo por seleção automática com lastro.
+Os contratos legados de confirmação continuam compatíveis.
+
 ## Contexto e fronteiras
 
 A metodologia §§3–6, 8–9 e 11 distingue intenção, história, inferência e redação.

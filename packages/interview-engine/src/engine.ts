@@ -1,3 +1,4 @@
+import { validEngineSelection, selectedFactIds } from './guided';
 import { interviewAction } from './interview';
 import type {
   Session,
@@ -46,6 +47,7 @@ const transitions: Record<Phase, Phase[]> = {
   writing: ['interview'],
 };
 export function canWrite(s: Session): boolean {
+  if (s.selection) return !!s.objective && !s.interruption && validEngineSelection(s);
   return (
     !!s.objective &&
     !!s.confirmation?.valid &&
@@ -157,6 +159,7 @@ export function changeInput(s: Session, input: keyof Inputs, value: string): Ses
     plan: invalidate(s.plan),
     strategy: invalidate(s.strategy),
     confirmation: invalidate(s.confirmation),
+    selection: invalidate(s.selection ?? null),
     content: invalidate(s.content),
     criteria: input === 'job' ? [] : s.criteria,
     links: input === 'job' ? [] : s.links,
@@ -260,7 +263,7 @@ export function validateContent(s: Session, content: GroundedContent): void {
       (section) =>
         !section.text.trim() ||
         !section.factIds.length ||
-        section.factIds.some((id) => !s.confirmation!.factIds.includes(id)),
+        section.factIds.some((id) => !selectedFactIds(s).includes(id)),
     )
   )
     throw new Error('UNGROUNDED_CONTENT');
@@ -388,7 +391,7 @@ export function nextAction(s: Session): import('./contracts').NextAction {
     return {
       version: 1,
       kind: 'write',
-      confirmationVersion: s.confirmation!.version,
+      confirmationVersion: s.selection?.version ?? s.confirmation!.version,
       reason: 'A confirmação vigente permite redigir somente os fatos selecionados.',
     };
   return interviewAction(s);

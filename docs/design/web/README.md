@@ -24,3 +24,24 @@ O fluxo principal é `index → voice-flow → confirm-facts → progress/previe
 - Mantenha HTML semântico: um `h1` por tela, landmarks (`header`, `nav`, `main`, `footer`), labels associados a campos e `alt` descritivo para imagens.
 - Os links entre HTML representam rotas futuras. Botões e simulações mostram estados visuais, mas não são contratos de API.
 - O JavaScript local (`js/theme-toggle.js` e scripts inline) serve apenas para apresentação e interação demonstrativa.
+
+## Jornada implementada da entrevista (#15)
+
+O protótipo acima é histórico. A implementação atual segue
+`materiais e vaga → entrevista guiada → conclusão`, sem `confirm-facts`.
+A entrevista começa assim que a preparação termina, com ou sem currículo.
+Há uma pergunta por vez, narrada pelo navegador, progresso em três etapas e
+uma estimativa de seis a oito respostas. No mobile, o microfone ocupa o foco
+principal; escrever é a alternativa. No desktop, a área de texto fica aberta.
+Cada modo tem no máximo dois botões; não há voltar, pular ou análise manual.
+
+O ditado final entra em uma janela de correção após três segundos de silêncio;
+dois segundos depois, a resposta é enviada automaticamente. Escrever interrompe
+o envio e permite corrigir o texto. Permissão negada ou navegador sem ditado
+permitem continuar por texto. O navegador pode exigir interação para narrar: o
+mesmo microfone retoma leitura e resposta. Não há promessa de áudio antes dessa
+permissão. O foco acompanha o título da próxima pergunta, com labels e estados
+anunciados. Conclusão exige seleção utilizável persistida; falha mantém os relatos
+e mostra encerramento parcial. A redação pertence à #18.
+
+[Evidências e validação](../../backend/evidence/15-validation.md).

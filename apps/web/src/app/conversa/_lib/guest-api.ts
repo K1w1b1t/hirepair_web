@@ -261,6 +261,15 @@ async function guestAccess(
     throw new AnalysisFailure('GUEST_ACCESS_INVALID');
   if ('guestCredential' in access && typeof access.guestCredential === 'string')
     writeBrowserValue(GUEST_CREDENTIAL_KEY, access.guestCredential);
+  // Both callers validate explicit consent or a current receipt before requesting access.
+  writeBrowserValue(
+    'hirepair_ai_consent',
+    JSON.stringify({
+      termsVersion: challenge.termsVersion,
+      privacyVersion: challenge.privacyVersion,
+      acceptedAt: Date.now(),
+    }),
+  );
   interviewAccessToken = access.accessToken;
   return { accessToken: access.accessToken };
 }
@@ -393,7 +402,27 @@ export async function analyzeInterviewBlock(
 ): Promise<import('@hirepair/interview-engine').InterviewBlockResult> {
   const currentGeneration = generation;
   controller = new AbortController();
-  if (challenge) await guestAccess(draft, challenge);
+  if (challenge) {
+    let consent: { termsVersion?: string; privacyVersion?: string; acceptedAt?: number } | null =
+      null;
+    try {
+      consent = JSON.parse(readBrowserValue('hirepair_ai_consent') ?? 'null') as {
+        termsVersion?: string;
+        privacyVersion?: string;
+        acceptedAt?: number;
+      } | null;
+    } catch {
+      /* No receipt means consent must be obtained again. */
+    }
+    const reusable =
+      !!consent &&
+      consent.termsVersion === challenge.termsVersion &&
+      consent.privacyVersion === challenge.privacyVersion &&
+      typeof consent.acceptedAt === 'number' &&
+      Date.now() - consent.acceptedAt < 30 * 86400000;
+    if (!draft.accepted && !reusable) throw new AnalysisFailure('CONSENT_REQUIRED');
+    await guestAccess({ ...draft, accepted: draft.accepted || reusable }, challenge);
+  }
   if (!interviewAccessToken) throw new AnalysisFailure('GUEST_ACCESS_INVALID');
   const fingerprint = await inputFingerprint(
     [{ id: 'block', text: JSON.stringify({ ...request, revision: 0 }) }],

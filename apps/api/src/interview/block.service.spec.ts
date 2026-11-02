@@ -1,4 +1,4 @@
-import { BlockService } from './block.service';
+import { BlockService, buildInterviewGeneration } from './block.service';
 it('reserves a visitor-owned idempotent block before extracting candidate facts', async () => {
   const ai = {
     generateText: jest.fn().mockResolvedValue({ text: '{}' }),
@@ -70,6 +70,28 @@ const request: InterviewBlockRequest = {
   context: { experiences: [], facts: [] },
   topics: [discovery],
 };
+it('uses local synthetic references to prioritize grounded evidence from the vacancy and context', () => {
+  const context = {
+    ...request.context,
+    facts: [
+      {
+        id: 'existing',
+        experienceId: 'e',
+        text: 'Atendimento informal na loja',
+        origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Atendimento' },
+      },
+    ],
+  };
+  const { generation } = buildInterviewGeneration({ ...request, context }, 'v', 'key');
+  const data = JSON.parse(generation.prompt) as {
+    references: { version: string; examples: { id: string }[] };
+    context: InterviewBlockRequest['context'];
+  };
+  expect(data.references.version).toBe('2026-11-guided-1');
+  expect(data.references.examples[1].id).toBe('informal');
+  expect(data.context.facts[0].id).toBe('existing');
+  expect(generation.systemInstruction).toContain('nunca fatos da pessoa');
+});
 describe('incremental interview boundary', () => {
   const ai = { generateText: jest.fn(), estimateTokens: jest.fn() };
   const quota = { reserveInterviewBlock: jest.fn(), finishAnalysis: jest.fn() };

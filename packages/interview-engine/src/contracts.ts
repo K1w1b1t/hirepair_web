@@ -147,7 +147,26 @@ export interface InterviewState {
 export interface GroundedContent extends Derived {
   sections: Array<{ text: string; factIds: string[] }>;
 }
+export interface EngineSelection extends Derived {
+  kind: 'engine';
+  knowledgeVersion: string;
+  rulesVersion: number;
+  facts: Array<{ id: string; revision: number; originVersion: string; reason: string }>;
+  excluded: Array<{ id: string; reason: string }>;
+}
+export interface GuidedState {
+  version: 1;
+  status: 'interview' | 'processing' | 'complete' | 'partial';
+  maxAnswers: number;
+  activeLimitMs: number;
+  activeMs: number;
+  answered: string[];
+  stopRequested?: boolean;
+  clarification: { topic: Topic; question: string } | null;
+}
 export interface Session {
+  guided?: GuidedState;
+  selection?: EngineSelection | null;
   interview?: InterviewState;
   factHistory?: Fact[];
   version: 1;

@@ -301,23 +301,15 @@ export function ConversationPageClient() {
       objective: analysis.suggestedObjective,
       tone: analysis.suggestedTone,
     });
-    transitionTo(documents.length ? 'recommendations' : 'interview');
+    transitionTo(analysis.preparation ? 'interview' : 'recommendations');
   };
 
   const goBack =
-    phase === 'materials'
-      ? undefined
-      : () =>
-          transitionTo(
-            phase === 'job'
-              ? 'materials'
-              : phase === 'interview' && documents.length
-                ? 'recommendations'
-                : 'job',
-          );
+    phase === 'materials' ? undefined : () => transitionTo(phase === 'job' ? 'materials' : 'job');
 
   return (
     <WizardShell
+      focused={phase === 'interview'}
       currentStep={
         phase === 'interview' &&
         ['confirmation', 'ready'].includes(result?.preparation?.phase ?? '')
@@ -342,38 +334,40 @@ export function ConversationPageClient() {
       totalSteps={5}
     >
       <div className="w-full min-w-0">
-        <button
-          type="button"
-          className="button button-outline"
-          onClick={() => {
-            if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
-            cancelPreparation();
-            void deleteEngine()
-              .then(async () => {
-                if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
-              })
-              .then(() => {
-                removeBrowserValue(ANALYSIS_KEY);
-                removeBrowserValue('hirepair_analysis_pending');
-                removeBrowserValue('hirepair_interview_pending');
-                removeBrowserValue('hirepair_engine_funnel');
-                sessionStorage.removeItem('hirepair_funnel_session_id');
-                sessionStorage.removeItem('hirepair_session_started_captured');
-                documentsRef.current = [];
-                setDocuments([]);
-                setDraft(initialDraft);
-                invalidateAnalysis();
-                setResetKey((value) => value + 1);
-                setLocalError('');
-                transitionTo('materials');
-              })
-              .catch(() =>
-                setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
-              );
-          }}
-        >
-          Excluir minha jornada deste aparelho
-        </button>
+        {phase !== 'interview' && (
+          <button
+            type="button"
+            className="button button-outline"
+            onClick={() => {
+              if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
+              cancelPreparation();
+              void deleteEngine()
+                .then(async () => {
+                  if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
+                })
+                .then(() => {
+                  removeBrowserValue(ANALYSIS_KEY);
+                  removeBrowserValue('hirepair_analysis_pending');
+                  removeBrowserValue('hirepair_interview_pending');
+                  removeBrowserValue('hirepair_engine_funnel');
+                  sessionStorage.removeItem('hirepair_funnel_session_id');
+                  sessionStorage.removeItem('hirepair_session_started_captured');
+                  documentsRef.current = [];
+                  setDocuments([]);
+                  setDraft(initialDraft);
+                  invalidateAnalysis();
+                  setResetKey((value) => value + 1);
+                  setLocalError('');
+                  transitionTo('materials');
+                })
+                .catch(() =>
+                  setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
+                );
+            }}
+          >
+            Excluir minha jornada deste aparelho
+          </button>
+        )}
         {localError ? <p role="alert">{localError}</p> : null}
         {phase === 'materials' && documents.length === 0 && (
           <button

@@ -163,7 +163,37 @@ contra Redis isolado por `npm run test:operational -w @hirepair/api`.
 
 O cliente preserva a chave do bloco se o resultado fica incerto. Uma repetição
 já processada não refaz a chamada nem recupera conteúdo pessoal do servidor.
-Falha de Redis bloqueia IA; indisponibilidade mantém os relatos locais e permite
-revisão parcial. Logs, Redis e telemetria não recebem relatos, fatos ou perfil.
+Falha de Redis bloqueia IA; indisponibilidade mantém os relatos locais e informa
+um encerramento parcial. Logs, Redis e telemetria não recebem relatos, fatos ou perfil.
 Não há migração Prisma, nova variável obrigatória ou ativação automática da IA.
 O rollback é reverter a entrega; os campos adicionais da sessão v1 são opcionais.
+
+### Seleção automática e avaliações
+
+A #15 usa referências sintéticas locais versionadas em `resume-knowledge.ts`
+para orientar a extração e a relevância, sem transmitir currículos de terceiros.
+Os exemplos nunca constituem evidência do candidato. O contrato continua fechado
+e a operação permanece escolhida no servidor. Ver [ADR 0015](../architecture/adr-0015-guided-interview.md).
+
+`npm run eval:interview -w @hirepair/api` executa oito fixtures sintéticas com
+assertivas determinísticas, sem Redis nem provedor; roda na CI. Testes unitários
+da avaliação real usam um provedor simulado, o prompt de produção e o parser
+compartilhado. Não demonstram qualidade semântica do modelo real.
+
+Avaliação manual opcional com a infraestrutura de IA já configurada:
+
+```sh
+npm run eval:interview -w @hirepair/api -- --live
+npm run eval:interview -w @hirepair/api -- --live --cases negative,contradiction --judge
+```
+
+O modo real executa no máximo dois casos sequenciais e um julgamento opcional
+(até três chamadas, uma tentativa por chamada e reserva total de até 30.000
+tokens). Reutiliza `AiService`, reservas centrais, identidade técnica estável
+`hirepair-guided-eval` e escopo `guided-v1`; repetir o comando não abre franquia.
+Os limites globais/rede/modelo continuam vigentes. O relatório distingue modo,
+versão da base, chamadas, tokens reservados, modelo e resultado. Falha de schema,
+infraestrutura ou orçamento retorna erro; falha de qualidade retorna exit code 1.
+Não há job automático com IA real nem novo endpoint de prompt/judge. Só fixtures
+sintéticas são usadas. Execução real requer as mesmas condições operacionais
+da IA pública e não foi realizada como evidência desta entrega.

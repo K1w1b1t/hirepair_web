@@ -114,11 +114,15 @@ describe('ConversationPage', () => {
     });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
-    expect(await screen.findByRole('heading', { name: /sugerido para você/i })).toBeInTheDocument();
-    expect(window.location.search).toBe('?etapa=recommendations');
-    expect(screen.getByText('Passo 3 de 5')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('progressbar', { name: 'Progresso da entrevista' }),
+    ).toBeInTheDocument();
+    expect(window.location.search).toBe('?etapa=interview');
+    expect(
+      screen.getByRole('progressbar', { name: 'Progresso da entrevista' }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText(/requisitos da vaga/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /começar entrevista/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /começar entrevista/i })).not.toBeInTheDocument();
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
 

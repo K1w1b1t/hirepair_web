@@ -33,6 +33,7 @@ const snapshot: JourneySnapshot = { draft: initialDraft, result, preferences, in
 const list = jest.fn(),
   restore = jest.fn(),
   persist = jest.fn();
+let lateDocumentsChange: (documents: StoredResume[]) => void;
 jest.mock('../_lib/resume-storage', () => ({
   listStoredResumes: () => list(),
   clearStoredResumes: jest.fn().mockResolvedValue(true),
@@ -51,15 +52,18 @@ jest.mock('./import-panel', () => ({
     onDocumentsChange,
   }: {
     onDocumentsChange: (documents: StoredResume[]) => void;
-  }) => (
-    <div>
-      <button onClick={() => onDocumentsChange([])}>Clear</button>
-      <button onClick={() => onDocumentsChange([resume])}>Same documents</button>
-      <button onClick={() => onDocumentsChange([{ ...resume, text: 'Changed' }])}>
-        Change documents
-      </button>
-    </div>
-  ),
+  }) => {
+    lateDocumentsChange = onDocumentsChange;
+    return (
+      <div>
+        <button onClick={() => onDocumentsChange([])}>Clear</button>
+        <button onClick={() => onDocumentsChange([resume])}>Same documents</button>
+        <button onClick={() => onDocumentsChange([{ ...resume, text: 'Changed' }])}>
+          Change documents
+        </button>
+      </div>
+    );
+  },
 }));
 jest.mock('./job-example-step', () => ({
   JobExampleStep: ({
@@ -342,9 +346,9 @@ it('starts without documents, saves the same session and restores the relevant i
   fireEvent.click(screen.getByText('Analyze prepared'));
   await screen.findByText('Interview view');
   fireEvent.click(screen.getByText('Review block'));
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
-  fireEvent.click(screen.getByRole('button', { name: /voltar para a etapa anterior/i }));
-  await screen.findByText('Analyze');
+  expect(
+    screen.queryByRole('button', { name: /voltar para a etapa anterior/i }),
+  ).not.toBeInTheDocument();
   view.unmount();
   window.history.replaceState({}, '', '/conversa?etapa=recommendations&sem-curriculo=1');
   restore.mockResolvedValue({
@@ -367,9 +371,9 @@ it.each(['confirmation', 'ready'] as const)(
     restore.mockResolvedValue({ ...snapshot, result: { ...result, preparation: s } });
     render(<ConversationPageClient />);
     await screen.findByText('Interview view');
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
-    fireEvent.click(screen.getByRole('button', { name: /voltar para a etapa anterior/i }));
-    await screen.findByText('Recommendations');
+    expect(
+      screen.queryByRole('button', { name: /voltar para a etapa anterior/i }),
+    ).not.toBeInTheDocument();
   },
 );
 it('continues from imported recommendations and cannot resurrect state through a late child update after deletion', async () => {
@@ -382,12 +386,14 @@ it('continues from imported recommendations and cannot resurrect state through a
   fireEvent.click(screen.getByText('Interview'));
   await screen.findByText('Interview view');
   const late = lateSessionChange!;
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
-  fireEvent.click(screen.getByText('Excluir minha jornada deste aparelho'));
-  await screen.findByText('Começar sem currículo');
-  act(() => late(s));
-  expect(screen.queryByText('Interview view')).not.toBeInTheDocument();
-  confirm.mockRestore();
+  const view = screen.getByText('Interview view');
+  expect(view).toBeInTheDocument();
+  expect(screen.queryByText('Excluir minha jornada deste aparelho')).not.toBeInTheDocument();
+  act(() => late({ ...s, phase: 'confirmation' }));
+  expect(screen.getByText('Interview view')).toBeInTheDocument();
+  act(() => lateDocumentsChange([]));
+  act(() => late({ ...s, phase: 'ready' }));
+  expect(persist).toHaveBeenLastCalledWith(expect.objectContaining({ result: undefined }));
 });
 it('allows vacancy entry without documents when the explicit mode was selected', async () => {
   window.history.replaceState({}, '', '/conversa?etapa=job&sem-curriculo=1');
@@ -403,5 +409,5 @@ it('does not imply a review phase for a legacy result without a prepared aggrega
   restore.mockResolvedValue(snapshot);
   render(<ConversationPageClient />);
   await screen.findByText('Recommendations');
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4');
+  expect(screen.queryByRole('button', { name: /voltar/i })).not.toBeInTheDocument();
 });

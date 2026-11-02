@@ -4,3 +4,6 @@ export * from './schemas';
 export * from './diagnostic';
 export * from './interview';
 export * from './block';
+export * from './guided';
+export * from './resume-knowledge';
+export * from './guided-eval';

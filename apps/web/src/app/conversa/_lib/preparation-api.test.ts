@@ -446,3 +446,36 @@ it('rejects an incremental result if deletion occurs while its body is being rea
   resolve(blockResponse());
   await expect(pending).rejects.toHaveProperty('code', 'REQUEST_CANCELLED');
 });
+it('reuses an explicit current consent receipt on resume without silently accepting a new policy', async () => {
+  access();
+  await analyzeGuest([], draft, challenge);
+  cancelPreparation();
+  access();
+  fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => blockResponse() });
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).resolves.toHaveProperty('version', 1);
+  cancelPreparation();
+  await expect(
+    analyzeInterviewBlock(
+      blockRequest,
+      { ...draft, accepted: false },
+      { ...challenge, privacyVersion: 'new-policy' },
+    ),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
+  localStorage.setItem('hirepair_ai_consent', 'broken');
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
+  localStorage.setItem(
+    'hirepair_ai_consent',
+    JSON.stringify({
+      termsVersion: challenge.termsVersion,
+      privacyVersion: challenge.privacyVersion,
+      acceptedAt: 0,
+    }),
+  );
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
+});
