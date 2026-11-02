@@ -30,8 +30,10 @@ O fluxo principal é `index → voice-flow → confirm-facts → progress/previe
 O protótipo acima é histórico. A implementação atual segue
 `materiais e vaga → entrevista guiada → conclusão`, sem `confirm-facts`.
 A entrevista começa assim que a preparação termina, com ou sem currículo.
-Há uma pergunta por vez, narrada pelo navegador, progresso em três etapas e
-uma estimativa de seis a oito respostas. No mobile, o microfone ocupa o foco
+Há uma pergunta por vez, narrada pelo navegador, e progresso em três etapas.
+As perguntas esclarecem experiências e achados específicos do currículo. Sem
+histórico identificado, começam pela primeira experiência profissional e seguem
+até a atual/última. Não há pergunta aberta para escolher uma atividade. No mobile, o microfone ocupa o foco
 principal; escrever é a alternativa. No desktop, a área de texto fica aberta.
 Cada modo tem no máximo dois botões; não há voltar, pular ou análise manual.
 

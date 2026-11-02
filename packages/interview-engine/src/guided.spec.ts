@@ -46,6 +46,7 @@ import { knowledgeFor, KNOWLEDGE_VERSION } from './resume-knowledge';
 import { changeInput, validateContent, nextAction } from './engine';
 function groundedSession() {
   const s = startGuided(initial());
+  delete s.guided!.timeline; // Legacy selection contracts remain supported.
   s.sources = [{ id: 'cv', version: 'v', text: 'Conferi o estoque da loja.' }];
   s.experiences = [
     {
@@ -168,14 +169,14 @@ it('uses the same origins for narrated and corrected facts, and preserves partia
 it('asks contextual questions and respects answered topics, limits and valid exits', () => {
   let s = startGuided(initial());
   const first = guidedQuestion(s)!;
-  expect(first.text).toContain('atividade');
+  expect(first.text).toContain('primeira experiência profissional');
   s = guidedAnswer(s, {
     id: 't',
     question: { text: first.text, topicId: first.topic.id },
     answer: { text: 'Não lembro', kind: 'forgotten' },
     factIds: [],
   });
-  expect(guidedQuestion(s)!.topic.id).toBe('guided:context');
+  expect(guidedQuestion(s)!.topic.id).toBe('guided:first-informal');
   expect(() =>
     guidedAnswer(s, {
       id: 'x',
@@ -185,7 +186,7 @@ it('asks contextual questions and respects answered topics, limits and valid exi
     }),
   ).toThrow('INVALID_TURN');
   s.guided!.clarification = { topic: first.topic, question: 'Qual foi sua parte?' };
-  expect(guidedQuestion(s)!.text).toBe('Qual foi sua parte?');
+  expect(guidedQuestion(s)!.text).toContain('qual foi sua parte?');
   s.guided!.clarification = null;
   s.guided!.answered = Array(12).fill('guided:activity');
   expect(guidedQuestion(s)).toBeNull();
@@ -199,15 +200,20 @@ it('asks contextual questions and respects answered topics, limits and valid exi
 it('avoids asking known periods, contextualizes participation and selects synthetic guidance', () => {
   const s = groundedSession();
   s.experiences[0].start = '2020';
-  s.guided!.answered = ['guided:context'];
-  expect(guidedQuestion(s)!.text).toContain('Loja');
+  s.guided!.timeline = {
+    anchors: [],
+    completed: ['e'],
+    latest: true,
+    noProfessionalHistory: false,
+    halted: false,
+  };
   s.guided!.answered = [
-    'guided:context',
-    'guided:responsibility',
-    'guided:tools',
-    'guided:frequency',
-    'guided:action',
-    'guided:result',
+    'guided:e:responsibility',
+    'guided:e:context',
+    'guided:e:tools',
+    'guided:e:frequency',
+    'guided:e:action',
+    'guided:e:result',
   ];
   expect(guidedQuestion(s)).toBeNull();
   expect(startGuided(s)).toBe(s);
@@ -218,7 +224,7 @@ it('avoids asking known periods, contextualizes participation and selects synthe
     expect(knowledgeFor(value).length).toBeGreaterThan(0);
   const entry = startGuided(initial());
   entry.facts = [{ ...groundedSession().facts[0], text: 'projeto escolar' }];
-  expect(guidedQuestion(entry)!.text).toContain('escola');
+  expect(guidedQuestion(entry)!.text).toContain('primeira experiência profissional');
   expect(validEngineSelection(initial())).toBe(false);
   expect(selectedFactIds(initial())).toEqual([]);
 });
@@ -256,21 +262,21 @@ it('ranks linked evidence ahead of general experience and keeps stable selection
   };
   expect(selectedFactIds(legacy)).toEqual(['legacy']);
 });
-it('does not repeat tool, frequency and date questions that were already answered', () => {
-  const s = startGuided(initial());
-  s.turns = [
-    {
-      id: 't',
-      question: { text: 'q', topicId: 'guided:activity' },
-      answer: { text: 'Usei Excel diariamente desde 2020.', kind: 'specific' },
-      factIds: [],
-    },
-  ];
-  s.guided!.answered = ['guided:activity', 'guided:context', 'guided:responsibility'];
-  expect(guidedQuestion(s)!.topic.id).toBe('guided:action');
+it('does not repeat tool, frequency and date questions already answered for this experience', () => {
+  const s = groundedSession();
+  s.facts[0].text = 'Usei Excel diariamente desde 2020.';
+  s.guided!.timeline = {
+    anchors: [],
+    completed: ['e'],
+    latest: true,
+    noProfessionalHistory: false,
+    halted: false,
+  };
+  s.guided!.answered = ['guided:e:responsibility', 'guided:e:context'];
+  expect(guidedQuestion(s)!.topic.id).toBe('guided:e:action');
   s.interview = {
     topics: {
-      topic: {
+      'guided:e:result': {
         status: 'sufficient',
         noGain: 0,
         evidence: [
@@ -281,7 +287,6 @@ it('does not repeat tool, frequency and date questions that were already answere
           'ferramenta',
           'frequência',
           'dificuldade',
-          'atividade',
         ],
         question: null,
       },
@@ -319,7 +324,8 @@ it('uses the model followup in the shared policy without repeating it beyond the
     ],
   };
   let next = applyGuidedBlock(s, block, ['t'], 'h1');
-  expect(guidedQuestion(next)!.text).toBe(block.assessments[0].question);
+  expect(guidedQuestion(next)!.text).toContain('sua primeira experiência profissional');
+  expect(guidedQuestion(next)!.text).toContain('qual foi uma atividade');
   expect(next.turns[0].decision?.kind).toBe('ask');
   next = guidedAnswer(next, {
     id: 't2',

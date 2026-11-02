@@ -77,6 +77,7 @@ beforeEach(() => {
     replaceDraft: jest.fn(),
   });
   Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: () => {} });
+  window.scrollTo = jest.fn();
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: () => ({ matches: true }),
@@ -127,12 +128,15 @@ function pendingSession(count = 3) {
   return s;
 }
 it('records unknown, forgotten and absent responses without creating positive facts', async () => {
+  const focus = jest.spyOn(HTMLElement.prototype, 'focus');
   render(<Harness />);
   expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+  focus.mockRestore();
   for (const [answer, kind] of [
     ['Não sei', 'unknown'],
     ['Não lembro', 'forgotten'],
-    ['Não tenho', 'absence'],
   ]) {
     fireEvent.change(screen.getByLabelText('Sua resposta'), { target: { value: answer } });
     fireEvent.click(screen.getByText('Enviar resposta'));
@@ -149,6 +153,42 @@ it('accepts a spoken or typed request to stop without adding a stop button', asy
   await screen.findByText('Suas respostas estão salvas');
   expect(analyzeInterviewBlock).not.toHaveBeenCalled();
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
+});
+it('accepts absence without inventing a professional experience', async () => {
+  render(<Harness />);
+  fireEvent.change(screen.getByLabelText('Sua resposta'), { target: { value: 'Não tenho' } });
+  fireEvent.click(screen.getByText('Enviar resposta'));
+  await waitFor(() =>
+    expect(JSON.parse(screen.getByTestId('state').textContent!).turns[0].answer.kind).toBe(
+      'absence',
+    ),
+  );
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+    'primeira experiência em um projeto',
+  );
+  expect(analyzeInterviewBlock).not.toHaveBeenCalled();
+});
+it('preserves each original question and scope when resuming a block with legacy turn metadata', async () => {
+  const s = pendingSession();
+  delete s.turns[0].decision;
+  s.turns[1].decision!.criterionId = 'criterion';
+  s.turns[1].decision!.experienceId = 'e';
+  render(<Harness session={s} />);
+  await waitFor(() => expect(analyzeInterviewBlock).toHaveBeenCalled());
+  const request = (analyzeInterviewBlock as jest.Mock).mock.calls[0][0];
+  expect(request.topics[0]).toMatchObject({
+    criterionId: null,
+    experienceId: null,
+    missingEvidence: s.turns[0].question.text,
+  });
+  expect(request.topics[1]).toMatchObject({
+    criterionId: 'criterion',
+    experienceId: 'e',
+    missingEvidence: s.turns[1].question.text,
+  });
+  await waitFor(() =>
+    expect(screen.queryByText('Organizando sua resposta…')).not.toBeInTheDocument(),
+  );
 });
 it('announces save failure and preserves the draft for resubmission', async () => {
   (commitInterview as jest.Mock).mockRejectedValueOnce(new Error('storage'));
@@ -354,17 +394,32 @@ it('keeps investigating the last unresolved topic before finalizing a long inter
     return value;
   });
   render(<Harness session={s} />);
-  expect(await screen.findByText('Qual foi sua participação nessa atividade?')).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', {
+      name: /Sobre .*qual foi sua participação nessa atividade/i,
+    }),
+  ).toBeInTheDocument();
   expect(screen.queryByText('Entrevista concluída')).not.toBeInTheDocument();
 });
 it('shows one question and at most two controls, then organizes answers without manual analysis or review', async () => {
   render(<Harness />);
   expect(screen.getAllByRole('button')).toHaveLength(2);
   expect(screen.queryByText('Analisar este bloco')).not.toBeInTheDocument();
-  for (let i = 0; i < 8; i++) {
+  const responses = [
+    'Primeiro fui auxiliar na padaria.',
+    'De 2018 a 2019.',
+    'Eu embalava pedidos.',
+    'Essa foi a última.',
+    'Na padaria do bairro.',
+    'Eu usava embalagens.',
+    'Diariamente.',
+    'Eu trocava embalagens danificadas.',
+    'Os pedidos ficavam protegidos.',
+  ];
+  for (let i = 0; i < responses.length; i++) {
     const input = screen.queryByLabelText('Sua resposta');
     if (!input) break;
-    fireEvent.change(input, { target: { value: `Eu conferia inscrições da feira escolar ${i}.` } });
+    fireEvent.change(input, { target: { value: responses[i] } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }));
     await waitFor(() =>
       expect(JSON.parse(screen.getByTestId('state').textContent!).turns).toHaveLength(i + 1),
@@ -376,6 +431,11 @@ it('shows one question and at most two controls, then organizes answers without 
   await screen.findByText('Entrevista concluída');
   expect(screen.queryByText('O que você quer manter?')).not.toBeInTheDocument();
   const state = JSON.parse(screen.getByTestId('state').textContent!) as Session;
+  for (const [request] of (analyzeInterviewBlock as jest.Mock).mock.calls)
+    for (const topic of request.topics)
+      expect(topic.missingEvidence).toBe(
+        state.turns.find((t) => t.question.topicId === topic.id)!.question.text,
+      );
   expect(state.selection?.kind).toBe('engine');
   expect(state.confirmation).toBeNull();
   expect(state.facts.every((f) => f.confirmation === 'candidate')).toBe(true);

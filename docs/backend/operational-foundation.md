@@ -172,7 +172,10 @@ O rollback é reverter a entrega; os campos adicionais da sessão v1 são opcion
 
 A #15 usa referências sintéticas locais versionadas em `resume-knowledge.ts`
 para orientar a extração e a relevância, sem transmitir currículos de terceiros.
-Os exemplos nunca constituem evidência do candidato. O contrato continua fechado
+Os exemplos nunca constituem evidência do candidato. As perguntas devem
+esclarecer experiências e achados específicos; o bloco preserva a pergunta
+respondida e os IDs da experiência/critério. Perguntas abertas de descoberta
+genérica não são usadas no fluxo guiado. O contrato continua fechado
 e a operação permanece escolhida no servidor. Ver [ADR 0015](../architecture/adr-0015-guided-interview.md).
 
 `npm run eval:interview -w @hirepair/api` executa oito fixtures sintéticas com

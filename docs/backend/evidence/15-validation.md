@@ -13,7 +13,9 @@ Esta entrega não gera currículo.
 - Entrada direta na entrevista após preparação. Mobile prioriza o microfone;
   desktop abre o texto. No máximo dois botões por modo, sem voltar, pular,
   analisar bloco ou checklist de conferência. Progresso mostra três etapas e
-  respostas recebidas, com estimativa de seis a oito respostas.
+  respostas recebidas, da primeira experiência profissional à atual/última.
+  As perguntas esclarecem experiências e achados; não há pergunta aberta para
+  escolher uma atividade. Evidências de um emprego não preenchem outro.
 - Narração nativa, ditado com três segundos de silêncio e dois segundos para
   correção antes do envio automático. Escrever interrompe o envio e preserva o
   rascunho. Falha de áudio oferece texto, sem inventar transcrição.
@@ -48,7 +50,7 @@ e [operação](../operational-foundation.md).
 - [x] `npm run lint` — workspaces sem erros ou avisos.
 - [x] `npm run format:check` — arquivos conformes ao Prettier.
 - [x] `npm run typecheck` — API, web, testes e motor tipados.
-- [x] `npm run test` — 702 testes: 268 API, 305 web e 129 motor.
+- [x] `npm run test` — 729 testes: 268 API, 307 web e 154 motor.
 - [x] `npm run build` — compilação da API, Next.js e motor.
 - [x] `npm run test:e2e` — 15 jornadas/fronteiras Chromium.
 - [x] `npm run test:operational -w @hirepair/api` — Redis descartável em 16379;
@@ -71,7 +73,9 @@ npm run test:cov -w @hirepair/api -- --runInBand --collectCoverageFrom='{guest/{
 ```
 
 Fixtures cobrem respostas telegráficas, prolixas, negativas, conflitos, primeiro
-emprego e experiência informal. Unitários também verificam seleção obsoleta,
+emprego e experiência informal. Também cobrem cronologia com datas em formatos
+diferentes, cargos repetidos, achados por experiência, recusa, limite antes da
+última experiência e esclarecimento sem duplicar trabalho. Unitários também verificam seleção obsoleta,
 limites, eventos tardios, relógio concorrente com envio, narração bloqueada,
 permissão negada, rascunho corrigido e falhas de armazenamento/provedor. E2E da
 entrevista cobre entrada com/sem documento, conclusão, retomada após recarga e

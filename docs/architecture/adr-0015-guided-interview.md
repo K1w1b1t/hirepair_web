@@ -30,17 +30,37 @@ segundos de silêncio e dois segundos de prévia antes de enviar. Escrever cance
 o envio e mantém o texto corrigível. Falha de áudio não produz evidência.
 Não são gravados nem armazenados arquivos de áudio.
 
-O domínio evita dimensões já respondidas, usa experiências e critérios existentes
-e admite perguntas de esclarecimento validadas pelo schema incremental. Cada turno
+Toda pergunta esclarece uma experiência identificada ou um achado associado a
+ela. Não há convite aberto para escolher uma atividade. Sem experiências no
+currículo, a primeira pergunta identifica a primeira experiência profissional,
+incluindo trabalho informal; a conversa percorre as seguintes até a atual ou
+mais recente. A ausência de trabalho é válida e permite identificar a primeira
+experiência em projeto, escola ou ajuda a alguém, sem inventar vínculo formal.
+
+Com currículo, as experiências conhecidas são percorridas pela data de início
+(incluindo ano, ano/mês e mês/ano). Título, lugar e período declarados distinguem
+empregos com o mesmo cargo; data desconhecida não é inventada. Achados pendentes
+da #17 têm prioridade no contexto da experiência: habilidade sem exemplo, escopo,
+datas e intervalo entre experiências. Achado de outra experiência/documento não
+é atribuído silenciosamente ao trabalho atual. Associação incerta é perguntada
+como dúvida. A pergunta original, experiência, critério e motivo acompanham o
+bloco enviado ao provedor.
+
+Dimensões respondidas e evidências ficam isoladas por experiência. Detalhar um
+relato ou corrigir transcrição não cria outra experiência. A extração incremental
+vincula o relato à experiência sem trocar os IDs das perguntas já respondidas.
+A retomada preserva esse avanço; a IA pode pedir esclarecimentos contextualizados
+com o schema incremental. Cada turno
 registra tópico, experiência, critério e motivo curto. Resposta curta concreta
 pode bastar; negativa e resposta longa vaga não criam fatos suficientes.
 
-Progresso mostra três etapas, respostas recebidas e estimativa de seis a oito
-respostas. Não promete um total fixo: o conteúdo pode encurtar a conversa ou exigir
+Progresso mostra três etapas e respostas recebidas. A interface informa que vai
+da primeira experiência à atual ou mais recente. Não promete um total fixo: o conteúdo pode encurtar a conversa ou exigir
 esclarecimento. Defaults guiados: duas reformulações sem ganho por tópico, doze
 respostas, oito minutos ativos e dez mil caracteres por resposta. Espera pelo
 provedor e aba oculta não contam no relógio. Limites do servidor continuam menores
-quando aplicáveis. O foco acompanha o título e estados/erros são acessíveis.
+quando aplicáveis. O foco acompanha o título sem deslocar a página. A entrada na entrevista volta
+ao topo para manter o progresso visível; estados/erros são acessíveis.
 
 ## Evidências e base local
 
@@ -75,7 +95,9 @@ anuncia sucesso nem libera redação. A tela de sucesso não gera currículo.
 ## Custo, analytics e validação
 
 Análise é automática por blocos de três respostas ou ao precisar esclarecer ou
-encerrar. Preparação e entrevista compartilham cinco chamadas/30.000 tokens;
+encerrar. Oito respostas não encerram a conversa automaticamente: é necessário
+percorrer o histórico até a experiência atual/última. Atingir o limite sem isso
+preserva material parcial e bloqueia a conclusão utilizável. Preparação e entrevista compartilham cinco chamadas/30.000 tokens;
 a sexta chamada/6.000 tokens permanece para a futura redação, sob os mesmos
 contadores e limites globais da #41. Não há chamada por mensagem nem endpoint de
 prompt livre. Sem capacidade, mantém o material parcial.

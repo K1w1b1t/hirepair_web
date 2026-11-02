@@ -1,11 +1,23 @@
 import type { Session, Topic, Turn } from './contracts';
 import { replan, recordTurn, equalInputs } from './engine';
 import { incorporateBlock, discovery, type InterviewBlockResult } from './interview';
-import { KNOWLEDGE_VERSION, knowledgeFor } from './resume-knowledge';
+import { KNOWLEDGE_VERSION } from './resume-knowledge';
+import {
+  emptyTimeline,
+  syncTimeline,
+  timelineFinished,
+  timelineQuestion,
+  normalizeTimelineTurn,
+  afterTimelineAnswer,
+  contextualFollowup,
+} from './timeline';
 export function startGuided(s: Session): Session {
   if (s.guided?.status === 'complete' && s.selection && !validEngineSelection(s))
     return { ...s, phase: 'interview', guided: { ...s.guided, status: 'interview' } };
-  if (s.guided) return s;
+  if (s.guided)
+    return s.guided.status === 'complete' || s.guided.timeline
+      ? s
+      : { ...s, guided: { ...s.guided, timeline: syncTimeline(s) } };
   return {
     ...s,
     phase: s.phase === 'ready' ? 'ready' : 'interview',
@@ -17,20 +29,11 @@ export function startGuided(s: Session): Session {
       activeLimitMs: 480000,
       activeMs: 0,
       answered: [],
+      timeline: emptyTimeline(),
       clarification: null,
     },
   };
 }
-const questions = [
-  ['activity', 'Conte uma atividade que você fez em um trabalho, na escola ou ajudando alguém.'],
-  ['context', 'Onde você fazia essa atividade?'],
-  ['period', 'Em que época você fez essa atividade? Pode ser um período aproximado.'],
-  ['responsibility', 'Qual parte dessa atividade ficava por sua conta?'],
-  ['tools', 'Que ferramentas ou materiais você usava nessa atividade?'],
-  ['frequency', 'Com que frequência você fazia isso?'],
-  ['action', 'Conte uma dificuldade que apareceu e o que você fez para lidar com ela.'],
-  ['result', 'O que aconteceu depois e como você percebeu esse resultado?'],
-] as const;
 export function guidedQuestion(s: Session): { topic: Topic; text: string } | null {
   const g = s.guided!;
   if (
@@ -40,63 +43,17 @@ export function guidedQuestion(s: Session): { topic: Topic; text: string } | nul
     g.activeMs >= g.activeLimitMs
   )
     return null;
-  if (g.clarification) return { topic: g.clarification.topic, text: g.clarification.question };
-  const known = new Set(g.answered.map((id) => id.replace(/^guided:/, '')));
-  const declared = [...s.facts.map((f) => f.text), ...s.turns.map((t) => t.answer.text)]
-    .join(' ')
-    .toLocaleLowerCase('pt-BR');
-  if (/\b(?:excel|planilhas?|word|power ?bi|computador|ferramentas?)\b/.test(declared))
-    known.add('tools');
-  if (/(?:diariamente|todos os dias|toda semana|semanalmente|mensalmente)/.test(declared))
-    known.add('frequency');
-  if (/(?:em|desde|até|entre)\s+(?:19|20)\d{2}/.test(declared)) known.add('period');
-  const dimensions: Record<string, string> = {
-    atividade: 'activity',
-    contexto: 'context',
-    período: 'period',
-    responsabilidade: 'responsibility',
-    ferramenta: 'tools',
-    frequência: 'frequency',
-    dificuldade: 'action',
-    resultado: 'result',
-  };
-  for (const progress of Object.values(s.interview?.topics ?? {}))
-    for (const dimension of progress.evidence)
-      known.add(dimensions[dimension.toLocaleLowerCase('pt-BR')] ?? dimension);
-
-  if (s.experiences.some((e) => e.start)) known.add('period');
-  if (s.experiences.length && s.facts.length) known.add('activity');
-  const card = questions.find(([id]) => !known.has(id));
-  if (!card) return null;
-  const [dimension, text] = card;
-  const criterion = s.criteria[0];
-  const experience = s.experiences[0];
-  const topic: Topic = {
-    id: `guided:${dimension}`,
-    criterionId: criterion?.id ?? null,
-    experienceId: experience?.id ?? null,
-    missingEvidence: dimension,
-    reason: criterion?.reason ?? 'Conhecer sua participação com uma situação concreta.',
-    impact: 1,
-    uncertainty: 2,
-    relevance: 2,
-  };
-  const reference = knowledgeFor(
-    [...s.facts.map((f) => f.text), ...s.criteria.map((c) => c.text)].join(' '),
-  )[1];
-  return {
-    topic,
-    text:
-      dimension === 'activity' && reference
-        ? reference.question
-        : dimension === 'responsibility' && experience
-          ? `Na atividade “${experience.title.slice(0, 70)}”, qual parte ficava por sua conta?`
-          : text,
-  };
+  if (g.clarification)
+    return {
+      topic: g.clarification.topic,
+      text: contextualFollowup(s, g.clarification.topic.id, g.clarification.question),
+    };
+  return timelineQuestion(s);
 }
 export function guidedAnswer(s: Session, turn: Turn): Session {
   const question = guidedQuestion(s);
   if (!question || turn.question.topicId !== question.topic.id) throw new Error('INVALID_TURN');
+  turn = normalizeTimelineTurn(turn);
   const next = recordTurn(
     { ...s, phase: 'interview', plan: { ...replan(s), topics: [question.topic] } },
     {
@@ -109,7 +66,7 @@ export function guidedAnswer(s: Session, turn: Turn): Session {
       },
     },
   );
-  return {
+  const updated: Session = {
     ...next,
     selection: s.selection ? { ...s.selection, valid: false } : null,
     guided: {
@@ -121,6 +78,8 @@ export function guidedAnswer(s: Session, turn: Turn): Session {
         /^(?:quero\s+)?(?:parar|encerrar)[.!]?$/i.test(turn.answer.text.trim()),
     },
   };
+  updated.guided!.timeline = afterTimelineAnswer(updated, turn, !!s.guided!.clarification);
+  return updated;
 }
 export function selectedFactIds(s: Session): string[] {
   return s.selection?.facts.map((f) => f.id) ?? s.confirmation?.factIds ?? [];
@@ -186,7 +145,7 @@ export function completeGuided(s: Session): Session {
     version: (s.selection?.version ?? 0) + 1,
     inputs: { ...s.inputs },
     dependencies: ['resumes', 'job', 'objective', 'facts'],
-    valid: true,
+    valid: !s.guided!.timeline || timelineFinished(s),
     knowledgeVersion: KNOWLEDGE_VERSION,
     rulesVersion: 1,
     facts: ranked.map((f) => ({
@@ -206,7 +165,7 @@ export function completeGuided(s: Session): Session {
           : 'Sem lastro utilizável ou fora da seleção.',
       })),
   };
-  const complete = !!s.objective && ranked.length > 0;
+  const complete = !!s.objective && ranked.length > 0 && selection.valid;
   return {
     ...s,
     selection,
@@ -227,6 +186,7 @@ export function applyGuidedBlock(
   hash: string,
 ): Session {
   const next = incorporateBlock(s, result, turnIds, hash);
+  next.guided!.timeline = syncTimeline(next);
   const followup = result.assessments.find(
     (a) => !a.sufficient && a.question && next.interview!.topics[a.topicId].noGain < 2,
   );

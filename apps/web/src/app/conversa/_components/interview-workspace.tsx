@@ -54,7 +54,7 @@ export function InterviewWorkspace({
   const done = g.status === 'complete',
     partial = g.status === 'partial';
   useEffect(() => {
-    heading.current!.focus();
+    heading.current!.focus({ preventScroll: true });
   }, [question?.text, done, partial]);
   const pending = normalized.turns.filter(
     (t) =>
@@ -75,11 +75,17 @@ export function InterviewWorkspace({
           ['specific', 'vague'].includes(t.answer.kind),
       );
       if (!turns.length) return s;
-      const topics = Array.from(new Set(turns.map((t) => t.question.topicId))).map((id) => ({
-        ...discovery,
-        id,
-        missingEvidence: id.replace('guided:', ''),
-      }));
+      const topics = Array.from(new Set(turns.map((t) => t.question.topicId))).map((id) => {
+        const turn = turns.find((t) => t.question.topicId === id)!;
+        return {
+          ...discovery,
+          id,
+          missingEvidence: turn.question.text,
+          criterionId: turn.decision?.criterionId ?? null,
+          experienceId: turn.decision?.experienceId ?? null,
+          reason: turn.decision?.reason ?? discovery.reason,
+        };
+      });
       const request: InterviewBlockRequest = {
         version: 1,
         sessionId: s.id,
@@ -183,6 +189,7 @@ export function InterviewWorkspace({
     (value) => void send(value),
   );
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     if (
       (typeof (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition !==
         'function' &&
@@ -207,9 +214,7 @@ export function InterviewWorkspace({
     void (async () => {
       try {
         let next = await process(current.current);
-        const shouldFinish =
-          !guidedQuestion(next) ||
-          (next.guided!.answered.length >= 8 && !next.guided!.clarification);
+        const shouldFinish = !guidedQuestion(next);
         if (shouldFinish)
           next = await commitInterview(next, { complete: next.inputs }, completeGuided);
         publish(next);
@@ -321,9 +326,7 @@ export function InterviewWorkspace({
             {question?.text ?? 'Já temos suas respostas. Vamos organizar tudo.'}
           </h1>
           <p className="guided-remaining">
-            {g.answered.length < 6
-              ? `A conversa costuma ter de 6 a 8 respostas.`
-              : 'Estamos na parte final da entrevista.'}
+            Vamos da sua primeira experiência até a atual ou mais recente.
           </p>
           <p className="guided-status" role="status" aria-live="polite">
             {stateText}

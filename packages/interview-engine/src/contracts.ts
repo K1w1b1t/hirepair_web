@@ -155,6 +155,18 @@ export interface EngineSelection extends Derived {
   excluded: Array<{ id: string; reason: string }>;
 }
 export interface GuidedState {
+  timeline?: {
+    anchors: Array<{
+      id: string;
+      experienceId: string | null;
+      label: string;
+      turnId: string | null;
+    }>;
+    completed: string[];
+    latest: boolean;
+    noProfessionalHistory: boolean;
+    halted: boolean;
+  };
   version: 1;
   status: 'interview' | 'processing' | 'complete' | 'partial';
   maxAnswers: number;

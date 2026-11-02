@@ -1,11 +1,12 @@
 import { evaluateInterview } from './evaluation';
 import type { AiTextGenerationRequest } from '../ai/ai.types';
-import type { InterviewBlockResult } from '@hirepair/interview-engine';
+import type { Extraction, InterviewBlockResult } from '@hirepair/interview-engine';
 function client() {
   return {
     estimateTokens: jest.fn(() => 2000),
     generateText: jest.fn((request: AiTextGenerationRequest) => {
-      const { sources, topics } = JSON.parse(request.prompt) as {
+      const { sources, topics, context } = JSON.parse(request.prompt) as {
+        context: Extraction;
         sources: { id: string; version: string; text: string }[];
         topics: { id: string }[];
       };
@@ -19,7 +20,18 @@ function client() {
         model: 'synthetic',
         text: JSON.stringify({
           extraction: {
-            experiences: [],
+            experiences: context.experiences.length
+              ? []
+              : [
+                  {
+                    id: 'exp',
+                    title: 'Experiência sintética',
+                    start: null,
+                    end: null,
+                    current: null,
+                    origin,
+                  },
+                ],
             facts: [{ id: 'new', experienceId: 'exp', text: origin.quote, origin }],
           },
           analysis: null,
@@ -137,7 +149,12 @@ it.each(['long', 'missing', 'no-question-mark'])(
       };
       return { ...output, text: JSON.stringify(data) };
     });
-    expect(await evaluateInterview({ live: true, caseIds: ['informal'] }, ai)).toMatchObject({
+    expect(
+      await evaluateInterview(
+        { live: true, caseIds: [variant === 'missing' ? 'with-resume' : 'informal'] },
+        ai,
+      ),
+    ).toMatchObject({
       pass: false,
     });
   },

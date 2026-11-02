@@ -1,50 +1,55 @@
 import { createSession } from './engine';
 import { startGuided, guidedQuestion, completeGuided, selectedFactIds } from './guided';
 export const GUIDED_EVAL_CASES = [
-  { id: 'with-resume', answer: 'Atendi clientes na loja.', pattern: 'Onde', imported: true },
+  {
+    id: 'with-resume',
+    answer: 'Atendi clientes na loja.',
+    pattern: 'Atividade sintética',
+    imported: true,
+  },
   {
     id: 'without-resume',
     answer: 'Organizei inscrições na feira.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
   },
   {
     id: 'informal',
     answer: 'Fiz bicos de atendimento em uma feira.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
   },
   {
     id: 'short-specific',
     answer: 'Usei Excel diariamente para conferir entradas e saídas.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
   },
   {
     id: 'long-vague',
     answer: 'Sou muito dedicado e faço tudo com muita qualidade. '.repeat(8),
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
     vague: true,
   },
   {
     id: 'negative',
     answer: 'Não tenho essa experiência.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
     negative: true,
   },
   {
     id: 'contradiction',
     answer: 'Eu participei apenas da organização.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
     conflict: true,
   },
   {
     id: 'corrected-transcription',
     answer: 'Conferi inscrições, não vendas.',
-    pattern: 'atividade',
+    pattern: 'primeira experiência profissional',
     imported: false,
   },
 ];
@@ -59,9 +64,9 @@ export function guidedEvalSession(item: (typeof GUIDED_EVAL_CASES)[number]) {
   s.objective = { value: 'ENTER_FAST', provisional: false };
   const origin = { sourceId: 'synthetic', sourceVersion: 'v1', quote: item.answer };
   s.sources = [{ id: 'synthetic', version: 'v1', text: item.answer }];
-  s.experiences = [
-    { id: 'exp', title: 'Atividade sintética', start: null, end: null, current: null, origin },
-  ];
+  s.experiences = item.imported
+    ? [{ id: 'exp', title: 'Atividade sintética', start: '2020', end: null, current: true, origin }]
+    : [];
   const fact = {
     id: 'fact',
     experienceId: 'exp',
@@ -97,11 +102,20 @@ export function runGuidedEval(item: (typeof GUIDED_EVAL_CASES)[number]) {
     s.pending = [
       { id: 'conflict', criterionId: null, factIds: ['fact'], reason: 'Sintético', blocking: true },
     ];
+  // Selection fixtures describe a completed, synthetic single-experience history.
+  s.guided!.timeline = {
+    anchors: [],
+    completed: [],
+    latest: true,
+    noProfessionalHistory: false,
+    halted: false,
+  };
+  if (item.imported) s.guided!.timeline.completed = ['exp'];
   const result = completeGuided(s);
   const checks = {
     question: new RegExp(item.pattern, 'i').test(question),
     short: question.length <= 200,
-    oneQuestion: (question.match(/\?/g) ?? []).length <= 1,
+    oneQuestion: question.split('?').length - 1 <= 1,
     grounded: result.selection!.facts.every((f) => f.id === 'fact'),
     noFabrication: !/(?:900%|milhões|avançado)/i.test(result.facts.map((f) => f.text).join(' ')),
     outcome:

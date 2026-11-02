@@ -27,12 +27,37 @@ async function setup(page: Page) {
   await page.route('**/guest/access', (r) =>
     r.fulfill({ json: { accessToken: 'aa.bb' }, status: 201 }),
   );
-  await page.route('**/guest/interview-preparation', (r) =>
-    r.fulfill({ json: preparationFixture(r.request().postDataJSON()), status: 201 }),
-  );
+  await page.route('**/guest/interview-preparation', (r) => {
+    const request = r.request().postDataJSON();
+    const result = preparationFixture(request);
+    const source = result.session.sources[0];
+    const origin = { sourceId: source.id, sourceVersion: source.version, quote: source.text };
+    result.session.experiences = [
+      {
+        id: 'recent',
+        title: 'Atendente no Mercado Azul',
+        start: '2024',
+        end: null,
+        current: true,
+        origin,
+      },
+      {
+        id: 'first',
+        title: 'Auxiliar na Padaria Sol',
+        start: '2018',
+        end: '2024',
+        current: false,
+        origin,
+      },
+    ];
+    return r.fulfill({ json: result, status: 201 });
+  });
   await page.route('**/guest/interview-block', async (route) => {
     const request = route.request().postDataJSON() as InterviewBlockRequest,
-      t = request.turns[0],
+      discovery = request.turns.find(
+        (t) => t.topicId === 'guided:first' || t.topicId.startsWith('guided:next:'),
+      ),
+      t = discovery ?? request.turns[0],
       origin = {
         sourceId: t.id,
         sourceVersion: createHash('sha256').update(t.text).digest('hex'),
@@ -44,19 +69,33 @@ async function setup(page: Page) {
         version: 1,
         revision: request.revision,
         extraction: {
-          experiences: request.context.experiences.length
-            ? []
-            : [
+          experiences: discovery
+            ? [
                 {
-                  id: 'synthetic-exp',
-                  title: 'Feira escolar',
+                  id: discovery.topicId === 'guided:first' ? 'padaria' : 'market',
+                  title:
+                    discovery.topicId === 'guided:first'
+                      ? 'Auxiliar na Padaria Sol'
+                      : 'Atendente no Mercado Azul',
                   start: null,
                   end: null,
-                  current: null,
+                  current: /atualmente/i.test(t.text),
                   origin,
                 },
-              ],
-          facts: [{ id: `fact-${t.id}`, experienceId: 'synthetic-exp', text: t.text, origin }],
+              ]
+            : [],
+          facts: [
+            {
+              id: `fact-${t.id}`,
+              experienceId: discovery
+                ? discovery.topicId === 'guided:first'
+                  ? 'padaria'
+                  : 'market'
+                : request.topics[0].experienceId!,
+              text: t.text,
+              origin,
+            },
+          ],
         },
         analysis: null,
         assessments: request.topics.map((topic) => ({
@@ -74,7 +113,9 @@ async function begin(page: Page, withResume: boolean) {
   await page.goto('/conversa');
   await page.getByRole('button', { name: 'Agora não' }).click();
   if (withResume) {
-    await page.getByLabel('Colar o texto').fill('Organizei inscrições na escola.');
+    await page
+      .getByLabel('Colar o texto')
+      .fill('Auxiliar na Padaria Sol, 2018 a 2024. Atendente no Mercado Azul desde 2024.');
     await page.getByRole('button', { name: 'Adicionar material' }).click();
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   } else await page.getByText('Começar sem currículo').click();
@@ -83,6 +124,7 @@ async function begin(page: Page, withResume: boolean) {
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: /analisar e sugerir/i }).click();
   await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 for (const withResume of [false, true])
   test(`entrevista guiada ${withResume ? 'com' : 'sem'} currículo termina sem conferência`, async ({
@@ -109,12 +151,37 @@ for (const withResume of [false, true])
       fullPage: true,
       animations: 'disabled',
     });
-    for (let i = 0; i < 8; i++) {
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      withResume ? 'Auxiliar na Padaria Sol · 2018' : 'primeira experiência profissional',
+    );
+    const responses = withResume
+      ? [
+          'Eu embalava pedidos.',
+          'Atendo os clientes.',
+          'No Mercado Azul.',
+          'Uso um caderno.',
+          'Diariamente.',
+          'Organizo os pedidos atrasados.',
+          'As entregas ficaram organizadas.',
+        ]
+      : [
+          'Minha primeira experiência foi como auxiliar na Padaria Sol.',
+          'De 2018 a 2019.',
+          'Eu embalava pedidos.',
+          'Atualmente sou atendente no Mercado Azul.',
+          'Desde 2024.',
+          'Eu atendo os clientes.',
+          'No Mercado Azul do bairro.',
+          'Uso um caderno.',
+          'Diariamente.',
+          'Organizo os pedidos atrasados.',
+          'As entregas ficaram organizadas.',
+        ];
+    for (let i = 0; i < responses.length; i++) {
       if (await page.getByText('Entrevista concluída', { exact: true }).isVisible()) break;
-      await page
-        .getByLabel('Sua resposta', { exact: true })
-        .fill(`Eu conferia as inscrições de cada participante da feira ${i}.`);
+      await page.getByLabel('Sua resposta', { exact: true }).fill(responses[i]);
       await page.getByRole('button', { name: 'Enviar resposta' }).click();
+      await expect(page.getByText(`${i + 1} respostas recebidas`)).toBeVisible();
       await expect(page.getByText('Organizando sua resposta…')).toHaveCount(0);
       await expect(
         page
