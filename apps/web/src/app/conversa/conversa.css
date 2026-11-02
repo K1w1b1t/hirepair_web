@@ -1027,10 +1027,8 @@ body:has(.guided-interview) .analytics-consent {
   padding: 0.5rem;
   border-radius: 0.25rem;
 }
-.resume-edit-block:hover {
-  outline: 1px solid var(--color-navy);
-}
-.resume-edit-block:focus-visible {
+
+.resume-edit-button:focus-visible {
   outline: 2px solid var(--color-navy);
   outline-offset: 3px;
 }
@@ -1049,4 +1047,30 @@ body:has(.guided-interview) .analytics-consent {
   background: white;
   border: 1px solid #807a72;
   border-radius: 0.5rem;
+}
+
+.resume-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.resume-edit-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-navy);
+  border-radius: 0.5rem;
+  color: var(--color-navy);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.resume-edit-button:hover {
+  background: var(--color-navy);
+  color: white;
+}
+.resume-edit-button:disabled {
+  cursor: wait;
+  opacity: 0.5;
 }

@@ -274,34 +274,44 @@ export function ResumeReview({
             <p>
               {writing.status === 'approved'
                 ? 'Você concluiu a revisão. Seu currículo está salvo neste aparelho.'
-                : 'Toque em uma seção para editar. Ao aprovar o currículo, você confirma todas as informações, incluindo suas alterações.'}
+                : 'Use o botão Editar de cada seção para ajustar o texto. Ao aprovar o currículo, você confirma todas as informações, incluindo suas alterações.'}
             </p>
             <article className="resume-document" aria-label="Currículo">
-              <button
-                className="resume-edit-block"
-                onClick={() => setEditing('profile')}
-                disabled={!profileReady}
-                aria-label="Editar nome e contatos"
-              >
-                <strong>{profile.name || 'Nome e contatos'}</strong>
-                <span>
+              <section className="resume-edit-block">
+                <div className="resume-section-heading">
+                  <strong>{profile.name || 'Nome e contatos'}</strong>
+                  <button
+                    type="button"
+                    className="resume-edit-button"
+                    onClick={() => setEditing('profile')}
+                    disabled={!profileReady}
+                    aria-label="Editar nome e contatos"
+                  >
+                    Editar
+                  </button>
+                </div>
+                <p>
                   {[profile.professionalTitle, profile.email, profile.phone]
                     .filter(Boolean)
                     .join(' · ')}
-                </span>
-              </button>
+                </p>
+              </section>
               {writing.draft.sections.map((section) => (
-                <section key={section.id}>
-                  <button
-                    className="resume-edit-block"
-                    aria-label={`Editar ${section.title}`}
-                    onClick={() => setEditing(structuredClone(section))}
-                  >
+                <section key={section.id} className="resume-edit-block">
+                  <div className="resume-section-heading">
                     <h2>{section.title}</h2>
-                    {section.units.map((unit) => (
-                      <p key={unit.id}>{unit.text}</p>
-                    ))}
-                  </button>
+                    <button
+                      type="button"
+                      className="resume-edit-button"
+                      aria-label={`Editar ${section.title}`}
+                      onClick={() => setEditing(structuredClone(section))}
+                    >
+                      Editar
+                    </button>
+                  </div>
+                  {section.units.map((unit) => (
+                    <p key={unit.id}>{unit.text}</p>
+                  ))}
                 </section>
               ))}
             </article>

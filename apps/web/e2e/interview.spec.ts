@@ -263,7 +263,11 @@ for (const withResume of [false, true])
       fullPage: true,
       animations: 'disabled',
     });
-    await page.getByRole('button', { name: 'Editar Experiências' }).click();
+    const editExperience = page.getByRole('button', { name: 'Editar Experiências' });
+    await expect(editExperience).toHaveText('Editar');
+    await editExperience.click();
+    await expect(page.getByLabel('Título da seção')).toHaveValue('Experiências');
+    await expect(page.getByRole('textbox', { name: 'Conteúdo', exact: true })).not.toHaveValue('');
     await page
       .getByRole('textbox', { name: 'Conteúdo', exact: true })
       .fill('Atendeu clientes no comércio local.');

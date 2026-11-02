@@ -355,3 +355,18 @@ it.each([true, false])('returns missing evidence to the motor, guided=%s', async
     expect.any(Function),
   );
 });
+it('shows a visible Editar action on each section and opens the filled section editor', async () => {
+  render(<Harness initial={reviewingSession()} />);
+  const edit = screen.getByRole('button', { name: 'Editar Resumo' });
+  expect(edit).toHaveTextContent(/^Editar$/);
+  const profileEdit = screen.getByRole('button', { name: 'Editar nome e contatos' });
+  expect(profileEdit).toHaveTextContent(/^Editar$/);
+  fireEvent.click(edit);
+  expect(screen.getByLabelText('Título da seção')).toHaveValue('Resumo');
+  expect(screen.getByLabelText('Conteúdo')).toHaveValue('Atendeu clientes');
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Adicionar seção' }));
+  expect(screen.getByLabelText('Título da seção')).toHaveValue('');
+  expect(screen.getByLabelText('Conteúdo')).toHaveValue('');
+  await act(async () => {});
+});

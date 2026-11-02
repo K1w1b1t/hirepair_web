@@ -17,7 +17,7 @@ permanecem separados das alterações manuais. Não há conta, migration ou expo
 - `npm run lint`: aprovado.
 - `npm run format:check`: aprovado.
 - `npm run typecheck`: aprovado.
-- `npm run test`: 864 testes aprovados em 92 suítes.
+- `npm run test`: 865 testes aprovados em 92 suítes.
 - `npm run build`: API, web e domínio compilados.
 - `npm run test:e2e -w apps/web`: 17 cenários aprovados no Chromium.
 - `npm run test:operational -w apps/api`: HTTP e Redis descartável aprovados;
@@ -57,6 +57,8 @@ avaliações de qualidade do modelo em produção.
 - [Currículo aprovado no desktop](18-approved-desktop.png)
 - [Currículo aprovado no celular](18-approved-mobile.png)
 
+Cada seção apresenta um botão Editar visível. Ele abre o mesmo editor de inclusão,
+com título e conteúdo preenchidos; adicionar seção abre os campos vazios.
 Campos têm labels; seções são acionáveis por teclado e o foco acompanha o título
 na troca de visão. O editor retorna à conferência com salvamento local, sem IA.
 
