@@ -56,6 +56,20 @@ function confirmed() {
   s.phase = 'confirmation';
   return confirm(s, ['f']);
 }
+it('rejects consolidated confirmation while conflicting evidence remains unresolved', () => {
+  const s = confirmed();
+  s.pending.push({
+    id: 'conflict',
+    criterionId: null,
+    factIds: ['f'],
+    reason: 'Relatos diferentes',
+    blocking: true,
+  });
+  expect(() => confirm(s, ['f'])).toThrow('INVALID_CONFIRMATION');
+  s.pending = [];
+  s.links[0].status = 'contradiction';
+  expect(() => confirm(s, ['f'])).toThrow('INVALID_CONFIRMATION');
+});
 it.each(cases)(
   'exercises the $name synthetic case with candidate and vague evidence',
   ({ name, provenance, extraction: candidate, analysis: target, source: material, answer }) => {
@@ -378,11 +392,11 @@ import { nextAction } from './index';
 it('chooses a versioned next action from the evidence state, never a fixed questionnaire', () => {
   expect(nextAction(base()).kind).toBe('prepare');
   expect(nextAction({ ...base(), phase: 'interview' })).toMatchObject({
-    kind: 'investigate',
-    topic: null,
+    kind: 'ask',
+    topic: { id: 'discovery' },
   });
   const s = prepared();
-  expect(nextAction(s).kind).toBe('investigate');
+  expect(nextAction(s).kind).toBe('ask');
   expect(nextAction(interrupt(s, 'partial', 'Escolheu encerrar'))).toMatchObject({
     kind: 'stop',
     reason: 'Escolheu encerrar',
@@ -395,11 +409,11 @@ it('chooses a versioned next action from the evidence state, never a fixed quest
   const confirmedFact = confirmed();
   expect(nextAction(confirmedFact)).toMatchObject({ kind: 'confirm', factIds: ['f'] });
   confirmedFact.facts[0].confirmation = 'rejected';
-  expect(nextAction(confirmedFact).kind).toBe('investigate');
+  expect(nextAction(confirmedFact).kind).toBe('review');
   const empty = base();
   empty.phase = 'interview';
   empty.facts = [...s.facts, { ...s.facts[0], id: 'unused', usable: false }];
-  expect(nextAction(empty)).toMatchObject({ kind: 'confirm', factIds: ['f'] });
+  expect(nextAction(empty)).toMatchObject({ kind: 'ask', topic: { id: 'discovery' } });
   const old = prepared();
   old.sources = [{ id: 'old', version: 'v1', text: 'Fonte original' }];
   const incoming = prepared();

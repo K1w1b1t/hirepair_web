@@ -20,6 +20,8 @@ export interface Origin {
   quote: string;
 }
 export interface Experience {
+  place?: string | null;
+  kind?: 'work' | 'informal' | 'project' | 'volunteering' | 'education' | 'course' | 'language';
   id: string;
   title: string;
   start: string | null;
@@ -75,13 +77,24 @@ export interface Topic {
   relevance: number;
 }
 export interface Turn {
+  decision?: {
+    kind: string;
+    reason: string;
+    criterionId: string | null;
+    experienceId: string | null;
+  };
+  modality?: 'text' | 'dictation';
   recordedAt?: number;
   id: string;
   question: { text: string; topicId: string };
-  answer: { text: string; kind: 'specific' | 'vague' | 'absence' | 'declined' };
+  answer: {
+    text: string;
+    kind: 'specific' | 'vague' | 'absence' | 'declined' | 'unknown' | 'forgotten' | 'skipped';
+  };
   factIds: string[];
 }
 export interface Pending {
+  topicId?: string;
   id: string;
   diagnosticFindingId?: string;
   criterionId: string | null;
@@ -114,11 +127,61 @@ export interface Strategy extends Derived {
 }
 export interface Confirmation extends Derived {
   factIds: string[];
+  factVersions?: Array<{ id: string; revision: number }>;
+}
+export interface TopicProgress {
+  status:
+    'open' | 'sufficient' | 'absence' | 'declined' | 'unknown' | 'forgotten' | 'skipped' | 'limit';
+  noGain: number;
+  evidence: string[];
+  question: string | null;
+}
+export interface InterviewState {
+  focusTopicId?: string;
+  topics: Record<string, TopicProgress>;
+  analyzedTurnIds: string[];
+  analyzedCharacters?: Record<string, number>;
+  activeMs: number;
+  reviewRequested: boolean;
+  limits: { reformulations: number; turns: number; answerChars: number; activeMs: number };
 }
 export interface GroundedContent extends Derived {
   sections: Array<{ text: string; factIds: string[] }>;
 }
+export interface EngineSelection extends Derived {
+  kind: 'engine';
+  knowledgeVersion: string;
+  rulesVersion: number;
+  facts: Array<{ id: string; revision: number; originVersion: string; reason: string }>;
+  excluded: Array<{ id: string; reason: string }>;
+}
+export interface GuidedState {
+  timeline?: {
+    anchors: Array<{
+      id: string;
+      experienceId: string | null;
+      label: string;
+      turnId: string | null;
+    }>;
+    completed: string[];
+    latest: boolean;
+    noProfessionalHistory: boolean;
+    halted: boolean;
+  };
+  version: 1;
+  status: 'interview' | 'processing' | 'complete' | 'partial';
+  maxAnswers: number;
+  activeLimitMs: number;
+  activeMs: number;
+  answered: string[];
+  stopRequested?: boolean;
+  clarification: { topic: Topic; question: string } | null;
+}
 export interface Session {
+  guided?: GuidedState;
+  selection?: EngineSelection | null;
+  interview?: InterviewState;
+  factHistory?: Fact[];
   version: 1;
   id: string;
   funnelSessionId: string;
@@ -173,6 +236,14 @@ export interface PreparationResult {
 export type NextAction =
   | { version: 1; kind: 'prepare'; reason: string }
   | { version: 1; kind: 'investigate'; topic: Topic | null; reason: string }
+  | {
+      version: 1;
+      kind: 'ask' | 'deepen' | 'clarify';
+      topic: Topic;
+      question: string;
+      reason: string;
+    }
+  | { version: 1; kind: 'review'; factIds: string[]; reason: string }
   | { version: 1; kind: 'confirm'; factIds: string[]; reason: string }
   | { version: 1; kind: 'write'; confirmationVersion: number; reason: string }
   | { version: 1; kind: 'stop'; reason: string };

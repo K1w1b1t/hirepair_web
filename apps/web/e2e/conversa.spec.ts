@@ -79,25 +79,24 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
     await page.getByLabel(/requisitos da vaga/i).blur();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: '../../docs/backend/evidence/43-objetivo.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/43-objetivo.png', fullPage: true });
     await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
     await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
     await page.getByLabel('Objetivo provisório').selectOption('yes');
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: /analisar e sugerir/i }).click();
 
-    await expect(page.getByText('Passo 3 de 5')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Plano inicial de investigação' })).toHaveCount(
       0,
     );
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: '../../docs/backend/evidence/43-plano.png', fullPage: true });
-    await expect(page.getByRole('radio', { name: /transição de carreira/i })).toBeChecked();
-    await expect(page.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
+    await page.screenshot({ path: 'test-results/43-plano.png', fullPage: true });
+    await expect(page.getByRole('button', { name: /Escrever|Enviar resposta/ })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole('heading', { name: /sugerido para você/i })).toBeVisible();
-    await page.getByRole('button', { name: /editar vaga/i }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.goto('/conversa?etapa=job');
     await expect(page).toHaveURL(/etapa=job/);
     await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
       'Vaga para engenheiro mecânico.',

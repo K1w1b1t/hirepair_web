@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-interface Recognition {
+export interface Recognition {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -34,7 +34,7 @@ interface Session {
   stopRequest?: number;
 }
 
-function recognitionConstructor() {
+export function recognitionConstructor() {
   const browser = window as SpeechWindow;
   return browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
 }

@@ -133,3 +133,18 @@ describe('AI budget boundaries and usage reconciliation', () => {
     await expect(service().reserve(context, 'model', 1000)).resolves.toHaveProperty('tokens', 1000);
   });
 });
+it('preserves one call and 6000 tokens for writing in the shared principal and session counters', async () => {
+  process.env.AI_PUBLIC_ENABLED = 'true';
+  process.env.GUEST_ACCESS_SECRET = 's'.repeat(32);
+  const run = jest.fn().mockResolvedValue([0, 0, 0]);
+  await new AiBudgetService({ run } as never, { sendAiBudget: jest.fn() } as never).reserve(
+    { ...context, operation: 'interview-extraction' },
+    'model',
+    1000,
+  );
+  const specs = JSON.parse(
+    String((run.mock.calls[0] as [string, string[], Array<string | number>])[2][3]),
+  ) as Array<{ key: string; limit: number }>;
+  const shared = specs.filter((s) => /:(scope|principal):/.test(s.key));
+  expect(shared.map((s) => s.limit)).toEqual([5, 30000, 5, 30000]);
+});

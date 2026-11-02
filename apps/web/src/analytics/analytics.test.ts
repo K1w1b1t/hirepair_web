@@ -99,4 +99,40 @@ describe('analytics', () => {
     expect(posthog.init).not.toHaveBeenCalled();
     expect(posthog.capture).not.toHaveBeenCalled();
   });
+  it('remains usable after an initialization failure and retries after a later explicit opt-in', () => {
+    jest.mocked(posthog.init).mockImplementationOnce(() => {
+      throw new Error('sdk unavailable');
+    });
+    setAnalyticsConsent('granted');
+    expect(posthog.init).toHaveBeenCalledTimes(1);
+    setAnalyticsConsent('granted');
+    expect(captureAnalyticsEvent('interview_completed', { funnel_session_id: 'synthetic' })).toBe(
+      true,
+    );
+  });
+  it('restores explicit cookie consent and configures secure production events without URL values', () => {
+    document.cookie = 'analytics_consent=granted; Path=/';
+    process.env.NEXT_PUBLIC_APP_ENV = 'production';
+    expect(initializeAnalyticsFromConsent()).toBe('granted');
+    const options = jest.mocked(posthog.init).mock.calls[0][1];
+    expect(options?.sanitize_properties?.({}, 'interview_completed')).toEqual({});
+    setAnalyticsConsent('granted');
+    expect(captureAnalyticsEvent('interview_completed', { funnel_session_id: 'synthetic' })).toBe(
+      true,
+    );
+  });
+  it('uses default host and environment, handles unnamed requests and rejects failed event delivery', () => {
+    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    delete process.env.NEXT_PUBLIC_APP_ENV;
+    setAnalyticsConsent('granted');
+    const options = jest.mocked(posthog.init).mock.calls[0][1];
+    expect(options?.api_host).toBe('https://us.i.posthog.com');
+    expect(options?.session_recording?.maskCapturedNetworkRequestFn?.({} as never)).toEqual({});
+    jest.mocked(posthog.capture).mockImplementationOnce(() => {
+      throw new Error('offline');
+    });
+    expect(captureAnalyticsEvent('interview_completed', { funnel_session_id: 'synthetic' })).toBe(
+      false,
+    );
+  });
 });

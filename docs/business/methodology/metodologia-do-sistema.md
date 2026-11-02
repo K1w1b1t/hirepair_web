@@ -1,5 +1,14 @@
 # Metodologia do Sistema
 
+> **Atualização de produto — 01/11/2026, #15:** a entrevista guiada organiza e
+> seleciona fatos automaticamente, usando a vaga, os relatos e referências
+> sintéticas locais. A pessoa responde por voz ou texto; não precisa revisar
+> uma lista de fatos. Essa decisão substitui, nesta jornada, as exigências de
+> confirmação manual deste documento. Seleção não certifica veracidade; origem,
+> versões, negativas e conflitos continuam preservados. Enriquecer significa
+> esclarecer e organizar o que foi declarado, sem inventar realizações. Ver
+> [ADR 0015](../../architecture/adr-0015-guided-interview.md).
+
 > **O que é este documento.** É a definição da metodologia que o produto executa: o que
 > é **regra dura** (o sistema decide e não negocia), o que é **parâmetro mixável** (o
 > usuário escolhe dentro de opções válidas) e **como a informação entra** (o usuário

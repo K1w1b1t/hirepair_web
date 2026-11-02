@@ -6,6 +6,8 @@ import { OBJECTIVES, type Objective } from '@hirepair/interview-engine';
 import { GuestAnalysisDto } from '../guest/guest.controller';
 import { operationalError } from '../operational/operational.config';
 import { clientNetwork } from '../operational/client-ip';
+import { BlockService } from './block.service';
+import type { InterviewBlockRequest } from '@hirepair/interview-engine';
 import { PreparationService } from './preparation.service';
 export class PreparationDto extends GuestAnalysisDto {
   @IsIn([1]) version!: 1;
@@ -16,7 +18,24 @@ export class PreparationDto extends GuestAnalysisDto {
 }
 @Controller('guest')
 export class PreparationController {
-  constructor(private readonly preparation: PreparationService) {}
+  constructor(
+    private readonly preparation: PreparationService,
+    private readonly blocks: BlockService,
+  ) {}
+  @Post('interview-block')
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  block(
+    @Headers('authorization') authorization: string | undefined,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: InterviewBlockRequest,
+    @Req() request: Request,
+  ) {
+    const token = authorization?.match(/^Bearer ([a-z0-9_-]+\.[a-z0-9_-]+)$/i)?.[1];
+    if (!token) throw operationalError('GUEST_ACCESS_INVALID', 401);
+    if (!key || !/^[A-Za-z0-9_-]{16,100}$/.test(key))
+      throw operationalError('IDEMPOTENCY_KEY_REQUIRED', 400);
+    return this.blocks.analyze(token, body, clientNetwork(request), key);
+  }
   @Post('interview-preparation')
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   prepare(

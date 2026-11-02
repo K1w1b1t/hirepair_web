@@ -240,7 +240,7 @@ describe('JobRecommendationsStep', () => {
     expect(onPreferencesChange).toHaveBeenCalledWith(
       expect.objectContaining({ archetype: 'E_SPECIALIST' }),
     );
-    expect(screen.getByRole('button', { name: /continuar.*em breve/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /começar entrevista/i })).toBeEnabled();
   });
 });
 

@@ -775,3 +775,227 @@
     animation: none;
   }
 }
+
+.interview-workspace {
+  display: grid;
+  gap: 1rem;
+}
+.interview-workspace h1:focus {
+  outline: none;
+}
+.interview-workspace h1:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+.interview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.interview-facts {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+.interview-facts li {
+  border-top: 1px solid var(--color-text-dim);
+  padding-top: 1rem;
+}
+.interview-answer,
+.interview-workspace textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-text-dim);
+  border-radius: 0.75rem;
+}
+
+.interview-workspace h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 600;
+  color: var(--color-navy);
+  line-height: 1.25;
+  scroll-margin-top: 8rem;
+}
+.interview-workspace h2 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.interview-workspace .job-result-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+.interview-workspace label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* A single focused conversation, with no application controls competing for attention. */
+body:has(.guided-interview) .analytics-consent {
+  display: none;
+}
+.guided-interview {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px 0 40px;
+  min-height: 70dvh;
+}
+.guided-progress {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-bottom: 44px;
+}
+.guided-progress [role='progressbar'] {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg-alt, #e2dfd5);
+  overflow: hidden;
+}
+.guided-progress i {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+.guided-kicker {
+  color: var(--color-primary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+.guided-question {
+  color: var(--color-navy);
+  font-family: var(--font-heading);
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.guided-remaining {
+  margin-top: 16px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.guided-status {
+  margin: 24px 0;
+  color: var(--color-primary);
+  font-size: 14px;
+  min-height: 24px;
+}
+.guided-voice {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  margin-top: 24px;
+}
+.guided-transcript {
+  min-height: 24px;
+  line-height: 1.6;
+  text-align: center;
+}
+.guided-microphone {
+  width: 164px;
+  height: 164px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--color-navy);
+  background: var(--color-bg-surface, #f5eee2);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 8px 28px #3333641a;
+  cursor: pointer;
+  font-size: 12px;
+}
+.guided-microphone svg {
+  width: 48px;
+  height: 48px;
+}
+.guided-microphone.listening {
+  color: white;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 12px #636fc11f;
+}
+.guided-microphone:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.guided-write {
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  padding: 12px 24px;
+  color: var(--color-navy);
+}
+.guided-interview textarea {
+  width: 100%;
+  min-height: 120px;
+  max-height: 35dvh;
+  resize: vertical;
+  border: 1px solid var(--color-text-dim);
+  border-radius: 16px;
+  background: var(--color-bg-surface, #f5eee2);
+  padding: 16px;
+  margin: 12px 0 20px;
+  line-height: 1.6;
+}
+.guided-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.guided-controls .button {
+  flex: 1;
+}
+.guided-success {
+  text-align: center;
+  padding: 48px 8px;
+}
+.guided-success > span {
+  display: inline-grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #636fc11f;
+  color: var(--color-primary);
+  font-size: 48px;
+  margin-bottom: 24px;
+}
+.guided-success h1 {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  color: var(--color-navy);
+  margin-bottom: 16px;
+}
+@media (max-width: 767px) {
+  .guided-interview {
+    padding-top: 0;
+  }
+  .guided-progress {
+    margin-bottom: 32px;
+  }
+  .guided-controls {
+    position: sticky;
+    bottom: 12px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guided-progress i {
+    transition: none;
+  }
+}

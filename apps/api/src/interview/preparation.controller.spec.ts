@@ -2,7 +2,7 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { PreparationController, PreparationDto } from './preparation.controller';
 const service = { prepare: jest.fn().mockResolvedValue({ version: 1 }) };
-const controller = new PreparationController(service as never);
+const controller = new PreparationController(service as never, { analyze: jest.fn() } as never);
 const body = {
   version: 1,
   sessionId: 's',
@@ -42,4 +42,22 @@ it('validates the closed HTTP contract and refuses client prompts or operations'
     expect(
       (await validate(plainToInstance(PreparationDto, { ...body, ...extra }), options)).length,
     ).toBeGreaterThan(0);
+});
+it('guards the incremental block endpoint and selects the business service on the server', async () => {
+  const blocks = { analyze: jest.fn().mockResolvedValue({ version: 1 }) };
+  const target = new PreparationController(service as never, blocks as never);
+  const request = { socket: { remoteAddress: '127.0.0.1' } } as never;
+  expect(() => target.block(undefined, 'key', {} as never, request)).toThrow(
+    'GUEST_ACCESS_INVALID',
+  );
+  expect(() => target.block('Bearer aa.bb', undefined, {} as never, request)).toThrow(
+    'IDEMPOTENCY_KEY_REQUIRED',
+  );
+  expect(() => target.block('Bearer aa.bb', 'bad', {} as never, request)).toThrow(
+    'IDEMPOTENCY_KEY_REQUIRED',
+  );
+  await expect(
+    target.block('Bearer aa.bb', '1234567890123456', {} as never, request),
+  ).resolves.toEqual({ version: 1 });
+  expect(blocks.analyze).toHaveBeenCalledWith('aa.bb', {}, expect.any(String), '1234567890123456');
 });

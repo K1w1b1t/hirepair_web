@@ -5,6 +5,11 @@ import {
   replan,
   mergeHistory,
   interrupt,
+  startWithoutDocuments,
+  applyCommand,
+  changeInput,
+  transition,
+  parseInterviewBlock,
   validatePreparation,
   type PreparationResult,
   type Session,
@@ -24,9 +29,14 @@ export const apiRoot = () =>
   (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/$/, '');
 export const GUEST_CREDENTIAL_KEY = 'hirepair_guest_credential';
 let generation = 0;
+let interviewAccessToken: string | undefined;
+export function hasInterviewAccess(): boolean {
+  return !!interviewAccessToken;
+}
 let controller: AbortController | null = null;
 export function cancelPreparation(): void {
   generation++;
+  interviewAccessToken = undefined;
   controller?.abort();
 }
 const PENDING_KEY = 'hirepair_analysis_pending';
@@ -115,10 +125,10 @@ async function requireResponse(response: Response): Promise<unknown> {
   }
   return payload;
 }
-function pendingKey(fingerprint: string): string {
+function pendingKey(fingerprint: string, storageKey = PENDING_KEY): string {
   let pending: { hash: string; key: string } | undefined;
   try {
-    pending = JSON.parse(readBrowserValue(PENDING_KEY) ?? 'null') as typeof pending;
+    pending = JSON.parse(readBrowserValue(storageKey) ?? 'null') as typeof pending;
   } catch {
     pending = undefined;
   }
@@ -126,7 +136,7 @@ function pendingKey(fingerprint: string): string {
     pending?.hash === fingerprint && typeof pending.key === 'string'
       ? pending.key
       : crypto.randomUUID();
-  writeBrowserValue(PENDING_KEY, JSON.stringify({ hash: fingerprint, key }));
+  writeBrowserValue(storageKey, JSON.stringify({ hash: fingerprint, key }));
   return key;
 }
 async function persistInterruption(
@@ -251,6 +261,16 @@ async function guestAccess(
     throw new AnalysisFailure('GUEST_ACCESS_INVALID');
   if ('guestCredential' in access && typeof access.guestCredential === 'string')
     writeBrowserValue(GUEST_CREDENTIAL_KEY, access.guestCredential);
+  // Both callers validate explicit consent or a current receipt before requesting access.
+  writeBrowserValue(
+    'hirepair_ai_consent',
+    JSON.stringify({
+      termsVersion: challenge.termsVersion,
+      privacyVersion: challenge.privacyVersion,
+      acceptedAt: Date.now(),
+    }),
+  );
+  interviewAccessToken = access.accessToken;
   return { accessToken: access.accessToken };
 }
 async function requestAnalysis(
@@ -319,6 +339,39 @@ export async function analyzeGuest(
     await saveEngine(initial, null);
     writeBrowserValue('hirepair_engine_funnel', funnelSessionId);
   }
+  if (!documents.length && draft.objective) {
+    const initial =
+      previous ??
+      createSession(sessionId, funnelSessionId, { resumes: '', job: '', objective: '', facts: '' });
+    const session = applyCommand(
+      initial,
+      `start:${key}`,
+      fingerprint,
+      initial.revision,
+      (value) => {
+        let next = changeInput(value, 'job', fingerprint);
+        next = changeInput(next, 'objective', `${draft.objective}:${!!draft.provisional}`);
+        next.objective = { value: draft.objective!, provisional: !!draft.provisional };
+        next.phase = 'preparation';
+        return next.sources.length
+          ? { ...transition(next, 'interview'), plan: replan(next) }
+          : startWithoutDocuments(next);
+      },
+    );
+    await saveEngine(session, initial.revision);
+    writeBrowserValue('hirepair_engine_funnel', funnelSessionId);
+    removeBrowserValue(PENDING_KEY);
+    return {
+      preparation: session,
+      targetRole: draft.targetRole || 'Sua próxima vaga',
+      summary: 'Vamos descobrir suas experiências.',
+      requirements: [],
+      suggestedArchetype: 'A_FIRST_JOB',
+      suggestedObjective: draft.objective,
+      suggestedTone: 'DIRECT',
+      reason: 'Você pode contar atividades formais, informais ou de estudo.',
+    };
+  }
   const result = await requireResponse(
     await requestAnalysis(documents, draft, sessionId, funnelSessionId, access.accessToken, key),
   ).catch(async (error: unknown) => {
@@ -340,4 +393,85 @@ export async function analyzeGuest(
   if (!isJobAnalysisResult(result)) throw new AnalysisFailure('AI_INVALID_RESPONSE');
   removeBrowserValue(PENDING_KEY);
   return result;
+}
+
+export async function analyzeInterviewBlock(
+  request: import('@hirepair/interview-engine').InterviewBlockRequest,
+  draft: JobDraft,
+  challenge?: GuestChallenge,
+): Promise<import('@hirepair/interview-engine').InterviewBlockResult> {
+  const currentGeneration = generation;
+  controller = new AbortController();
+  if (challenge) {
+    let consent: { termsVersion?: string; privacyVersion?: string; acceptedAt?: number } | null =
+      null;
+    try {
+      consent = JSON.parse(readBrowserValue('hirepair_ai_consent') ?? 'null') as {
+        termsVersion?: string;
+        privacyVersion?: string;
+        acceptedAt?: number;
+      } | null;
+    } catch {
+      /* No receipt means consent must be obtained again. */
+    }
+    const reusable =
+      !!consent &&
+      consent.termsVersion === challenge.termsVersion &&
+      consent.privacyVersion === challenge.privacyVersion &&
+      typeof consent.acceptedAt === 'number' &&
+      Date.now() - consent.acceptedAt < 30 * 86400000;
+    if (!draft.accepted && !reusable) throw new AnalysisFailure('CONSENT_REQUIRED');
+    await guestAccess({ ...draft, accepted: draft.accepted || reusable }, challenge);
+  }
+  if (!interviewAccessToken) throw new AnalysisFailure('GUEST_ACCESS_INVALID');
+  const fingerprint = await inputFingerprint(
+    [{ id: 'block', text: JSON.stringify({ ...request, revision: 0 }) }],
+    draft,
+  );
+  const key = pendingKey(fingerprint, 'hirepair_interview_pending');
+  const response = await fetch(`${apiRoot()}/guest/interview-block`, {
+    method: 'POST',
+    signal: controller.signal,
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${interviewAccessToken}`,
+      'Idempotency-Key': key,
+    },
+    body: JSON.stringify(request),
+  });
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  if (response.status === 401) interviewAccessToken = undefined;
+  const result = await requireResponse(response);
+  const block = result as import('@hirepair/interview-engine').InterviewBlockResult;
+  if (block?.version !== 1 || block.revision !== request.revision)
+    throw new AnalysisFailure('AI_INVALID_RESPONSE');
+  const sources = await Promise.all(
+    request.turns.map(async (turn) => {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(turn.text));
+      return {
+        id: turn.id,
+        text: turn.text,
+        version: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(
+          '',
+        ),
+      };
+    }),
+  );
+  if (currentGeneration !== generation) throw new AnalysisFailure('REQUEST_CANCELLED');
+  try {
+    return parseInterviewBlock(
+      JSON.stringify({
+        extraction: block.extraction,
+        analysis: block.analysis,
+        assessments: block.assessments,
+      }),
+      request,
+      sources,
+    );
+  } catch {
+    throw new AnalysisFailure('AI_INVALID_RESPONSE');
+  }
+}
+export function finishInterviewRequest(): void {
+  removeBrowserValue('hirepair_interview_pending');
 }

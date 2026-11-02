@@ -1,3 +1,4 @@
+import { waitFor } from '@testing-library/react';
 jest.mock('./diagnostic', () => ({ __esModule: true, ...jest.requireActual('./diagnostic') }));
 jest.mock('./engine-storage', () => {
   const actual = jest.requireActual<typeof import('./engine-storage')>('./engine-storage');
@@ -295,4 +296,186 @@ it('preserves unresolved diagnostic pending items and does not reopen a resolved
   const result = await analyzeGuest(docs, draft, challenge);
   expect(result.preparation!.pending.filter((p) => p.diagnosticFindingId)).toEqual([]);
   expect(result.preparation!.plan!.topics.filter((t) => t.diagnosticFindingId)).toEqual([]);
+});
+import { analyzeInterviewBlock, hasInterviewAccess, finishInterviewRequest } from './guest-api';
+import { discovery, type InterviewBlockRequest } from '@hirepair/interview-engine';
+import { createHash } from 'node:crypto';
+const blockRequest: InterviewBlockRequest = {
+  version: 1,
+  sessionId: 's',
+  funnelSessionId: 'f',
+  revision: 0,
+  inputsHash: 'h',
+  objective: 'ENTER_FAST',
+  jobText: '',
+  targetRole: 'Atendente',
+  turns: [{ id: 't', topicId: 'discovery', text: 'Atendi clientes' }],
+  context: { experiences: [], facts: [] },
+  topics: [discovery],
+};
+function blockResponse() {
+  const origin = {
+    sourceId: 't',
+    sourceVersion: createHash('sha256').update('Atendi clientes').digest('hex'),
+    quote: 'Atendi clientes',
+  };
+  return {
+    version: 1,
+    revision: 0,
+    extraction: {
+      experiences: [{ id: 'e', title: 'Loja', start: null, end: null, current: null, origin }],
+      facts: [{ id: 'f', experienceId: 'e', text: 'Atendi clientes', origin }],
+    },
+    analysis: null,
+    assessments: [
+      {
+        topicId: 'discovery',
+        sufficient: true,
+        evidence: ['atividade'],
+        question: null,
+        contradictionFactIds: [],
+      },
+    ],
+  };
+}
+it('starts without a resume in the same session and never calls empty preparation', async () => {
+  access();
+  const result = await analyzeGuest([], draft, challenge);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(result.preparation).toMatchObject({ phase: 'interview', sources: [], facts: [] });
+  const id = result.preparation!.id;
+  access();
+  const next = await analyzeGuest(
+    [],
+    { ...draft, targetRole: 'Nova vaga', hasJob: false },
+    challenge,
+  );
+  expect(next.preparation!.id).toBe(id);
+  expect(next.preparation!.revision).toBe(2);
+});
+it('preserves prior confirmed history when changing to an entry without current documents', async () => {
+  success();
+  await analyzeGuest(documents, draft, challenge);
+  access();
+  const next = await analyzeGuest([], { ...draft, jobText: 'Outro alvo' }, challenge);
+  expect(next.preparation!.sources).toHaveLength(1);
+  expect(next.preparation!.confirmation).toBeNull();
+});
+it('verifies and validates incremental results, retaining one request key across uncertain retries', async () => {
+  cancelPreparation();
+  expect(hasInterviewAccess()).toBe(false);
+  await expect(analyzeInterviewBlock(blockRequest, draft)).rejects.toHaveProperty(
+    'code',
+    'GUEST_ACCESS_INVALID',
+  );
+  access();
+  fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => blockResponse() });
+  expect(
+    (await analyzeInterviewBlock(blockRequest, draft, challenge)).extraction.facts,
+  ).toHaveLength(1);
+  expect(hasInterviewAccess()).toBe(true);
+  const key = JSON.parse(localStorage.getItem('hirepair_interview_pending')!).key;
+  fetchMock.mockRejectedValueOnce(new Error('offline'));
+  await expect(analyzeInterviewBlock({ ...blockRequest, revision: 1 }, draft)).rejects.toThrow(
+    'offline',
+  );
+  expect(JSON.parse(localStorage.getItem('hirepair_interview_pending')!).key).toBe(key);
+  finishInterviewRequest();
+  expect(localStorage.getItem('hirepair_interview_pending')).toBeNull();
+});
+it('rejects malformed blocks and invalidates expired access', async () => {
+  access();
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ version: 2 }) });
+  await expect(analyzeInterviewBlock(blockRequest, draft, challenge)).rejects.toHaveProperty(
+    'code',
+    'AI_INVALID_RESPONSE',
+  );
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ version: 1, revision: 0, extraction: {} }),
+  });
+  await expect(analyzeInterviewBlock(blockRequest, draft)).rejects.toHaveProperty(
+    'code',
+    'AI_INVALID_RESPONSE',
+  );
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    json: async () => ({ code: 'GUEST_ACCESS_INVALID' }),
+  });
+  await expect(analyzeInterviewBlock(blockRequest, draft)).rejects.toHaveProperty(
+    'code',
+    'GUEST_ACCESS_INVALID',
+  );
+  expect(hasInterviewAccess()).toBe(false);
+});
+it('ignores an incremental response arriving after deletion', async () => {
+  access();
+  let resolve!: (v: unknown) => void;
+  fetchMock.mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const pending = analyzeInterviewBlock(blockRequest, draft, challenge);
+  await waitFor(() => expect(resolve).toBeDefined());
+  cancelPreparation();
+  resolve({ ok: true, json: async () => blockResponse() });
+  await expect(pending).rejects.toHaveProperty('code', 'REQUEST_CANCELLED');
+});
+it('uses a neutral target label when starting without a resume and only vacancy text exists', async () => {
+  access();
+  const result = await analyzeGuest([], { ...draft, targetRole: '' }, challenge);
+  expect(result.targetRole).toBe('Sua próxima vaga');
+});
+it('rejects an incremental result if deletion occurs while its body is being read', async () => {
+  access();
+  let resolve!: (value: unknown) => void;
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 201,
+    json: () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  });
+  const pending = analyzeInterviewBlock(blockRequest, draft, challenge);
+  await waitFor(() => expect(resolve).toBeDefined());
+  cancelPreparation();
+  resolve(blockResponse());
+  await expect(pending).rejects.toHaveProperty('code', 'REQUEST_CANCELLED');
+});
+it('reuses an explicit current consent receipt on resume without silently accepting a new policy', async () => {
+  access();
+  await analyzeGuest([], draft, challenge);
+  cancelPreparation();
+  access();
+  fetchMock.mockResolvedValueOnce({ ok: true, status: 201, json: async () => blockResponse() });
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).resolves.toHaveProperty('version', 1);
+  cancelPreparation();
+  await expect(
+    analyzeInterviewBlock(
+      blockRequest,
+      { ...draft, accepted: false },
+      { ...challenge, privacyVersion: 'new-policy' },
+    ),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
+  localStorage.setItem('hirepair_ai_consent', 'broken');
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
+  localStorage.setItem(
+    'hirepair_ai_consent',
+    JSON.stringify({
+      termsVersion: challenge.termsVersion,
+      privacyVersion: challenge.privacyVersion,
+      acceptedAt: 0,
+    }),
+  );
+  await expect(
+    analyzeInterviewBlock(blockRequest, { ...draft, accepted: false }, challenge),
+  ).rejects.toHaveProperty('code', 'CONSENT_REQUIRED');
 });

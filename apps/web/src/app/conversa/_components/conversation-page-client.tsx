@@ -1,4 +1,6 @@
 'use client';
+import { InterviewWorkspace } from './interview-workspace';
+import { type Session } from '@hirepair/interview-engine';
 import { cancelPreparation } from '../_lib/guest-api';
 import { deleteEngine, saveEngine } from '../_lib/engine-storage';
 import { removeBrowserValue } from '../_lib/browser-storage';
@@ -13,27 +15,32 @@ import { WizardShell } from './wizard-shell';
 
 import { initialDraft, persistJourney, restoreJourney } from '../_lib/journey-storage';
 
-type JourneyPhase = 'materials' | 'job' | 'recommendations';
+type JourneyPhase = 'materials' | 'job' | 'recommendations' | 'interview';
 const PHASE_QUERY_PARAM = 'etapa';
 
 function phaseFromQuery(value: string | null): JourneyPhase {
-  return value === 'job' || value === 'recommendations' ? value : 'materials';
+  return value === 'job' || value === 'recommendations' || value === 'interview'
+    ? value
+    : 'materials';
 }
 
 function restoredPhase(
   requested: JourneyPhase,
   documentCount: number,
   hasAnalysis: boolean,
+  withoutResume: boolean,
 ): JourneyPhase {
-  if (requested === 'recommendations' && !hasAnalysis) return documentCount ? 'job' : 'materials';
-  if (requested === 'job' && documentCount === 0) return 'materials';
+  if ((requested === 'recommendations' || requested === 'interview') && !hasAnalysis)
+    return documentCount ? 'job' : 'materials';
+  if (requested === 'recommendations' && withoutResume && hasAnalysis) return 'interview';
+  if (requested === 'job' && documentCount === 0 && !withoutResume) return 'materials';
   return requested;
 }
 
 function stepForPhase(phase: JourneyPhase): number {
   if (phase === 'materials') return 1;
   if (phase === 'job') return 2;
-  return 3;
+  return phase === 'interview' ? 4 : 3;
 }
 
 function JourneyCheck() {
@@ -140,6 +147,8 @@ function ConversationStep({
   onComplete,
   onPreferencesChange,
   onEditJob,
+  onStartInterview,
+  onSessionChange,
 }: {
   phase: JourneyPhase;
   documents: StoredResume[];
@@ -151,7 +160,13 @@ function ConversationStep({
   onComplete: (analysis: JobAnalysisResult, hash: string) => void;
   onPreferencesChange: (preferences: JobPreferences) => void;
   onEditJob: () => void;
+  onStartInterview: () => void;
+  onSessionChange: (session: Session) => void;
 }) {
+  if (phase === 'interview' && result?.preparation)
+    return (
+      <InterviewWorkspace session={result.preparation} draft={draft} onChange={onSessionChange} />
+    );
   if (phase === 'materials') return <ImportPanel onDocumentsChange={onDocumentsChange} />;
   if (phase === 'job')
     return (
@@ -168,6 +183,7 @@ function ConversationStep({
       preferences={preferences as JobPreferences}
       onPreferencesChange={onPreferencesChange}
       onEditJob={onEditJob}
+      onContinue={onStartInterview}
     />
   );
 }
@@ -215,7 +231,19 @@ export function ConversationPageClient() {
       setHydrated(true);
       const hasAnalysis = Boolean(saved.result);
 
-      const nextPhase = restoredPhase(requestedPhase, storedResumes.length, hasAnalysis);
+      const withoutResume =
+        new URLSearchParams(window.location.search).get('sem-curriculo') === '1';
+      const effectivePhase =
+        saved.result?.preparation &&
+        ['confirmation', 'ready'].includes(saved.result.preparation.phase)
+          ? 'interview'
+          : requestedPhase;
+      const nextPhase = restoredPhase(
+        effectivePhase,
+        storedResumes.length,
+        hasAnalysis,
+        withoutResume,
+      );
       if (!hasUserNavigated.current) {
         setPhase(nextPhase);
         const url = new URL(window.location.href);
@@ -273,7 +301,7 @@ export function ConversationPageClient() {
       objective: analysis.suggestedObjective,
       tone: analysis.suggestedTone,
     });
-    transitionTo('recommendations');
+    transitionTo(analysis.preparation ? 'interview' : 'recommendations');
   };
 
   const goBack =
@@ -281,15 +309,23 @@ export function ConversationPageClient() {
 
   return (
     <WizardShell
-      currentStep={stepForPhase(phase)}
+      focused={phase === 'interview'}
+      currentStep={
+        phase === 'interview' &&
+        ['confirmation', 'ready'].includes(result?.preparation?.phase ?? '')
+          ? 5
+          : stepForPhase(phase)
+      }
       onBack={goBack}
       preview={
-        <ConversationPreview
-          phase={phase}
-          documentCount={documents.length}
-          hasAnalysis={Boolean(result && preferences)}
-          onStart={transitionTo}
-        />
+        phase === 'interview' ? null : (
+          <ConversationPreview
+            phase={phase}
+            documentCount={documents.length}
+            hasAnalysis={Boolean(result && preferences)}
+            onStart={transitionTo}
+          />
+        )
       }
       previewLabel={phase === 'materials' ? 'Resumo dos materiais' : 'Orientação da análise'}
       previewOnMobile={phase === 'materials'}
@@ -298,38 +334,55 @@ export function ConversationPageClient() {
       totalSteps={5}
     >
       <div className="w-full min-w-0">
-        <button
-          type="button"
-          className="button button-outline"
-          onClick={() => {
-            if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
-            cancelPreparation();
-            void deleteEngine()
-              .then(async () => {
-                if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
-              })
-              .then(() => {
-                removeBrowserValue(ANALYSIS_KEY);
-                removeBrowserValue('hirepair_analysis_pending');
-                removeBrowserValue('hirepair_engine_funnel');
-                sessionStorage.removeItem('hirepair_funnel_session_id');
-                sessionStorage.removeItem('hirepair_session_started_captured');
-                documentsRef.current = [];
-                setDocuments([]);
-                setDraft(initialDraft);
-                invalidateAnalysis();
-                setResetKey((value) => value + 1);
-                setLocalError('');
-                transitionTo('materials');
-              })
-              .catch(() =>
-                setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
-              );
-          }}
-        >
-          Excluir minha jornada deste aparelho
-        </button>
+        {phase !== 'interview' && (
+          <button
+            type="button"
+            className="button button-outline"
+            onClick={() => {
+              if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
+              cancelPreparation();
+              void deleteEngine()
+                .then(async () => {
+                  if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
+                })
+                .then(() => {
+                  removeBrowserValue(ANALYSIS_KEY);
+                  removeBrowserValue('hirepair_analysis_pending');
+                  removeBrowserValue('hirepair_interview_pending');
+                  removeBrowserValue('hirepair_engine_funnel');
+                  sessionStorage.removeItem('hirepair_funnel_session_id');
+                  sessionStorage.removeItem('hirepair_session_started_captured');
+                  documentsRef.current = [];
+                  setDocuments([]);
+                  setDraft(initialDraft);
+                  invalidateAnalysis();
+                  setResetKey((value) => value + 1);
+                  setLocalError('');
+                  transitionTo('materials');
+                })
+                .catch(() =>
+                  setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
+                );
+            }}
+          >
+            Excluir minha jornada deste aparelho
+          </button>
+        )}
         {localError ? <p role="alert">{localError}</p> : null}
+        {phase === 'materials' && documents.length === 0 && (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('sem-curriculo', '1');
+              window.history.replaceState(window.history.state, '', url);
+              transitionTo('job');
+            }}
+          >
+            Começar sem currículo
+          </button>
+        )}
         <ConversationStep
           key={resetKey}
           phase={phase}
@@ -374,6 +427,10 @@ export function ConversationPageClient() {
               );
           }}
           onEditJob={() => transitionTo('job')}
+          onStartInterview={() => transitionTo('interview')}
+          onSessionChange={(session) =>
+            setResult((value) => (value ? { ...value, preparation: session } : value))
+          }
         />
       </div>
     </WizardShell>

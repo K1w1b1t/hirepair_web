@@ -268,3 +268,17 @@ Currículo é recheado de **dado pessoal** (nome, contato, histórico) e pode co
 5. **Pagamento** (seção 4) e **regulação/LGPD** (seção 5) — resolver antes de
    publicar nas lojas.
 6. **Build do MVP** → medir a métrica de sucesso → iterar.
+
+## Decisão implementada — entrevista web (#15, 01/11/2026)
+
+A jornada web atual usa entrevista guiada com voz opcional e texto, sem revisão
+manual de fatos. O motor e a IA escolhem evidências relevantes para o alvo usando
+currículo, relatos e uma base sintética local versionada. O usuário não precisa
+saber escolher competências nem escrever profissionalmente. Cada pergunta
+esclarece uma experiência ou achado associado a ela. Sem histórico identificado,
+a conversa vai da primeira experiência profissional à atual ou mais recente. O sistema organiza
+e esclarece informações declaradas, sem completar lacunas por conta própria.
+A entrega termina com a entrevista concluída; redação e exportação continuam
+nas tarefas seguintes. Essa decisão atualiza o escopo desta etapa, sem transformar
+as hipóteses anteriores de app nativo, monetização ou operação offline em entregas.
+Ver [ADR 0015](../architecture/adr-0015-guided-interview.md).

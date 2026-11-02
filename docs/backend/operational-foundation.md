@@ -140,3 +140,71 @@ Ver [ADR 0043](../architecture/adr-0043-evidence-interview.md) e
 [roteiro de entregas](../architecture/product-delivery-roadmap.md). O pacote de domínio
 é compilado no postinstall e antes dos builds/testes/typecheck; instalações devem
 executar os scripts normais do npm, incluindo a geração do Prisma já exigida.
+
+## Entrevista incremental (#15)
+
+`POST /guest/interview-block` usa Bearer visitante, consentimento vigente obtido na
+emissão de acesso, `Idempotency-Key`, throttle de seis requisições/minuto e contrato
+v1 fechado compartilhado. Recebe contexto mínimo, alvo, turnos e tópicos; não
+aceita prompt nem operação enviados pelo cliente. O servidor escolhe
+`interview-extraction`, schema e instruções, minimiza identificadores reconhecidos,
+estima tokens e reserva capacidade antes de chamar o provedor. O limite HTTP é
+20.000 caracteres do JSON; cada resposta tem limite adicional de 10.000 caracteres.
+A operação usa uma tentativa, até 1.200 tokens de saída e prazo de 15 segundos.
+O campo opcional `turns[].kind` distingue a negativa factual; o contrato aceita
+tanto a forma legada quanto a nova, ambas fechadas. O provedor recebe
+`answerKind`; negativas não geram fatos positivos nem reativam fatos contestados.
+O cliente forma blocos pelo JSON completo e preserva o restante de respostas
+segmentadas no IndexedDB. O turno só termina após o último trecho. Recusa de
+tamanho/tokens no preflight admite até duas subdivisões, sem nova tentativa do
+provedor nem ampliação de cota: tamanho e estimativa continuam antes da reserva.
+Erros de rede/provedor não provocam essa repetição automática.
+
+Blocos compartilham lock por visitante, idempotência por identidade/insumos e teto
+de rede das análises legadas. O contador de tentativas de blocos é separado do
+limite de três análises legadas; isso não abre nova franquia de IA. Todas as
+chamadas anteriores à redação usam os mesmos contadores centrais com teto de cinco
+chamadas/30.000 tokens por sessão e visitante em sete dias, reservando uma chamada
+e 6.000 tokens para #18 dentro do total de seis/36.000. Limites globais, por
+ambiente, modelo, rede e minuto continuam simultâneos. A concorrência é validada
+contra Redis isolado por `npm run test:operational -w @hirepair/api`.
+
+O cliente preserva a chave do bloco se o resultado fica incerto. Uma repetição
+já processada não refaz a chamada nem recupera conteúdo pessoal do servidor.
+Falha de Redis bloqueia IA; indisponibilidade mantém os relatos locais e informa
+um encerramento parcial. Logs, Redis e telemetria não recebem relatos, fatos ou perfil.
+Não há migração Prisma, nova variável obrigatória ou ativação automática da IA.
+O rollback é reverter a entrega; os campos adicionais da sessão v1 são opcionais.
+
+### Seleção automática e avaliações
+
+A #15 usa referências sintéticas locais versionadas em `resume-knowledge.ts`
+para orientar a extração e a relevância, sem transmitir currículos de terceiros.
+Os exemplos nunca constituem evidência do candidato. As perguntas devem
+esclarecer experiências e achados específicos; o bloco preserva a pergunta
+respondida e os IDs da experiência/critério. Perguntas abertas de descoberta
+genérica não são usadas no fluxo guiado. O contrato continua fechado
+e a operação permanece escolhida no servidor. Ver [ADR 0015](../architecture/adr-0015-guided-interview.md).
+
+`npm run eval:interview -w @hirepair/api` executa oito fixtures sintéticas com
+assertivas determinísticas, sem Redis nem provedor; roda na CI. Testes unitários
+da avaliação real usam um provedor simulado, o prompt de produção e o parser
+compartilhado. Não demonstram qualidade semântica do modelo real.
+
+Avaliação manual opcional com a infraestrutura de IA já configurada:
+
+```sh
+npm run eval:interview -w @hirepair/api -- --live
+npm run eval:interview -w @hirepair/api -- --live --cases negative,contradiction --judge
+```
+
+O modo real executa no máximo dois casos sequenciais e um julgamento opcional
+(até três chamadas, uma tentativa por chamada e reserva total de até 30.000
+tokens). Reutiliza `AiService`, reservas centrais, identidade técnica estável
+`hirepair-guided-eval` e escopo `guided-v1`; repetir o comando não abre franquia.
+Os limites globais/rede/modelo continuam vigentes. O relatório distingue modo,
+versão da base, chamadas, tokens reservados, modelo e resultado. Falha de schema,
+infraestrutura ou orçamento retorna erro; falha de qualidade retorna exit code 1.
+Não há job automático com IA real nem novo endpoint de prompt/judge. Só fixtures
+sintéticas são usadas. Execução real requer as mesmas condições operacionais
+da IA pública e não foi realizada como evidência desta entrega.
