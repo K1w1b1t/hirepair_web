@@ -2,6 +2,7 @@ import type { Session, Topic, Turn } from './contracts';
 import { replan, recordTurn, equalInputs } from './engine';
 import { incorporateBlock, discovery, type InterviewBlockResult } from './interview';
 import { KNOWLEDGE_VERSION } from './resume-knowledge';
+import { preserveNegativeAnswer } from './negative-answer';
 import {
   emptyTimeline,
   syncTimeline,
@@ -79,7 +80,7 @@ export function guidedAnswer(s: Session, turn: Turn): Session {
     },
   };
   updated.guided!.timeline = afterTimelineAnswer(updated, turn, !!s.guided!.clarification);
-  return updated;
+  return preserveNegativeAnswer(updated, turn, question.topic);
 }
 export function selectedFactIds(s: Session): string[] {
   return s.selection?.facts.map((f) => f.id) ?? s.confirmation?.factIds ?? [];
@@ -185,6 +186,12 @@ export function applyGuidedBlock(
   turnIds: string[],
   hash: string,
 ): Session {
+  if (
+    [...result.extraction.facts, ...result.extraction.experiences].some((f) =>
+      s.turns.some((t) => t.id === f.origin.sourceId && t.answer.kind === 'absence'),
+    )
+  )
+    throw new Error('NEGATIVE_ANSWER_IS_NOT_A_FACT');
   const next = incorporateBlock(s, result, turnIds, hash);
   next.guided!.timeline = syncTimeline(next);
   const followup = result.assessments.find(

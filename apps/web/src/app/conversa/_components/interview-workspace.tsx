@@ -1,15 +1,13 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   startGuided,
   guidedQuestion,
   guidedAnswer,
   completeGuided,
-  applyGuidedBlock,
-  discovery,
-  interviewState,
+  INTERVIEW_PAYLOAD_LIMIT,
   type Session,
-  type InterviewBlockRequest,
+  type InterviewBlockResult,
 } from '@hirepair/interview-engine';
 import { commitInterview, hashValue } from '../_lib/interview-session';
 import {
@@ -20,6 +18,11 @@ import {
   AnalysisFailure,
   type GuestChallenge,
 } from '../_lib/guest-api';
+import {
+  planInterviewBlock,
+  pendingInterviewTurns,
+  applyInterviewBlockPlan,
+} from '../_lib/interview-blocks';
 import { sanitizeMaterial } from '../_lib/sanitize-material';
 import type { JobDraft } from '../_lib/job-analysis';
 import { captureAnalyticsEvent } from '../../../analytics/analytics';
@@ -34,7 +37,7 @@ export function InterviewWorkspace({
   draft: JobDraft;
   onChange: (s: Session) => void;
 }) {
-  const normalized = startGuided(session),
+  const normalized = useMemo(() => startGuided(session), [session]),
     g = normalized.guided!;
   const [text, setText] = useState(''),
     [mode, setMode] = useState<'voice' | 'text'>('voice'),
@@ -50,80 +53,66 @@ export function InterviewWorkspace({
     ended = useRef(false);
   const savingTime = useRef<Promise<void> | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const payloadLimit = useRef(INTERVIEW_PAYLOAD_LIMIT);
+  const planned = useMemo(
+    () => planInterviewBlock(normalized, draft, '0'.repeat(64), payloadLimit.current),
+    [normalized, draft],
+  );
   const question = guidedQuestion(normalized);
   const done = g.status === 'complete',
     partial = g.status === 'partial';
   useEffect(() => {
     heading.current!.focus({ preventScroll: true });
   }, [question?.text, done, partial]);
-  const pending = normalized.turns.filter(
-    (t) =>
-      !interviewState(normalized).analyzedTurnIds.includes(t.id) &&
-      t.answer.text &&
-      ['specific', 'vague'].includes(t.answer.kind),
-  );
+  const pending = pendingInterviewTurns(normalized);
   const repeated = pending.some(
     (t) => g.answered.filter((id) => id === t.question.topicId).length > 1,
   );
-  const readyToAnalyze = pending.length >= 3 || !question || repeated;
+  const readyToAnalyze =
+    pending.length >= 3 ||
+    !question ||
+    repeated ||
+    planned.deferred ||
+    planned.blocked ||
+    pending.some((t) => t.answer.kind === 'absence');
   const process = useCallback(
     async (s: Session) => {
-      const turns = s.turns.filter(
-        (t) =>
-          !interviewState(s).analyzedTurnIds.includes(t.id) &&
-          t.answer.text &&
-          ['specific', 'vague'].includes(t.answer.kind),
-      );
-      if (!turns.length) return s;
-      const topics = Array.from(new Set(turns.map((t) => t.question.topicId))).map((id) => {
-        const turn = turns.find((t) => t.question.topicId === id)!;
-        return {
-          ...discovery,
-          id,
-          missingEvidence: turn.question.text,
-          criterionId: turn.decision?.criterionId ?? null,
-          experienceId: turn.decision?.experienceId ?? null,
-          reason: turn.decision?.reason ?? discovery.reason,
-        };
-      });
-      const request: InterviewBlockRequest = {
-        version: 1,
-        sessionId: s.id,
-        funnelSessionId: s.funnelSessionId,
-        revision: s.revision,
-        inputsHash: await hashValue(s.inputs),
-        objective: s.objective!.value,
-        jobText: sanitizeMaterial(draft.hasJob ? draft.jobText : ''),
-        targetRole: sanitizeMaterial(draft.targetRole),
-        turns: turns.map((t) => ({
-          id: t.id,
-          topicId: t.question.topicId,
-          text: sanitizeMaterial(t.answer.text),
-        })),
-        context: {
-          experiences: s.experiences.map(({ id, title, start, end, current, origin }) => ({
-            id,
-            title,
-            start,
-            end,
-            current,
-            origin,
-          })),
-          facts: s.facts
-            .filter((f) => f.confirmation !== 'rejected')
-            .map(({ id, experienceId, text, origin }) => ({ id, experienceId, text, origin })),
-        },
-        topics,
-      };
-      const result = await analyzeInterviewBlock(request, draft, challenge);
+      const inputsHash = await hashValue(s.inputs);
+      let plan = planInterviewBlock(s, draft, inputsHash, payloadLimit.current);
+      if (!plan.request) {
+        if (plan.blocked) throw new AnalysisFailure('AI_INPUT_TOO_LARGE');
+        return s;
+      }
+      let result: InterviewBlockResult;
+      let attempts = 0,
+        accessChallenge = challenge;
+      for (;;) {
+        try {
+          const auth = accessChallenge;
+          accessChallenge = undefined;
+          result = await analyzeInterviewBlock(plan.request!, draft, auth);
+          break;
+        } catch (caught) {
+          if (
+            !(caught instanceof AnalysisFailure) ||
+            caught.code !== 'AI_INPUT_TOO_LARGE' ||
+            attempts >= 2
+          )
+            throw caught;
+          const request = plan.request!;
+          const smallerLimit =
+            JSON.stringify(request).length -
+            Math.max(1, Math.ceil(request.turns.reduce((sum, t) => sum + t.text.length, 0) / 2));
+          const smaller = planInterviewBlock(s, draft, inputsHash, smallerLimit);
+          if (!smaller.request) throw caught;
+          payloadLimit.current = smallerLimit;
+          plan = smaller;
+          attempts++;
+        }
+      }
       if (!live.current) throw new Error('REQUEST_CANCELLED');
-      const next = await commitInterview(s, { request, result }, (value, hash) =>
-        applyGuidedBlock(
-          value,
-          result,
-          turns.map((t) => t.id),
-          hash,
-        ),
+      const next = await commitInterview(s, { request: plan.request, result }, (value, hash) =>
+        applyInterviewBlockPlan(value, result, plan, hash),
       );
       finishInterviewRequest();
       setChallenge(undefined);
@@ -214,7 +203,7 @@ export function InterviewWorkspace({
     void (async () => {
       try {
         let next = await process(current.current);
-        const shouldFinish = !guidedQuestion(next);
+        const shouldFinish = !guidedQuestion(next) && pendingInterviewTurns(next).length === 0;
         if (shouldFinish)
           next = await commitInterview(next, { complete: next.inputs }, completeGuided);
         publish(next);
@@ -244,7 +233,17 @@ export function InterviewWorkspace({
         if (live.current) setBusy(false);
       }
     })();
-  }, [readyToAnalyze, pending.length, done, partial, challenge, error, publish, process]);
+  }, [
+    readyToAnalyze,
+    pending.length,
+    normalized.revision,
+    done,
+    partial,
+    challenge,
+    error,
+    publish,
+    process,
+  ]);
   useEffect(() => {
     const timer = setInterval(() => {
       const s = current.current;

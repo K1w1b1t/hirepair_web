@@ -14,6 +14,11 @@ const label = (experience: Experience) =>
 const prefix = (anchor: Anchor) => `guided:${encodeURIComponent(anchor.id)}:`;
 const chronology = (start: string | null) =>
   start?.replace(/^(\d{2})\/(\d{4})$/, '$2-$1') ?? '9999';
+const periodDate = String.raw`(?:(?:19|20)\d{2}(?:-\d{2})?|\d{2}/(?:19|20)\d{2})`;
+const narratedPeriod = new RegExp(
+  String.raw`\b(?:(?:de|desde|em|entre|at[eé])\s+${periodDate}|${periodDate}\s*(?:a|at[eé]|[-–])\s*${periodDate})\b`,
+  'u',
+);
 export function syncTimeline(s: Session): Timeline {
   const timeline = structuredClone(s.guided!.timeline ?? emptyTimeline());
   const ordered = [...s.experiences].sort(
@@ -75,7 +80,11 @@ function dimensions(s: Session, anchor: Anchor): Set<string> {
       (anchor.experienceId !== null && t.decision?.experienceId === anchor.experienceId),
   );
   const declared = [
-    ...s.facts.filter((f) => f.experienceId === anchor.experienceId).map((f) => f.text),
+    ...s.facts
+      .filter(
+        (f) => f.experienceId === anchor.experienceId && f.usable && f.confirmation !== 'rejected',
+      )
+      .map((f) => f.text),
     ...turns.map((t) => t.answer.text),
   ]
     .join(' ')
@@ -84,7 +93,7 @@ function dimensions(s: Session, anchor: Anchor): Set<string> {
     known.add('tools');
   if (/diariamente|todos os dias|toda semana|semanalmente|mensalmente/.test(declared))
     known.add('frequency');
-  if (/\b(?:19|20)\d{2}\b/.test(declared)) known.add('period');
+  if (narratedPeriod.test(declared)) known.add('period');
   const translated: Record<string, string> = {
     período: 'period',
     responsabilidade: 'responsibility',
@@ -104,9 +113,9 @@ function basicComplete(s: Session, anchor: Anchor) {
   return known.has('period') && known.has('responsibility');
 }
 function reconcile(s: Session, timeline: Timeline): Timeline {
-  for (const anchor of timeline.anchors)
-    if (basicComplete(s, anchor) && !timeline.completed.includes(anchor.id))
-      timeline.completed.push(anchor.id);
+  timeline.completed = timeline.anchors
+    .filter((anchor) => basicComplete(s, anchor))
+    .map((anchor) => anchor.id);
   const last = timeline.anchors.at(-1);
   if (
     last &&

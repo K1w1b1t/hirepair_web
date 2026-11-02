@@ -1,4 +1,5 @@
-import type { Extraction, Objective, Topic, Source } from './contracts';
+import type { Extraction, Objective, Topic, Source, Turn } from './contracts';
+export const INTERVIEW_PAYLOAD_LIMIT = 20_000;
 import type { InterviewBlockResult } from './interview';
 import {
   EXTRACTION_SCHEMA,
@@ -6,6 +7,7 @@ import {
   matches,
   parseExtraction,
   parseCriteria,
+  type Schema,
 } from './schemas';
 export interface InterviewBlockRequest {
   version: 1;
@@ -16,7 +18,7 @@ export interface InterviewBlockRequest {
   objective: Objective;
   jobText: string;
   targetRole: string;
-  turns: Array<{ id: string; topicId: string; text: string }>;
+  turns: Array<{ id: string; topicId: string; text: string; kind?: Turn['answer']['kind'] }>;
   context: Extraction;
   topics: Topic[];
 }
@@ -109,7 +111,7 @@ export function parseInterviewBlock(
 }
 const string = (maxLength: number) => ({ type: 'string', maxLength });
 const nullableId = { anyOf: [string(100), { type: 'null' }] };
-export const INTERVIEW_REQUEST_SCHEMA = {
+export const INTERVIEW_REQUEST_SCHEMA: Schema = {
   type: 'object',
   additionalProperties: false,
   required: [
@@ -148,9 +150,34 @@ export const INTERVIEW_REQUEST_SCHEMA = {
       type: 'array',
       maxItems: 100,
       items: {
-        type: 'object',
-        required: ['id', 'topicId', 'text'],
-        properties: { id: string(100), topicId: string(500), text: string(10000) },
+        anyOf: [
+          {
+            type: 'object',
+            required: ['id', 'topicId', 'text'],
+            properties: { id: string(100), topicId: string(500), text: string(10000) },
+          },
+          {
+            type: 'object',
+            required: ['id', 'topicId', 'text', 'kind'],
+            properties: {
+              id: string(100),
+              topicId: string(500),
+              text: string(10000),
+              kind: {
+                ...string(20),
+                enum: [
+                  'specific',
+                  'vague',
+                  'absence',
+                  'declined',
+                  'unknown',
+                  'forgotten',
+                  'skipped',
+                ],
+              },
+            },
+          },
+        ],
       },
     },
     context: EXTRACTION_SCHEMA,

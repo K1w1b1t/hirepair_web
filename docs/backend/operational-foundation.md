@@ -151,6 +151,14 @@ aceita prompt nem operação enviados pelo cliente. O servidor escolhe
 estima tokens e reserva capacidade antes de chamar o provedor. O limite HTTP é
 20.000 caracteres do JSON; cada resposta tem limite adicional de 10.000 caracteres.
 A operação usa uma tentativa, até 1.200 tokens de saída e prazo de 15 segundos.
+O campo opcional `turns[].kind` distingue a negativa factual; o contrato aceita
+tanto a forma legada quanto a nova, ambas fechadas. O provedor recebe
+`answerKind`; negativas não geram fatos positivos nem reativam fatos contestados.
+O cliente forma blocos pelo JSON completo e preserva o restante de respostas
+segmentadas no IndexedDB. O turno só termina após o último trecho. Recusa de
+tamanho/tokens no preflight admite até duas subdivisões, sem nova tentativa do
+provedor nem ampliação de cota: tamanho e estimativa continuam antes da reserva.
+Erros de rede/provedor não provocam essa repetição automática.
 
 Blocos compartilham lock por visitante, idempotência por identidade/insumos e teto
 de rede das análises legadas. O contador de tentativas de blocos é separado do

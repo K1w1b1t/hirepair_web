@@ -2,7 +2,36 @@ import { expect, test, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { preparationFixture } from '../test/preparation';
 import { mockGuestChallenge } from './helpers/guest-challenge';
-import type { InterviewBlockRequest } from '@hirepair/interview-engine';
+import type { InterviewBlockRequest, Session } from '@hirepair/interview-engine';
+async function savedState(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<{
+        facts: Array<{ id: string; usable: boolean }>;
+        turns: Array<{ id: string; length: number }>;
+        analyzed: string[];
+        disputed: string[];
+      }>((resolve, reject) => {
+        const open = indexedDB.open('hirepair-interview', 1);
+        open.onerror = () => reject(new Error('Cannot read fixture state'));
+        open.onsuccess = () => {
+          const db = open.result,
+            request = db.transaction('session', 'readonly').objectStore('session').get('active');
+          request.onerror = () => reject(new Error('Cannot read fixture state'));
+          request.onsuccess = () => {
+            const s = request.result as Session;
+            db.close();
+            resolve({
+              facts: s.facts.map((f) => ({ id: f.id, usable: f.usable })),
+              turns: s.turns.map((t) => ({ id: t.id, length: t.answer.text.length })),
+              analyzed: s.interview?.analyzedTurnIds ?? [],
+              disputed: s.pending.filter((p) => p.blocking).flatMap((p) => p.factIds),
+            });
+          };
+        };
+      }),
+  );
+}
 async function setup(page: Page) {
   await mockGuestChallenge(page);
   await page.addInitScript(() => {
@@ -61,7 +90,7 @@ async function setup(page: Page) {
       origin = {
         sourceId: t.id,
         sourceVersion: createHash('sha256').update(t.text).digest('hex'),
-        quote: t.text,
+        quote: t.text.slice(0, 120),
       };
     await route.fulfill({
       status: 201,
@@ -86,13 +115,13 @@ async function setup(page: Page) {
             : [],
           facts: [
             {
-              id: `fact-${t.id}`,
+              id: `fact-${t.id}-${request.revision}`,
               experienceId: discovery
                 ? discovery.topicId === 'guided:first'
                   ? 'padaria'
                   : 'market'
                 : request.topics[0].experienceId!,
-              text: t.text,
+              text: t.text.slice(0, 120),
               origin,
             },
           ],
@@ -109,13 +138,15 @@ async function setup(page: Page) {
     });
   });
 }
-async function begin(page: Page, withResume: boolean) {
+async function begin(
+  page: Page,
+  withResume: boolean,
+  cvText = 'Auxiliar na Padaria Sol, 2018 a 2024. Atendente no Mercado Azul desde 2024.',
+) {
   await page.goto('/conversa');
   await page.getByRole('button', { name: 'Agora não' }).click();
   if (withResume) {
-    await page
-      .getByLabel('Colar o texto')
-      .fill('Auxiliar na Padaria Sol, 2018 a 2024. Atendente no Mercado Azul desde 2024.');
+    await page.getByLabel('Colar o texto').fill(cvText);
     await page.getByRole('button', { name: 'Adicionar material' }).click();
     await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   } else await page.getByText('Começar sem currículo').click();
@@ -255,4 +286,101 @@ test('ditado envia após silêncio e pode ser corrigido antes do envio', async (
     });
   });
   await expect(page.getByText('2 respostas recebidas')).toBeVisible({ timeout: 8000 });
+});
+test('uma habilidade negada permanece bloqueada depois da análise e da retomada', async ({
+  page,
+}) => {
+  await setup(page);
+  await page.route('**/guest/interview-preparation', (route) => {
+    const result = preparationFixture(route.request().postDataJSON()),
+      source = result.session.sources[0];
+    const origin = {
+      sourceId: source.id,
+      sourceVersion: source.version,
+      quote: 'Auxiliar na Padaria Sol',
+    };
+    result.session.experiences = [
+      {
+        id: 'first',
+        title: 'Auxiliar na Padaria Sol',
+        start: '2018',
+        end: null,
+        current: true,
+        origin,
+      },
+    ];
+    result.session.facts = [
+      {
+        id: 'excel',
+        experienceId: 'first',
+        storyId: null,
+        text: 'Excel',
+        origin: { ...origin, quote: 'Excel' },
+        confirmation: 'candidate',
+        externallyVerified: false,
+        usable: true,
+        revision: 1,
+      },
+    ];
+    return route.fulfill({ status: 201, json: result });
+  });
+  const requests: InterviewBlockRequest[] = [];
+  await page.route('**/guest/interview-block', (route) => {
+    const request = route.request().postDataJSON() as InterviewBlockRequest;
+    requests.push(request);
+    return route.fulfill({
+      status: 201,
+      json: {
+        version: 1,
+        revision: request.revision,
+        extraction: { experiences: [], facts: [] },
+        analysis: null,
+        assessments: request.topics.map((t) => ({
+          topicId: t.id,
+          sufficient: true,
+          evidence: [],
+          question: null,
+          contradictionFactIds: [],
+        })),
+      },
+    });
+  });
+  await begin(page, true, 'Auxiliar na Padaria Sol desde 2018.\nHabilidades: Excel');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Excel');
+  await page.getByLabel('Sua resposta', { exact: true }).fill('Não tenho essa experiência.');
+  await page.getByText('Enviar resposta', { exact: true }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].turns[0].kind).toBe('absence');
+  await expect.poll(async () => (await savedState(page)).analyzed.length).toBe(1);
+  expect((await savedState(page)).facts).toContainEqual({ id: 'excel', usable: false });
+  await page.reload();
+  await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
+  expect((await savedState(page)).disputed).toContain('excel');
+  await expect(page.getByRole('button')).toHaveCount(2);
+});
+test('respostas longas são analisadas em blocos válidos sem perder os turnos restantes', async ({
+  page,
+}) => {
+  await setup(page);
+  const requests: InterviewBlockRequest[] = [];
+  await page.route('**/guest/interview-block', (route) => {
+    requests.push(route.request().postDataJSON() as InterviewBlockRequest);
+    return route.fallback();
+  });
+  await begin(page, false);
+  for (let i = 0; i < 3; i++) {
+    const response = `Eu trabalhava na Padaria Sol ${i}. ` + 'a'.repeat(6900);
+    await page.getByLabel('Sua resposta', { exact: true }).fill(response);
+    await page.getByText('Enviar resposta', { exact: true }).click();
+    await expect(page.getByText(`${i + 1} respostas recebidas`)).toBeVisible();
+    await expect(page.getByText('Organizando sua resposta…')).toHaveCount(0);
+  }
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  requests.forEach((request) => expect(JSON.stringify(request).length).toBeLessThanOrEqual(20000));
+  const saved = await savedState(page);
+  expect(saved.turns).toHaveLength(3);
+  expect(saved.turns.every((t) => t.length > 6900)).toBe(true);
+  expect(saved.analyzed.length).toBeLessThan(3);
+  await expect(page.getByText('Suas respostas estão salvas', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button')).toHaveCount(2);
 });

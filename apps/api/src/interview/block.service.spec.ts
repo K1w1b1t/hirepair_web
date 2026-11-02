@@ -70,6 +70,22 @@ const request: InterviewBlockRequest = {
   context: { experiences: [], facts: [] },
   topics: [discovery],
 };
+it('passes a factual absence explicitly to the extraction provider without changing its provenance', () => {
+  const { generation, sources } = buildInterviewGeneration(
+    {
+      ...request,
+      turns: [{ ...request.turns[0], text: 'Não tenho essa experiência.', kind: 'absence' }],
+    },
+    'v',
+    'key',
+  );
+  expect(sources[0]).toMatchObject({
+    id: 't',
+    answerKind: 'absence',
+    text: 'Não tenho essa experiência.',
+  });
+  expect(generation.systemInstruction).toContain('não extraia deles fatos candidatos');
+});
 it('uses local synthetic references to prioritize grounded evidence from the vacancy and context', () => {
   const context = {
     ...request.context,

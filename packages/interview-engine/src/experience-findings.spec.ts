@@ -2,6 +2,36 @@ import { createSession } from './engine';
 import { startGuided, guidedQuestion, guidedAnswer, applyGuidedBlock } from './guided';
 import { experienceFinding } from './experience-findings';
 import { diagnoseDocument, type DiagnosticCode } from './diagnostic';
+import { completeGuided } from './guided';
+it('blocks an imported skill immediately when the person denies the finding', () => {
+  const { s } = fixture();
+  s.facts = [
+    {
+      id: 'excel',
+      experienceId: 'e',
+      storyId: null,
+      text: 'Usei Excel.',
+      origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Usei Excel.' },
+      confirmation: 'candidate',
+      externallyVerified: false,
+      usable: true,
+      revision: 1,
+    },
+  ];
+  s.sources = [{ id: 'cv', version: 'v', text: 'Usei Excel.' }];
+  const q = guidedQuestion(s)!;
+  const next = guidedAnswer(s, {
+    id: 'negative',
+    question: { text: q.text, topicId: q.topic.id },
+    answer: { text: 'Não tenho essa experiência.', kind: 'absence' },
+    factIds: [],
+  });
+  expect(next.facts[0].usable).toBe(false);
+  expect(next.pending).toContainEqual(
+    expect.objectContaining({ topicId: q.topic.id, blocking: true, factIds: ['excel'] }),
+  );
+  expect(completeGuided(next).selection!.facts).toEqual([]);
+});
 function fixture(code: DiagnosticCode = 'SKILL_NEEDS_EXAMPLE', assigned: string | null = null) {
   const s = startGuided(
     createSession('s', 'f', { resumes: 'r', job: 'j', objective: 'o', facts: 'f' }),

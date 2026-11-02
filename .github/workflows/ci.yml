@@ -82,7 +82,7 @@ jobs:
       - name: Enforce complete unit coverage for interview changes
         run: |
           npm run test:cov -w @hirepair/interview-engine
-          npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,journey-storage}.ts' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
+          npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,interview-blocks,journey-storage}.ts' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
           npm run test:cov -w @hirepair/api -- --runInBand --collectCoverageFrom='{guest/{guest-quota.service,guest.module},interview/{block.service,preparation.controller,evaluation},operational/ai-budget.service}.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
 
       - name: Validate operational limits against disposable Redis

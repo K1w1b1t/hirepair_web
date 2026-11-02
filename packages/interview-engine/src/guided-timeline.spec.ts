@@ -87,6 +87,64 @@ it('does not reuse dates, tools or model evidence from another experience', () =
   expect(guidedQuestion(s)!.topic.id).toBe('guided:b:tools');
   expect(s.turns.at(-2)!.answer.kind).toBe('absence');
 });
+it('does not mistake a software version for the period of the first experience', () => {
+  const s = answer(session(), 'Fui auxiliar na padaria e usava Excel 2018.');
+  expect(guidedQuestion(s)!.topic.id).toBe('guided:story%3At0:period');
+});
+it.each(['rejected', 'unusable'] as const)(
+  'does not infer answered dimensions from a %s fact',
+  (state) => {
+    const s = session([experience('e', 'Auxiliar na Padaria', null, true)]);
+    s.facts = [
+      {
+        id: 'f',
+        revision: 1,
+        experienceId: 'e',
+        storyId: null,
+        text: 'Usei Excel diariamente desde 2020.',
+        origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Usei Excel diariamente desde 2020.' },
+        confirmation: state === 'rejected' ? 'rejected' : 'candidate',
+        usable: state !== 'unusable',
+        externallyVerified: false,
+      },
+    ];
+    expect(guidedQuestion(s)!.topic.id).toBe('guided:e:period');
+  },
+);
+it('reopens missing basics when an imported fact that supplied them is revoked', () => {
+  let s = session([experience('e', 'Auxiliar na Padaria', null, true)]);
+  s.facts = [
+    {
+      id: 'f',
+      revision: 1,
+      experienceId: 'e',
+      storyId: null,
+      text: 'Usei Excel diariamente desde 2020.',
+      origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Usei Excel diariamente desde 2020.' },
+      confirmation: 'candidate',
+      usable: true,
+      externallyVerified: false,
+    },
+  ];
+  expect(guidedQuestion(s)!.topic.id).toBe('guided:e:context');
+  s = answer(s, 'Na padaria do bairro.');
+  expect(s.guided!.timeline!.completed).toEqual(['e']);
+  s.facts[0].confirmation = 'rejected';
+  expect(guidedQuestion(s)!.topic.id).toBe('guided:e:period');
+  expect(timelineFinished(s)).toBe(false);
+});
+it.each([
+  'Trabalhei na padaria desde 2020.',
+  'Fui auxiliar na padaria de 2018 a 2019.',
+  'Minha primeira experiência foi na padaria, 2018–2019.',
+  'Trabalhei na padaria desde 01/2020.',
+  'Trabalhei na padaria, 01/2018–12/2019.',
+  'Fui auxiliar na padaria, 2018-01 a 2019-12.',
+])('retains a declared approximate period in a narrated experience: %s', (text) => {
+  expect(guidedQuestion(answer(session(), text))!.topic.id).toBe(
+    'guided:story%3At0:responsibility',
+  );
+});
 it('binds a narrated anchor to validated extraction without losing its answered questions', () => {
   let s = answer(session(), 'Minha primeira experiência foi na padaria.');
   s = answer(s, 'De 2018 a 2019.');

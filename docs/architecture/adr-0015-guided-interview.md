@@ -46,7 +46,20 @@ datas e intervalo entre experiências. Achado de outra experiência/documento n�
 como dúvida. A pergunta original, experiência, critério e motivo acompanham o
 bloco enviado ao provedor.
 
-Dimensões respondidas e evidências ficam isoladas por experiência. Detalhar um
+Dimensões respondidas e evidências ficam isoladas por experiência. Fatos rejeitados
+ou inutilizáveis não preenchem lacunas; revogá-los reabre o que dependia deles.
+Um ano na versão de um programa não define o período de trabalho: datas narradas
+exigem contexto temporal ou intervalo declarado.
+
+Uma ausência em resposta a um achado/critério contesta os fatos pertinentes da
+experiência imediatamente: eles ficam inutilizáveis, derivados são invalidados e
+a divergência é registrada como pendência bloqueante. A negativa entra no bloco
+com seu tipo explícito. Uma avaliação suficiente do provedor não reativa o fato
+antigo; correção ou remoção explícita usa as regras compartilhadas. Novos fatos
+e experiências extraídos da própria negativa são recusados. Encerrar a linha do
+tempo (“essa foi a última”) não nega o trabalho anterior.
+
+Detalhar um
 relato ou corrigir transcrição não cria outra experiência. A extração incremental
 vincula o relato à experiência sem trocar os IDs das perguntas já respondidas.
 A retomada preserva esse avanço; a IA pode pedir esclarecimentos contextualizados
@@ -94,8 +107,21 @@ anuncia sucesso nem libera redação. A tela de sucesso não gera currículo.
 
 ## Custo, analytics e validação
 
-Análise é automática por blocos de três respostas ou ao precisar esclarecer ou
-encerrar. Oito respostas não encerram a conversa automaticamente: é necessário
+Análise é automática em blocos de até três respostas, antecipada quando o JSON
+completo não cabe ou há uma negativa factual. O tamanho inclui vaga, contexto,
+metadados e escaping JSON; o teto de 20.000 caracteres é compartilhado com a API.
+Uma resposta pode ocupar vários trechos, sem cortar pares Unicode. Cada trecho
+persiste o deslocamento no mesmo turno; ele só fica analisado ao terminar todo o
+texto. Origem e citações permanecem ligadas ao turno; trechos não viram mensagens
+locais adicionais. A suficiência do tópico espera o trecho final. O encerramento
+aguarda os turnos pendentes, preservando o relato em falhas.
+
+Se o preflight de tokens recusar o pedido antes de reservar IA, o cliente reduz
+o bloco em até duas subdivisões adicionais. A restrição aprendida vale para os
+próximos blocos da montagem, sem reutilizar o mesmo desafio de acesso. Falhas de
+rede/provedor não são repetidas assim. Um contexto que não comporta nem um
+caractere ou a falta de orçamento mantém material parcial, com motivo explícito.
+Não aumenta franquias nem substitui a reserva central. Oito respostas não encerram a conversa automaticamente: é necessário
 percorrer o histórico até a experiência atual/última. Atingir o limite sem isso
 preserva material parcial e bloqueia a conclusão utilizável. Preparação e entrevista compartilham cinco chamadas/30.000 tokens;
 a sexta chamada/6.000 tokens permanece para a futura redação, sob os mesmos

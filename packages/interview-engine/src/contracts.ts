@@ -140,6 +140,7 @@ export interface InterviewState {
   focusTopicId?: string;
   topics: Record<string, TopicProgress>;
   analyzedTurnIds: string[];
+  analyzedCharacters?: Record<string, number>;
   activeMs: number;
   reviewRequested: boolean;
   limits: { reformulations: number; turns: number; answerChars: number; activeMs: number };

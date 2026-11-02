@@ -50,9 +50,9 @@ e [operação](../operational-foundation.md).
 - [x] `npm run lint` — workspaces sem erros ou avisos.
 - [x] `npm run format:check` — arquivos conformes ao Prettier.
 - [x] `npm run typecheck` — API, web, testes e motor tipados.
-- [x] `npm run test` — 729 testes: 268 API, 307 web e 154 motor.
+- [x] `npm run test` — 764 testes: 269 API, 319 web e 176 motor.
 - [x] `npm run build` — compilação da API, Next.js e motor.
-- [x] `npm run test:e2e` — 15 jornadas/fronteiras Chromium.
+- [x] `npm run test:e2e` — 17 jornadas/fronteiras Chromium.
 - [x] `npm run test:operational -w @hirepair/api` — Redis descartável em 16379;
       concorrência, posse, idempotência, reserva, falhas e contratos HTTP aprovados.
 - [x] `npm run eval:interview -w @hirepair/api` — oito fixtures sintéticas,
@@ -68,7 +68,7 @@ ignorar testes. A CI exige essas mesmas coberturas antes do build. Comandos diri
 
 ```sh
 npm run test:cov -w @hirepair/interview-engine
-npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,journey-storage}.ts' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
+npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,interview-blocks,journey-storage}.ts' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
 npm run test:cov -w @hirepair/api -- --runInBand --collectCoverageFrom='{guest/{guest-quota.service,guest.module},interview/{block.service,preparation.controller,evaluation},operational/ai-budget.service}.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
 ```
 
@@ -88,6 +88,18 @@ reservas centrais, com até dois casos sequenciais e um judge opcional. Erros de
 infraestrutura/schema não contam como aprovação de qualidade. A CI roda fixtures
 e provedor simulado: comprova contratos e regras, sem prometer avaliação semântica
 de IA real. Não foram usadas entrevistas nem currículos reais de terceiros.
+
+## Correções dos comentários do PR
+
+- [Negativas](https://github.com/K1w1b1t/hirepair_web/pull/50#discussion_r4438511877):
+  a ausência bloqueia imediatamente os fatos pertinentes e entra na análise com
+  o contexto do tópico. A avaliação do provedor não remove silenciosamente a
+  contestação; negativas não criam fatos ou experiências positivos.
+- [Payload](https://github.com/K1w1b1t/hirepair_web/pull/50#discussion_r4438511881):
+  cada JSON completo respeita o teto compartilhado, preservando turnos e trechos
+  restantes. Há testes para três respostas de aproximadamente 7.000 caracteres,
+  Unicode, retomada por deslocamento, suficiência só no fim e subdivisão após
+  rejeição no preflight de tokens, com limites e sem duplicar o desafio de acesso.
 
 ## Risco e rollback
 

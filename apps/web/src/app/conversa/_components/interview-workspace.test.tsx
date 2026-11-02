@@ -12,12 +12,14 @@ import {
   guidedAnswer,
   guidedQuestion,
   type Session,
+  diagnoseDocument,
 } from '@hirepair/interview-engine';
 import { InterviewWorkspace } from './interview-workspace';
 import { captureAnalyticsEvent } from '../../../analytics/analytics';
 import { analyzeInterviewBlock, hasInterviewAccess, AnalysisFailure } from '../_lib/guest-api';
 import { commitInterview } from '../_lib/interview-session';
 import { useGuidedVoice } from './use-guided-voice';
+import type { JobDraft } from '../_lib/job-analysis';
 let hash = 0;
 jest.mock('../_lib/interview-session', () => ({
   hashValue: async () => `h${hash++}`,
@@ -31,7 +33,11 @@ jest.mock('../_lib/guest-api', () => ({
   analyzeInterviewBlock: jest.fn(),
   finishInterviewRequest: jest.fn(),
   cancelPreparation: jest.fn(),
-  AnalysisFailure: class extends Error {},
+  AnalysisFailure: class extends Error {
+    constructor(public code: string) {
+      super(code);
+    }
+  },
 }));
 jest.mock('../../../analytics/analytics', () => ({ captureAnalyticsEvent: jest.fn() }));
 jest.mock('./use-guided-voice', () => ({
@@ -53,21 +59,24 @@ function initial() {
   s.objective = { value: 'ENTER_FAST', provisional: false };
   return startWithoutDocuments(s);
 }
-function Harness({ session = initial() }: { session?: Session }) {
+function Harness({
+  session = initial(),
+  draft = { hasJob: false, jobText: '', targetRole: 'Atendente', accepted: true },
+}: {
+  session?: Session;
+  draft?: JobDraft;
+}) {
   const [s, set] = useState(session);
   return (
     <>
-      <InterviewWorkspace
-        session={s}
-        draft={{ hasJob: false, jobText: '', targetRole: 'Atendente', accepted: true }}
-        onChange={set}
-      />
+      <InterviewWorkspace session={s} draft={draft} onChange={set} />
       <output data-testid="state">{JSON.stringify(s)}</output>
     </>
   );
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  (analyzeInterviewBlock as jest.Mock).mockReset();
   (hasInterviewAccess as jest.Mock).mockReturnValue(true);
   (useGuidedVoice as jest.Mock).mockReturnValue({
     status: 'idle',
@@ -84,7 +93,7 @@ beforeEach(() => {
   });
   (analyzeInterviewBlock as jest.Mock).mockImplementation(async (request) => {
     const t = request.turns[0],
-      origin = { sourceId: t.id, sourceVersion: 'v', quote: t.text };
+      origin = { sourceId: t.id, sourceVersion: 'v', quote: t.text.slice(0, 120) };
     return {
       version: 1,
       revision: request.revision,
@@ -101,7 +110,14 @@ beforeEach(() => {
                 origin,
               },
             ],
-        facts: [{ id: `f-${t.id}`, experienceId: 'e', text: t.text, origin }],
+        facts: [
+          {
+            id: `f-${t.id}-${request.revision}`,
+            experienceId: 'e',
+            text: t.text.slice(0, 120),
+            origin,
+          },
+        ],
       },
       analysis: null,
       assessments: request.topics.map((topic: { id: string }) => ({
@@ -459,6 +475,183 @@ it('retains the story and reports a partial outcome instead of claiming provider
   await screen.findByText('Suas respostas estão salvas');
   expect(screen.queryByText('Entrevista concluída')).not.toBeInTheDocument();
   expect(captureAnalyticsEvent).not.toHaveBeenCalled();
+});
+it('keeps each complete JSON block within the server payload limit for long answers', async () => {
+  render(<Harness />);
+  for (let i = 0; i < 3; i++) {
+    fireEvent.change(screen.getByLabelText('Sua resposta'), {
+      target: { value: `Resposta ${i} ` + 'a'.repeat(6990) },
+    });
+    fireEvent.click(screen.getByText('Enviar resposta'));
+    await waitFor(() =>
+      expect(JSON.parse(screen.getByTestId('state').textContent!).turns).toHaveLength(i + 1),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText('Organizando sua resposta…')).not.toBeInTheDocument(),
+    );
+  }
+  expect(analyzeInterviewBlock).toHaveBeenCalled();
+  for (const [request] of (analyzeInterviewBlock as jest.Mock).mock.calls)
+    expect(JSON.stringify(request).length).toBeLessThanOrEqual(20000);
+});
+it('sends a factual absence for semantic assessment while keeping the contradicted skill blocked', async () => {
+  const s = startGuided(initial());
+  s.sources = [{ id: 'cv', version: 'v', text: 'Loja\nHabilidades: Excel' }];
+  s.experiences = [
+    {
+      id: 'e',
+      title: 'Loja',
+      start: '2020',
+      end: null,
+      current: true,
+      origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Loja' },
+    },
+  ];
+  s.facts = [
+    {
+      id: 'excel',
+      experienceId: 'e',
+      storyId: null,
+      text: 'Excel',
+      origin: { sourceId: 'cv', sourceVersion: 'v', quote: 'Excel' },
+      confirmation: 'candidate',
+      usable: true,
+      externallyVerified: false,
+      revision: 1,
+    },
+  ];
+  const report = diagnoseDocument({
+    document: { id: 'cv', hash: 'v', text: s.sources[0].text, usedInApplications: 'unknown' },
+    contextVersion: 'j',
+    nowMonth: 2026 * 12,
+  });
+  s.diagnostics = [report];
+  s.pending = report.findings
+    .filter((f) => f.investigation)
+    .map((f) => ({
+      id: f.id,
+      diagnosticFindingId: f.id,
+      criterionId: null,
+      factIds: [],
+      reason: f.action,
+      blocking: false,
+    }));
+  (analyzeInterviewBlock as jest.Mock).mockImplementation(async (request) => ({
+    version: 1,
+    revision: request.revision,
+    extraction: { experiences: [], facts: [] },
+    analysis: null,
+    assessments: request.topics.map((t: { id: string }) => ({
+      topicId: t.id,
+      sufficient: true,
+      evidence: [],
+      question: null,
+      contradictionFactIds: [],
+    })),
+  }));
+  render(<Harness session={s} />);
+  fireEvent.change(screen.getByLabelText('Sua resposta'), {
+    target: { value: 'Não tenho essa experiência.' },
+  });
+  fireEvent.click(screen.getByText('Enviar resposta'));
+  await waitFor(() => expect(analyzeInterviewBlock).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.queryByText('Organizando sua resposta…')).not.toBeInTheDocument(),
+  );
+  expect((analyzeInterviewBlock as jest.Mock).mock.calls[0][0].turns[0]).toMatchObject({
+    kind: 'absence',
+    text: 'Não tenho essa experiência.',
+  });
+  const saved = JSON.parse(screen.getByTestId('state').textContent!) as Session;
+  expect(saved.facts[0].usable).toBe(false);
+  expect(saved.pending).toContainEqual(
+    expect.objectContaining({ blocking: true, factIds: ['excel'] }),
+  );
+});
+it('reduces a preflight-rejected block without losing turns or redeeming the same challenge twice', async () => {
+  (hasInterviewAccess as jest.Mock).mockReturnValue(false);
+  (analyzeInterviewBlock as jest.Mock).mockRejectedValueOnce(
+    new AnalysisFailure('AI_INPUT_TOO_LARGE'),
+  );
+  render(<Harness session={pendingSession()} />);
+  fireEvent.change(screen.getByLabelText('Verificação de acesso'), { target: { value: 'ok' } });
+  await waitFor(() => expect(analyzeInterviewBlock).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.queryByText('Organizando sua resposta…')).not.toBeInTheDocument(),
+  );
+  const calls = (analyzeInterviewBlock as jest.Mock).mock.calls;
+  expect(JSON.stringify(calls[1][0]).length).toBeLessThan(JSON.stringify(calls[0][0]).length);
+  expect(calls[0][2]).toEqual({ token: 'captcha' });
+  expect(calls[1][2]).toBeUndefined();
+  expect(JSON.parse(screen.getByTestId('state').textContent!).turns).toHaveLength(3);
+  expect(screen.queryByText('Suas respostas estão salvas')).not.toBeInTheDocument();
+});
+it('bounds preflight subdivision attempts and preserves the raw story if capacity still rejects it', async () => {
+  (analyzeInterviewBlock as jest.Mock).mockRejectedValue(new AnalysisFailure('AI_INPUT_TOO_LARGE'));
+  render(<Harness session={pendingSession()} />);
+  await screen.findByText('Suas respostas estão salvas');
+  expect(analyzeInterviewBlock).toHaveBeenCalledTimes(3);
+  expect(JSON.parse(screen.getByTestId('state').textContent!).turns[0].answer.text).toBe(
+    'Atendi clientes na feira.',
+  );
+});
+it('finishes only after every segment of the final answer is persisted', async () => {
+  const s = pendingSession(1);
+  s.guided!.maxAnswers = 1;
+  s.turns[0].answer.text = 'a'.repeat(10000);
+  const implementation = (analyzeInterviewBlock as jest.Mock).getMockImplementation()!;
+  let release!: () => void;
+  (analyzeInterviewBlock as jest.Mock)
+    .mockImplementationOnce(implementation)
+    .mockImplementationOnce(
+      (request) =>
+        new Promise((resolve) => {
+          release = () => resolve(implementation(request));
+        }),
+    );
+  render(
+    <Harness
+      session={s}
+      draft={{
+        hasJob: true,
+        jobText: 'Vaga '.repeat(2200),
+        targetRole: 'Atendente',
+        accepted: true,
+      }}
+    />,
+  );
+  await waitFor(() => expect(release).toBeDefined());
+  let saved = JSON.parse(screen.getByTestId('state').textContent!) as Session;
+  expect(saved.guided!.status).toBe('interview');
+  expect(saved.interview!.analyzedTurnIds).not.toContain('t0');
+  expect(saved.turns[0].answer.text).toHaveLength(10000);
+  await act(async () => release());
+  await screen.findByText('Suas respostas estão salvas');
+  saved = JSON.parse(screen.getByTestId('state').textContent!) as Session;
+  expect(saved.interview!.analyzedTurnIds).toContain('t0');
+  expect(saved.turns[0].answer.text).toHaveLength(10000);
+});
+it('does not split one Unicode character or send an envelope exceeding the context limit', async () => {
+  const s = pendingSession(1);
+  s.turns[0].answer.text = '😀';
+  s.guided!.maxAnswers = 1;
+  (analyzeInterviewBlock as jest.Mock).mockRejectedValueOnce(
+    new AnalysisFailure('AI_INPUT_TOO_LARGE'),
+  );
+  const view = render(<Harness session={s} />);
+  await screen.findByText('Suas respostas estão salvas');
+  expect(analyzeInterviewBlock).toHaveBeenCalledTimes(1);
+  view.unmount();
+  jest.clearAllMocks();
+  render(
+    <InterviewWorkspace
+      session={pendingSession()}
+      draft={{ hasJob: true, jobText: 'a'.repeat(21000), targetRole: 'Atendente', accepted: true }}
+      onChange={jest.fn()}
+    />,
+  );
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('AI_INPUT_TOO_LARGE'));
+  expect(analyzeInterviewBlock).not.toHaveBeenCalled();
 });
 it('offers voice as a secondary mode without exposing review or navigation actions', async () => {
   render(<Harness />);
