@@ -1,3 +1,5 @@
+import { WritingController } from '../interview/writing.controller';
+import { WritingService } from '../interview/writing.service';
 import { BlockService } from '../interview/block.service';
 import { PreparationController } from '../interview/preparation.controller';
 import { PreparationService } from '../interview/preparation.service';
@@ -10,8 +12,9 @@ import { GuestController } from './guest.controller';
 import { GuestQuotaService } from './guest-quota.service';
 @Module({
   imports: [OperationalModule],
-  controllers: [GuestController, PreparationController],
+  controllers: [GuestController, PreparationController, WritingController],
   providers: [
+    WritingService,
     PreparationService,
     BlockService,
     GuestAccessService,

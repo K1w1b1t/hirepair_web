@@ -33,7 +33,10 @@ export class AiService {
       }),
       { disallowedSpecial: new Set() },
     );
-    const output = Math.min(request.maxOutputTokens ?? 1200, 1200);
+    const output = Math.min(
+      request.maxOutputTokens ?? 1200,
+      request.context.operation === 'resume-writing' ? 3000 : 1200,
+    );
     const tokens = Math.ceil((input + 128) * 1.2) + output;
     if (tokens > 6000 || output <= 0) throw operationalError('AI_INPUT_TOO_LARGE', 400);
     return tokens;
@@ -127,7 +130,10 @@ export class AiService {
       ],
       temperature: request.temperature ?? 0,
       reasoning_effort: 'low',
-      max_completion_tokens: Math.min(request.maxOutputTokens ?? 1200, 1200),
+      max_completion_tokens: Math.min(
+        request.maxOutputTokens ?? 1200,
+        request.context.operation === 'resume-writing' ? 3000 : 1200,
+      ),
       response_format: {
         type: 'json_schema',
         json_schema: { name: 'job_analysis', strict: true, schema: request.responseSchema },

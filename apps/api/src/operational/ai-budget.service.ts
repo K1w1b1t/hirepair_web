@@ -21,7 +21,12 @@ import {
 export interface AiExecutionContext {
   principalId: string;
   scopeId: string;
-  operation: 'job-analysis' | 'resume-extraction' | 'criteria-analysis' | 'interview-extraction';
+  operation:
+    | 'job-analysis'
+    | 'resume-extraction'
+    | 'criteria-analysis'
+    | 'interview-extraction'
+    | 'resume-writing';
   idempotencyKey: string;
   inputVersion: string;
 }
@@ -55,9 +60,13 @@ export class AiBudgetService {
   ): Promise<AiReservation> {
     requirePublicAi();
     if (
-      !['job-analysis', 'resume-extraction', 'criteria-analysis', 'interview-extraction'].includes(
-        context.operation,
-      ) ||
+      ![
+        'job-analysis',
+        'resume-extraction',
+        'criteria-analysis',
+        'interview-extraction',
+        'resume-writing',
+      ].includes(context.operation) ||
       !Number.isInteger(tokens) ||
       tokens <= 0 ||
       tokens > 6000
@@ -89,10 +98,30 @@ export class AiBudgetService {
         limit: staging ? 1_440_000 : 14_400_000,
         ttl: monthTtl,
       },
-      { key: `${scope}:calls`, amount: 1, limit: 5, ttl: WEEK_MS },
-      { key: `${scope}:tokens`, amount: tokens, limit: 30_000, ttl: WEEK_MS },
-      { key: `${principal}:calls`, amount: 1, limit: 5, ttl: WEEK_MS },
-      { key: `${principal}:tokens`, amount: tokens, limit: 30_000, ttl: WEEK_MS },
+      {
+        key: `${scope}:calls`,
+        amount: 1,
+        limit: context.operation === 'resume-writing' ? 6 : 5,
+        ttl: WEEK_MS,
+      },
+      {
+        key: `${scope}:tokens`,
+        amount: tokens,
+        limit: context.operation === 'resume-writing' ? 36_000 : 30_000,
+        ttl: WEEK_MS,
+      },
+      {
+        key: `${principal}:calls`,
+        amount: 1,
+        limit: context.operation === 'resume-writing' ? 6 : 5,
+        ttl: WEEK_MS,
+      },
+      {
+        key: `${principal}:tokens`,
+        amount: tokens,
+        limit: context.operation === 'resume-writing' ? 36_000 : 30_000,
+        ttl: WEEK_MS,
+      },
     ];
     const id = randomUUID();
     const reservation: AiReservation = {

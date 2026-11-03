@@ -1,3 +1,4 @@
+import { createWritingTestSession } from '../../../../test/writing';
 import {
   analyzeGuest,
   inputFingerprint,
@@ -177,4 +178,121 @@ it('provides distinct actionable messages for validation and quota failures', ()
   expect(ANALYSIS_MESSAGES.VALIDATION_ERROR).not.toBe(
     ANALYSIS_MESSAGES.GUEST_ANALYSIS_LIMIT_REACHED,
   );
+});
+
+describe('resume writing boundary', () => {
+  const mock = jest.fn();
+  beforeEach(() => {
+    localStorage.clear();
+    mock.mockReset();
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: mock });
+  });
+  it('requires access and explicit current consent when renewing', async () => {
+    const { authorizeResume, cancelPreparation, generateResume } = await import('./guest-api');
+    const { createSession } = await import('@hirepair/interview-engine');
+    cancelPreparation();
+    await expect(
+      generateResume(
+        createSession('s', 'f', { resumes: '', job: '', objective: '', facts: '' }),
+        'Role',
+        'key',
+      ),
+    ).rejects.toHaveProperty('code', 'GUEST_ACCESS_INVALID');
+    await expect(authorizeResume({ ...draft, accepted: false }, challenge)).rejects.toHaveProperty(
+      'code',
+      'CONSENT_REQUIRED',
+    );
+    mock.mockResolvedValueOnce(reply({ accessToken: 'token' }));
+    await authorizeResume({ ...draft, objective: 'ENTER_FAST' }, challenge);
+    expect(JSON.parse(mock.mock.calls[0][1].body)).toMatchObject({ acceptedTerms: true });
+    mock.mockResolvedValueOnce(reply({ accessToken: 'token' }));
+    await authorizeResume({ ...draft, accepted: false }, challenge);
+  });
+  it('sends no original resume text and validates the returned version', async () => {
+    const { authorizeResume, generateResume } = await import('./guest-api');
+    const { createSession } = await import('@hirepair/interview-engine');
+    const s = createSession('s', 'f', { resumes: 'r', job: 'j', objective: 'o', facts: 'f' });
+    s.sources = [{ id: 'x', version: '1', text: 'raw source forbidden' }];
+    mock.mockResolvedValueOnce(reply({ accessToken: 'token' }));
+    await authorizeResume(draft, challenge);
+    mock.mockResolvedValueOnce(reply({ version: 2 }));
+    await expect(generateResume(s, 'Role', 'key')).rejects.toHaveProperty(
+      'code',
+      'AI_INVALID_RESPONSE',
+    );
+    expect(mock.mock.calls[1][1].body).not.toContain('raw source forbidden');
+    mock.mockResolvedValueOnce({ ...reply({ code: 'GUEST_ACCESS_INVALID' }, false), status: 401 });
+    await expect(generateResume(s, 'Role', 'key')).rejects.toHaveProperty(
+      'code',
+      'GUEST_ACCESS_INVALID',
+    );
+  });
+});
+it('accepts a grounded written version and refuses a stale response or cancellation', async () => {
+  const { authorizeResume, generateResume, cancelPreparation } = await import('./guest-api');
+  const s = createWritingTestSession();
+  const content = {
+    version: 1,
+    explanation: 'Atendimento relevante.',
+    sections: [
+      {
+        id: 'summary',
+        title: 'Resumo',
+        experienceId: null,
+        units: [{ id: 'b', text: 'Atendeu clientes', factIds: ['f'], criterionIds: [] }],
+      },
+    ],
+  };
+  const mock = jest.fn();
+  Object.defineProperty(globalThis, 'fetch', { configurable: true, value: mock });
+  mock.mockResolvedValueOnce(reply({ accessToken: 'token' }));
+  await authorizeResume(draft, challenge);
+  mock.mockResolvedValueOnce(reply({ version: 1, revision: 0, content }));
+  expect(await generateResume(s, 'Role', 'key')).toEqual(content);
+  mock.mockResolvedValueOnce(reply({ version: 1, revision: 1, content }));
+  await expect(generateResume(s, 'Role', 'key')).rejects.toHaveProperty(
+    'code',
+    'AI_INVALID_RESPONSE',
+  );
+  mock.mockImplementationOnce(async () => {
+    cancelPreparation();
+    return reply({ version: 1, revision: 0, content });
+  });
+  await expect(generateResume(s, 'Role', 'key')).rejects.toHaveProperty(
+    'code',
+    'REQUEST_CANCELLED',
+  );
+});
+it.each([
+  {},
+  { termsVersion: 'wrong' },
+  { termsVersion: 'v', privacyVersion: 'wrong' },
+  { termsVersion: 'v', privacyVersion: 'v', acceptedAt: 'invalid' },
+  { termsVersion: 'v', privacyVersion: 'v', acceptedAt: 0 },
+])('does not silently renew writing consent from an invalid receipt %j', async (receipt) => {
+  const { authorizeResume } = await import('./guest-api');
+  writeBrowserValue('hirepair_ai_consent', JSON.stringify(receipt));
+  await expect(authorizeResume({ ...draft, accepted: false }, challenge)).rejects.toHaveProperty(
+    'code',
+    'CONSENT_REQUIRED',
+  );
+});
+it('returns a bounded pending-evidence response to the motor', async () => {
+  const { authorizeResume, generateResume } = await import('./guest-api');
+  const { createSession } = await import('@hirepair/interview-engine');
+  const mock = jest
+    .fn()
+    .mockResolvedValueOnce(reply({ accessToken: 'token' }))
+    .mockResolvedValueOnce(
+      reply({ version: 1, revision: 0, pending: { reason: 'Esclarecer participação.' } }),
+    );
+  Object.defineProperty(globalThis, 'fetch', { configurable: true, value: mock });
+  await authorizeResume(draft, challenge);
+  expect(
+    await generateResume(
+      createSession('s', 'f', { resumes: 'r', job: 'j', objective: 'o', facts: 'f' }),
+      'Role',
+      'key',
+    ),
+  ).toEqual({ kind: 'pending', reason: 'Esclarecer participação.' });
 });

@@ -178,6 +178,7 @@ export interface GuidedState {
   clarification: { topic: Topic; question: string } | null;
 }
 export interface Session {
+  writing?: import('./writing').ResumeWriting;
   guided?: GuidedState;
   selection?: EngineSelection | null;
   interview?: InterviewState;

@@ -999,3 +999,121 @@ body:has(.guided-interview) .analytics-consent {
     transition: none;
   }
 }
+
+.resume-review {
+  max-width: 800px;
+  margin-inline: auto;
+  display: grid;
+  gap: 1.5rem;
+}
+.resume-review h1 {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  color: var(--color-navy);
+}
+.resume-document {
+  background: white;
+  color: #252626;
+  padding: clamp(1rem, 4vw, 3rem);
+  border: 1px solid #dfe2e8;
+  border-radius: 3px;
+  box-shadow: 0 6px 24px rgb(37 38 38 / 4%);
+  display: grid;
+  gap: 1.4rem;
+  line-height: 1.65;
+}
+.resume-edit-block {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.resume-edit-button:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 3px;
+}
+.resume-edit-block h2 {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  color: var(--color-navy);
+}
+.resume-review form,
+.resume-review label {
+  display: grid;
+  gap: 0.75rem;
+}
+.resume-review input,
+.resume-review textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #807a72;
+  border-radius: 0.5rem;
+}
+
+.resume-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.resume-edit-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-navy);
+  border-radius: 0.5rem;
+  color: var(--color-navy);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.resume-edit-button:hover {
+  background: var(--color-navy);
+  color: white;
+}
+.resume-edit-button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.resume-edit-block + .resume-edit-block {
+  border-top: 1px solid #e1e4ea;
+  padding-top: 1.4rem;
+}
+.resume-document .resume-name {
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.resume-professional-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+.resume-contacts {
+  font-size: 0.875rem;
+  color: #555968;
+  overflow-wrap: anywhere;
+}
+.resume-section-editor {
+  background: white;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid #dfe2e8;
+  border-radius: 0.5rem;
+}
+.resume-editor-context {
+  color: var(--color-navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e1e4ea;
+}

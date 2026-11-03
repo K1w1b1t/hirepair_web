@@ -310,3 +310,28 @@ it('charges malformed successful payloads as invalid responses instead of succes
     global.fetch = original;
   }
 });
+it('reserves and sends the larger writing output without changing the legacy output cap', async () => {
+  process.env.AI_PUBLIC_ENABLED = 'true';
+  process.env.GROQ_API_KEY = 'test';
+  const original = global.fetch;
+  const reserve = jest.fn().mockResolvedValue({ id: 'writing' });
+  const budget = { reserve, settle: jest.fn() };
+  const service = new AiService(undefined, undefined, budget as never);
+  const request: AiTextGenerationRequest = {
+    ...input,
+    maxAttempts: 1,
+    maxOutputTokens: 3000,
+    context: { ...context, operation: 'resume-writing' },
+  };
+  expect(service.estimateTokens(request)).toBe(service.estimateTokens(input) + 1800);
+  global.fetch = jest
+    .fn()
+    .mockResolvedValue(response(200, { choices: [{ message: { content: '{}' } }] }));
+  try {
+    await service.generateText(request);
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({ max_completion_tokens: 3000 });
+  } finally {
+    global.fetch = original;
+  }
+});

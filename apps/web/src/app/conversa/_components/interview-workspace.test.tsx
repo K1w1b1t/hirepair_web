@@ -444,7 +444,7 @@ it('shows one question and at most two controls, then organizes answers without 
       expect(screen.queryByText('Organizando sua resposta…')).not.toBeInTheDocument(),
     );
   }
-  await screen.findByText('Entrevista concluída');
+  await screen.findByText('Confira seu currículo');
   expect(screen.queryByText('O que você quer manter?')).not.toBeInTheDocument();
   const state = JSON.parse(screen.getByTestId('state').textContent!) as Session;
   for (const [request] of (analyzeInterviewBlock as jest.Mock).mock.calls)

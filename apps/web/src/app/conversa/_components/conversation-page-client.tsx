@@ -165,7 +165,11 @@ function ConversationStep({
 }) {
   if (phase === 'interview' && result?.preparation)
     return (
-      <InterviewWorkspace session={result.preparation} draft={draft} onChange={onSessionChange} />
+      <InterviewWorkspace
+        session={result.preparation}
+        draft={{ ...draft, targetRole: result.targetRole }}
+        onChange={onSessionChange}
+      />
     );
   if (phase === 'materials') return <ImportPanel onDocumentsChange={onDocumentsChange} />;
   if (phase === 'job')

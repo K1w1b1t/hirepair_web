@@ -84,3 +84,13 @@ it('does not restore a header profile after the active journey was deleted', asy
   ).rejects.toThrow('REVISION_CONFLICT');
   expect(await readHeaderProfile()).toBeNull();
 });
+it('commits the approved profile together with the expected session revision', async () => {
+  const session = s();
+  const profile = { name: 'Pessoa sintética', email: '', phone: '', confirmed: true };
+  await saveEngine(session, null, profile);
+  expect(await readHeaderProfile()).toEqual(profile);
+  await expect(
+    saveEngine({ ...session, revision: 1 }, null, { ...profile, name: 'Conflito' }),
+  ).rejects.toThrow('REVISION_CONFLICT');
+  expect(await readHeaderProfile()).toEqual(profile);
+});
