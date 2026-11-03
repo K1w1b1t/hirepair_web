@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 import { preparationFixture } from '../test/preparation';
 import { mockGuestChallenge } from './helpers/guest-challenge';
 import type { InterviewBlockRequest, Session } from '@hirepair/interview-engine';
+async function captureScreen(page: Page, options: NonNullable<Parameters<Page['screenshot']>[0]>) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  return page.screenshot(options);
+}
 async function savedState(page: Page) {
   return page.evaluate(
     () =>
@@ -177,7 +182,7 @@ for (const withResume of [false, true])
     }
     await begin(page, withResume);
     await expect(page.getByRole('button')).toHaveCount(2);
-    await page.screenshot({
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-interview-${withResume ? 'desktop' : 'mobile-text'}.png`,
       fullPage: true,
       animations: 'disabled',
@@ -222,7 +227,7 @@ for (const withResume of [false, true])
     }
     await expect(page.getByText('Confira seu currículo', { exact: true })).toBeVisible();
     if (withResume)
-      await page.screenshot({
+      await captureScreen(page, {
         path: '../../docs/backend/evidence/18-before-writing-desktop.png',
         fullPage: true,
         animations: 'disabled',
@@ -257,8 +262,15 @@ for (const withResume of [false, true])
       });
     });
     await page.getByRole('button', { name: 'Preparar meu currículo' }).click();
+    await page.getByRole('button', { name: 'Editar nome e contatos' }).click();
+    await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Exemplo');
+    await page.getByRole('textbox', { name: 'Título profissional', exact: true }).fill('Atendente');
+    await page
+      .getByRole('textbox', { name: 'E-mail', exact: true })
+      .fill('ana.exemplo@example.com');
+    await page.getByRole('button', { name: 'Salvar alterações' }).click();
     await expect(page.getByRole('button', { name: 'Aprovar currículo' })).toBeVisible();
-    await page.screenshot({
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-review-${withResume ? 'desktop' : 'mobile'}.png`,
       fullPage: true,
       animations: 'disabled',
@@ -271,7 +283,7 @@ for (const withResume of [false, true])
     await page
       .getByRole('textbox', { name: 'Conteúdo', exact: true })
       .fill('Atendeu clientes no comércio local.');
-    await page.screenshot({
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-edit-${withResume ? 'desktop' : 'mobile'}.png`,
       fullPage: true,
       animations: 'disabled',
@@ -279,7 +291,7 @@ for (const withResume of [false, true])
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
     await page.getByRole('button', { name: 'Adicionar seção' }).click();
     await expect(page.getByLabel('Título da seção')).toHaveValue('');
-    await page.screenshot({
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-add-empty-${withResume ? 'desktop' : 'mobile'}.png`,
       fullPage: true,
       animations: 'disabled',
@@ -288,7 +300,7 @@ for (const withResume of [false, true])
     await page
       .getByRole('textbox', { name: 'Conteúdo', exact: true })
       .fill('Curso de atendimento ao cliente — exemplo sintético.');
-    await page.screenshot({
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-add-filled-${withResume ? 'desktop' : 'mobile'}.png`,
       fullPage: true,
       animations: 'disabled',
@@ -297,13 +309,17 @@ for (const withResume of [false, true])
     await expect(page.getByRole('button', { name: 'Editar Cursos' })).toBeVisible();
     await page.getByRole('button', { name: 'Aprovar currículo' }).click();
     await expect(page.getByRole('heading', { name: 'Currículo aprovado' })).toBeVisible();
-    await page.screenshot({
+    await expect(page.getByRole('button', { name: /Editar/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Adicionar seção' })).toHaveCount(0);
+    await captureScreen(page, {
       path: `../../docs/backend/evidence/18-approved-${withResume ? 'desktop' : 'mobile'}.png`,
       fullPage: true,
       animations: 'disabled',
     });
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Currículo aprovado' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Editar/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Adicionar seção' })).toHaveCount(0);
     expect(calls).toBe(1);
   });
 test('ditado envia após silêncio e pode ser corrigido antes do envio', async ({ page }) => {
@@ -329,7 +345,7 @@ test('ditado envia após silêncio e pode ser corrigido antes do envio', async (
   });
   await begin(page, false);
   await expect(page.getByRole('button', { name: 'Ouvir e responder' })).toBeVisible();
-  await page.screenshot({
+  await captureScreen(page, {
     path: '../../docs/backend/evidence/15-guided-mobile.png',
     fullPage: true,
     animations: 'disabled',

@@ -32,12 +32,15 @@ export function ResumeReview({
   const [challenge, setChallenge] = useState<GuestChallenge>();
   const [profile, setProfile] = useState(emptyProfile);
   const [profileReady, setProfileReady] = useState(false);
-  const [editing, setEditing] = useState<ResumeSection | 'profile' | null>(null);
+  const [requestedEditing, setEditing] = useState<ResumeSection | 'profile' | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const writing = session.writing;
+  const editable = writing?.status === 'review';
+  const editing = editable ? requestedEditing : null;
+  const profileName = profile.name || (editable ? 'Nome e contatos' : '');
   const currentAuthorization =
     !writing?.authorization || writing.authorization === writingAuthorization(session);
   useEffect(() => {
@@ -277,37 +280,42 @@ export function ResumeReview({
                 : 'Use o botão Editar de cada seção para ajustar o texto. Ao aprovar o currículo, você confirma todas as informações, incluindo suas alterações.'}
             </p>
             <article className="resume-document" aria-label="Currículo">
-              <section className="resume-edit-block">
+              <header className="resume-edit-block resume-document-header">
                 <div className="resume-section-heading">
-                  <strong>{profile.name || 'Nome e contatos'}</strong>
-                  <button
-                    type="button"
-                    className="resume-edit-button"
-                    onClick={() => setEditing('profile')}
-                    disabled={!profileReady}
-                    aria-label="Editar nome e contatos"
-                  >
-                    Editar
-                  </button>
+                  {profileName && <strong className="resume-name">{profileName}</strong>}
+                  {editable && (
+                    <button
+                      type="button"
+                      className="resume-edit-button"
+                      onClick={() => setEditing('profile')}
+                      disabled={!profileReady}
+                      aria-label="Editar nome e contatos"
+                    >
+                      Editar
+                    </button>
+                  )}
                 </div>
-                <p>
-                  {[profile.professionalTitle, profile.email, profile.phone]
-                    .filter(Boolean)
-                    .join(' · ')}
+                {profile.professionalTitle && (
+                  <p className="resume-professional-title">{profile.professionalTitle}</p>
+                )}
+                <p className="resume-contacts">
+                  {[profile.email, profile.phone].filter(Boolean).join(' · ')}
                 </p>
-              </section>
+              </header>
               {writing.draft.sections.map((section) => (
                 <section key={section.id} className="resume-edit-block">
                   <div className="resume-section-heading">
                     <h2>{section.title}</h2>
-                    <button
-                      type="button"
-                      className="resume-edit-button"
-                      aria-label={`Editar ${section.title}`}
-                      onClick={() => setEditing(structuredClone(section))}
-                    >
-                      Editar
-                    </button>
+                    {editable && (
+                      <button
+                        type="button"
+                        className="resume-edit-button"
+                        aria-label={`Editar ${section.title}`}
+                        onClick={() => setEditing(structuredClone(section))}
+                      >
+                        Editar
+                      </button>
+                    )}
                   </div>
                   {section.units.map((unit) => (
                     <p key={unit.id}>{unit.text}</p>
@@ -315,7 +323,7 @@ export function ResumeReview({
                 </section>
               ))}
             </article>
-            {writing.status !== 'approved' && (
+            {editable && (
               <>
                 <button
                   className="button button-outline"
@@ -364,11 +372,13 @@ export function ProfileEditor({
   const [value, setValue] = useState(profile);
   return (
     <form
+      className="resume-section-editor"
       onSubmit={(event) => {
         event.preventDefault();
         void onSave({ ...value, confirmed: false });
       }}
     >
+      <p className="resume-editor-context">Cabeçalho do currículo</p>
       <p>Nome e contatos ficam neste aparelho e não são enviados à IA.</p>
       {(['name', 'professionalTitle', 'email', 'phone'] as const).map((key) => (
         <label key={key}>
@@ -411,6 +421,7 @@ export function SectionEditor({
     [text, setText] = useState(section.units.map((unit) => unit.text).join('\n'));
   return (
     <form
+      className="resume-section-editor"
       onSubmit={(event) => {
         event.preventDefault();
         onSave({
@@ -429,6 +440,7 @@ export function SectionEditor({
         });
       }}
     >
+      <p className="resume-editor-context">Seção do currículo</p>
       <label htmlFor="resume-section-title">
         Título da seção{' '}
         <input

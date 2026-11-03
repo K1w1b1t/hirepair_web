@@ -30,7 +30,8 @@ vazias e removidas. Não há escolha de tom ou regeneração nesta etapa.
 
 A aprovação geral confirma declarações manuais e grava versão/hash do documento
 e hash do perfil local. O original gerado e seu lastro permanecem separados das
-alterações do usuário. Alterações posteriores retiram a aprovação. O contrato
+alterações do usuário. Depois da aprovação, a apresentação é somente leitura, sem controles de edição
+ou inclusão. Uma aprovação recebida durante uma edição também fecha o editor. O contrato
 `writing` é adicional ao agregado v1 e permanece local, sem Prisma ou conta.
 Exportação e compartilhamento continuam em #20/#21.
 

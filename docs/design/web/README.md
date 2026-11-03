@@ -54,5 +54,6 @@ Após concluir a entrevista, a pessoa prepara uma única versão do currículo e
 confere um documento simples de uma coluna. Cada seção abre um editor dedicado;
 salvar retorna à conferência, cancelar descarta a edição e adicionar seção abre
 campos vazios. Nome, título profissional e contatos ficam no aparelho. A aprovação
-geral confirma o documento inteiro e encerra a jornada. Não há seletor de tom,
+geral confirma o documento inteiro e encerra a jornada. Depois da aprovação,
+o currículo é somente leitura, sem ações de edição ou inclusão de seções. Não há seletor de tom,
 regeneração, exportação ou compartilhamento nesta etapa. Ver ADR 0018.

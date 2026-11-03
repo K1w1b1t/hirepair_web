@@ -1,7 +1,12 @@
 import { createWritingTestSession } from '../../../../test/writing';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { startGuided, type Session, type ResumeDraft } from '@hirepair/interview-engine';
+import {
+  startGuided,
+  approveResume,
+  type Session,
+  type ResumeDraft,
+} from '@hirepair/interview-engine';
 import { ResumeReview, SectionEditor, ProfileEditor } from './resume-review';
 import { generateResume, hasInterviewAccess } from '../_lib/guest-api';
 import { readHeaderProfile } from '../_lib/engine-storage';
@@ -368,5 +373,43 @@ it('shows a visible Editar action on each section and opens the filled section e
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar seção' }));
   expect(screen.getByLabelText('Título da seção')).toHaveValue('');
   expect(screen.getByLabelText('Conteúdo')).toHaveValue('');
+  await act(async () => {});
+});
+it('locks the approved document and keeps it read-only after opening it again', async () => {
+  const s = approveResume(
+    reviewingSession(),
+    { hash: 'document', profileHash: 'profile', approvedAt: 1 },
+    true,
+  );
+  (readHeaderProfile as jest.Mock).mockResolvedValueOnce({
+    name: '',
+    email: '',
+    phone: '',
+    confirmed: true,
+  });
+  render(<Harness initial={s} />);
+  await act(async () => {});
+  expect(screen.getByRole('heading', { name: 'Currículo aprovado' })).toBeInTheDocument();
+  expect(screen.getByText('Atendeu clientes')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Adicionar seção' })).not.toBeInTheDocument();
+  expect(screen.queryAllByRole('textbox')).toHaveLength(0);
+  expect(screen.queryByText('Nome e contatos')).not.toBeInTheDocument();
+});
+it('closes an open editor when the document becomes approved', async () => {
+  const s = reviewingSession();
+  const draft = { hasJob: false, jobText: '', targetRole: 'Atendente', accepted: true };
+  const view = render(<ResumeReview session={s} draft={draft} onChange={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Editar Resumo' }));
+  expect(screen.getByLabelText('Conteúdo')).toHaveValue('Atendeu clientes');
+  view.rerender(
+    <ResumeReview
+      session={approveResume(s, { hash: 'document', profileHash: 'profile', approvedAt: 1 }, true)}
+      draft={draft}
+      onChange={jest.fn()}
+    />,
+  );
+  expect(screen.queryAllByRole('textbox')).toHaveLength(0);
+  expect(screen.queryByRole('button', { name: 'Salvar alterações' })).not.toBeInTheDocument();
   await act(async () => {});
 });
