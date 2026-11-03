@@ -1,4 +1,13 @@
 'use client';
+import { ExitJourney } from './exit-journey';
+import { cleanupJourney } from '../_lib/cleanup-journey';
+import {
+  startProgress,
+  saveProgress,
+  readLocalDraft,
+  saveLocalDraft,
+  type JourneyProgress,
+} from '../_lib/journey-progress';
 import { InterviewWorkspace } from './interview-workspace';
 import { type Session } from '@hirepair/interview-engine';
 import { cancelPreparation } from '../_lib/guest-api';
@@ -13,7 +22,12 @@ import { ImportPanel } from './import-panel';
 import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
 import { WizardShell } from './wizard-shell';
 
-import { initialDraft, persistJourney, restoreJourney } from '../_lib/journey-storage';
+import {
+  initialDraft,
+  persistJourney,
+  restoreJourney,
+  type JourneySnapshot,
+} from '../_lib/journey-storage';
 
 type JourneyPhase = 'materials' | 'job' | 'recommendations' | 'interview';
 const PHASE_QUERY_PARAM = 'etapa';
@@ -193,6 +207,7 @@ function ConversationStep({
 }
 
 export function ConversationPageClient() {
+  const progressRef = useRef<JourneyProgress | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [localError, setLocalError] = useState('');
   const [documents, setDocuments] = useState<StoredResume[]>([]);
@@ -209,6 +224,18 @@ export function ConversationPageClient() {
   const transitionTo = useCallback((nextPhase: JourneyPhase) => {
     hasUserNavigated.current = true;
     setPhase(nextPhase);
+    if (progressRef.current) {
+      progressRef.current = {
+        ...progressRef.current,
+        phase: nextPhase,
+        withoutResume:
+          progressRef.current.withoutResume ||
+          new URLSearchParams(window.location.search).get('sem-curriculo') === '1',
+      };
+      void saveProgress(progressRef.current).catch(() =>
+        setLocalError('Não foi possível salvar a etapa. Reabra a jornada.'),
+      );
+    }
     const url = new URL(window.location.href);
     url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
     window.history.replaceState(window.history.state, '', url);
@@ -217,14 +244,21 @@ export function ConversationPageClient() {
   useEffect(() => {
     let mounted = true;
     const restoreConversation = async () => {
+      await cleanupJourney();
+      const progress = await startProgress();
+      progressRef.current = progress;
       const requestedPhase = phaseFromQuery(
-        new URLSearchParams(window.location.search).get(PHASE_QUERY_PARAM),
+        progress.phase !== 'materials'
+          ? progress.phase
+          : new URLSearchParams(window.location.search).get(PHASE_QUERY_PARAM),
       );
       const storedResumes = await listStoredResumes();
       if (!mounted) return;
       setDocuments(storedResumes);
       documentsRef.current = storedResumes;
 
+      const retained = await readLocalDraft<JourneySnapshot>('journey-snapshot');
+      if (retained) persistJourney(retained);
       const saved = await restoreJourney(storedResumes);
       if (!mounted) return;
       setDraft(saved.draft);
@@ -236,10 +270,13 @@ export function ConversationPageClient() {
       const hasAnalysis = Boolean(saved.result);
 
       const withoutResume =
+        progress.withoutResume ||
         new URLSearchParams(window.location.search).get('sem-curriculo') === '1';
       const effectivePhase =
         saved.result?.preparation &&
-        ['confirmation', 'ready'].includes(saved.result.preparation.phase)
+        (['confirmation', 'ready'].includes(saved.result.preparation.phase) ||
+          (!new URLSearchParams(window.location.search).has('etapa') &&
+            ['interview', 'writing'].includes(saved.result.preparation.phase)))
           ? 'interview'
           : requestedPhase;
       const nextPhase = restoredPhase(
@@ -249,20 +286,39 @@ export function ConversationPageClient() {
         withoutResume,
       );
       if (!hasUserNavigated.current) {
+        progressRef.current = { ...progress, phase: nextPhase, withoutResume };
+        await saveProgress(progressRef.current);
+        if (!mounted || hasUserNavigated.current) return;
         setPhase(nextPhase);
         const url = new URL(window.location.href);
         url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
         window.history.replaceState(window.history.state, '', url);
       }
     };
-    void restoreConversation();
+    void restoreConversation().catch(() => {
+      if (mounted)
+        setLocalError(
+          'Não foi possível abrir o progresso salvo. Recarregue para tentar novamente.',
+        );
+    });
     return () => {
       mounted = false;
     };
   }, [transitionTo]);
 
   useEffect(() => {
-    if (hydrated) persistJourney({ draft, result, preferences, inputHash });
+    if (hydrated && result?.preparation?.writing?.status !== 'approved') {
+      const snapshot = {
+        draft,
+        result: result ? { ...result, preparation: undefined } : undefined,
+        preferences,
+        inputHash,
+      };
+      persistJourney(snapshot);
+      void saveLocalDraft('journey-snapshot', snapshot).catch(() =>
+        setLocalError('Não foi possível salvar seu progresso.'),
+      );
+    }
   }, [draft, hydrated, inputHash, preferences, result]);
 
   const invalidateAnalysis = useCallback(() => {
@@ -338,6 +394,7 @@ export function ConversationPageClient() {
       totalSteps={5}
     >
       <div className="w-full min-w-0">
+        {result?.preparation?.writing?.status !== 'approved' && <ExitJourney />}
         {phase !== 'interview' && (
           <button
             type="button"
@@ -362,7 +419,12 @@ export function ConversationPageClient() {
                   invalidateAnalysis();
                   setResetKey((value) => value + 1);
                   setLocalError('');
-                  transitionTo('materials');
+                  void startProgress()
+                    .then((entry) => {
+                      progressRef.current = entry;
+                      transitionTo('materials');
+                    })
+                    .catch(() => setLocalError('Não foi possível iniciar outra jornada.'));
                 })
                 .catch(() =>
                   setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),

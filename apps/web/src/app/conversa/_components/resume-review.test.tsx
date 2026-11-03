@@ -1,3 +1,21 @@
+import { completeResume } from '../_lib/completed-resumes';
+jest.mock('../_lib/journey-progress', () => ({
+  readLocalDraft: jest.fn(async () => null),
+  saveLocalDraft: jest.fn(async () => {}),
+}));
+jest.mock('../_lib/render-pdf', () => ({
+  renderPdf: jest.fn(async () => ({
+    blob: new Blob(['pdf']),
+    contentHash: 'hash',
+    profileHash: 'hash',
+    fileHash: 'file',
+    fileName: 'curriculo.pdf',
+  })),
+}));
+jest.mock('../_lib/completed-resumes', () => ({ completeResume: jest.fn(async () => {}) }));
+jest.mock('../_lib/cleanup-journey', () => ({ cleanupJourney: jest.fn(async () => {}) }));
+jest.mock('./pdf-preview', () => ({ PdfPreview: () => <div>Prévia PDF</div> }));
+jest.mock('./pdf-export', () => ({ PdfExport: () => <a>Baixar PDF</a> }));
 import { createWritingTestSession } from '../../../../test/writing';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
@@ -106,19 +124,24 @@ it('generates once, reviews, edits and approves without further AI calls', async
   });
   fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
   await screen.findByText('Atendeu clientes na loja.');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Aprovar currículo' }));
   await screen.findByRole('heading', { name: 'Currículo aprovado' });
   expect(generateResume).toHaveBeenCalledTimes(1);
-  expect(commitInterview).toHaveBeenLastCalledWith(
-    expect.anything(),
+  expect(completeResume).toHaveBeenCalledWith(
     expect.objectContaining({
-      status: 'approved',
-      manualFacts: [
-        expect.objectContaining({ confirmed: true, text: 'Atendeu clientes na loja.' }),
-      ],
+      session: expect.objectContaining({
+        writing: expect.objectContaining({
+          status: 'approved',
+          manualFacts: [
+            expect.objectContaining({ confirmed: true, text: 'Atendeu clientes na loja.' }),
+          ],
+        }),
+      }),
     }),
-    expect.any(Function),
-    expect.objectContaining({ confirmed: true }),
+    expect.any(Number),
   );
 });
 it('opens an empty section editor, cancels, then adds and removes content', async () => {
@@ -214,7 +237,10 @@ it('reports approval failure without claiming completion', async () => {
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
   );
-  (commitInterview as jest.Mock).mockRejectedValueOnce(new Error('conflict'));
+  (completeResume as jest.Mock).mockRejectedValueOnce(new Error('conflict'));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Aprovar currículo' }));
   await screen.findByText('Não foi possível aprovar. Tente salvar novamente.');
 });
@@ -412,4 +438,141 @@ it('closes an open editor when the document becomes approved', async () => {
   expect(screen.queryAllByRole('textbox')).toHaveLength(0);
   expect(screen.queryByRole('button', { name: 'Salvar alterações' })).not.toBeInTheDocument();
   await act(async () => {});
+});
+import { renderPdf } from '../_lib/render-pdf';
+import { readLocalDraft } from '../_lib/journey-progress';
+it.each([new Error('Falha do renderizador'), 'erro sem detalhe'])(
+  'reports PDF rendering failure without allowing approval',
+  async (failure) => {
+    (renderPdf as jest.Mock).mockRejectedValueOnce(failure);
+    render(<Harness initial={reviewingSession()} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      failure instanceof Error ? 'Falha do renderizador' : 'Não foi possível gerar o PDF.',
+    );
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeDisabled();
+  },
+);
+it('ignores late render results and errors after leaving', async () => {
+  let resolve!: (v: unknown) => void;
+  (renderPdf as jest.Mock).mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const v = render(<Harness initial={reviewingSession()} />);
+  await act(async () => {});
+  v.unmount();
+  await act(async () => resolve({}));
+  let reject!: (v: Error) => void;
+  (renderPdf as jest.Mock).mockImplementationOnce(
+    () =>
+      new Promise((_r, j) => {
+        reject = j;
+      }),
+  );
+  const late = render(<Harness initial={reviewingSession()} />);
+  await act(async () => {});
+  late.unmount();
+  await act(async () => reject(new Error()));
+});
+it.each(['contentHash', 'profileHash'])('rejects a stale PDF %s', async (key) => {
+  (renderPdf as jest.Mock).mockResolvedValueOnce({
+    blob: new Blob(['pdf']),
+    contentHash: 'hash',
+    profileHash: 'hash',
+    [key]: 'obsolete',
+  });
+  render(<Harness initial={reviewingSession()} />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Aprovar currículo' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível aprovar');
+});
+it('reports an editor restoration error', async () => {
+  (readLocalDraft as jest.Mock).mockRejectedValueOnce(new Error());
+  render(<Harness initial={reviewingSession()} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('rascunho');
+});
+it.each([0, 1])('reports section draft failures for field %s', async (field) => {
+  if (field === 1) (readLocalDraft as jest.Mock).mockResolvedValueOnce(null);
+  (readLocalDraft as jest.Mock).mockRejectedValueOnce(new Error());
+  render(
+    <SectionEditor
+      section={content.sections[0]}
+      busy={false}
+      onSave={jest.fn()}
+      onCancel={jest.fn()}
+    />,
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent('rascunho');
+});
+it('approves with the declared role or fallback title when the header has no title', async () => {
+  (readHeaderProfile as jest.Mock).mockResolvedValueOnce({
+    name: '',
+    email: '',
+    phone: '',
+    professionalTitle: '',
+    confirmed: false,
+  });
+  render(<Harness initial={reviewingSession()} role="" />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Aprovar currículo' }));
+  await screen.findByRole('heading', { name: 'Currículo aprovado' });
+  expect(completeResume).toHaveBeenLastCalledWith(
+    expect.objectContaining({ title: 'Meu currículo' }),
+    expect.any(Number),
+  );
+});
+import { saveLocalDraft } from '../_lib/journey-progress';
+it('does not approve twice in one transition', async () => {
+  render(<Harness initial={reviewingSession()} />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
+  await act(async () => {
+    const button = screen.getByRole('button', { name: 'Aprovar currículo' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+  });
+  expect(completeResume).toHaveBeenCalledTimes(1);
+});
+it('reports a profile draft cleanup failure on cancel', async () => {
+  render(<Harness initial={reviewingSession()} />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Editar nome e contatos' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Editar nome e contatos' }));
+  (saveLocalDraft as jest.Mock).mockRejectedValueOnce(new Error());
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('descartar');
+});
+it('reports a section draft cleanup failure on cancel', async () => {
+  render(<Harness initial={reviewingSession()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Editar Resumo' }));
+  (saveLocalDraft as jest.Mock).mockRejectedValueOnce(new Error());
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('descartar');
+});
+it('uses the target role when the optional header has no title', async () => {
+  (readHeaderProfile as jest.Mock).mockResolvedValueOnce({
+    name: '',
+    email: '',
+    phone: '',
+    professionalTitle: '',
+    confirmed: false,
+  });
+  render(<Harness initial={reviewingSession()} role="Atendente" />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Aprovar currículo' }));
+  await screen.findByRole('heading', { name: 'Currículo aprovado' });
+  expect(completeResume).toHaveBeenLastCalledWith(
+    expect.objectContaining({ title: 'Atendente' }),
+    expect.any(Number),
+  );
 });

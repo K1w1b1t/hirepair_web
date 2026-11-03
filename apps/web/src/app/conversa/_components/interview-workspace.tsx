@@ -1,4 +1,5 @@
 'use client';
+import { useRetainedDraft } from './use-retained-draft';
 import { ResumeReview } from './resume-review';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -40,8 +41,8 @@ export function InterviewWorkspace({
 }) {
   const normalized = useMemo(() => startGuided(session), [session]),
     g = normalized.guided!;
-  const [text, setText] = useState(''),
-    [mode, setMode] = useState<'voice' | 'text'>('voice'),
+  const [text, setText, draftError] = useRetainedDraft('interview-answer', '');
+  const [mode, setMode] = useState<'voice' | 'text'>('voice'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const [challenge, setChallenge] = useState<GuestChallenge>();
@@ -171,7 +172,7 @@ export function InterviewWorkspace({
         if (live.current) setBusy(false);
       }
     },
-    [mode, publish],
+    [mode, publish, setText],
   );
   const voice = useGuidedVoice(
     !busy && !done && !partial ? (question?.text ?? '') : '',
@@ -284,6 +285,7 @@ export function InterviewWorkspace({
   const stage = done ? 3 : g.answered.length < 3 ? 1 : g.answered.length < 6 ? 2 : 3;
   return (
     <section className="guided-interview" aria-busy={busy}>
+      {draftError && <p role="alert">{draftError}</p>}
       <div className="guided-progress">
         <span>
           {done

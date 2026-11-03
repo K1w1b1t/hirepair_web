@@ -57,3 +57,19 @@ campos vazios. Nome, título profissional e contatos ficam no aparelho. A aprova
 geral confirma o documento inteiro e encerra a jornada. Depois da aprovação,
 o currículo é somente leitura, sem ações de edição ou inclusão de seções. Não há seletor de tom,
 regeneração, exportação ou compartilhamento nesta etapa. Ver ADR 0018.
+
+## PDF e Meus currículos (#20)
+
+A revisão existente passa a mostrar o PDF exato, com versão textual acessível.
+Aprovar salva o documento e seu arquivo localmente e encerra a jornada. A tela
+aprovada oferece **Baixar PDF**, **Meus currículos** e **Voltar para home**.
+A home abre `/meus-curriculos`; cada item retorna à sua tela aprovada. A lista
+vazia oferece a mesma criação em `/conversa`. Nome, contatos e arquivo de cada
+currículo são independentes das próximas jornadas.
+
+Um fluxo incompleto é retomado automaticamente ao abrir o site. Recarregar ou
+fechar a aba preserva o progresso; **Voltar para home** abre confirmação para
+descartar somente a criação atual. O modal mantém foco, aceita Escape para
+cancelar e não anuncia exclusão se o armazenamento falhar. Currículos aprovados
+permanecem na biblioteca deste navegador. DOCX e compartilhamento não fazem parte
+desta entrega. Ver [ADR 0020](../../architecture/adr-0020-local-pdf-library.md).

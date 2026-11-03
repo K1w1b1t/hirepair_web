@@ -1,3 +1,11 @@
+jest.mock('../_lib/journey-progress', () => ({
+  startProgress: jest.fn(async () => ({ id: 'journey', phase: 'materials', withoutResume: false })),
+  saveProgress: jest.fn(async () => {}),
+  readLocalDraft: jest.fn(async () => null),
+  saveLocalDraft: jest.fn(async () => {}),
+}));
+jest.mock('../_lib/cleanup-journey', () => ({ cleanupJourney: jest.fn(async () => {}) }));
+jest.mock('./exit-journey', () => ({ ExitJourney: () => null }));
 import { clearStoredResumes } from '../_lib/resume-storage';
 import { preparationFixture } from '../../../../test/preparation';
 import { saveEngine, deleteEngine } from '../_lib/engine-storage';
@@ -411,3 +419,105 @@ it('does not imply a review phase for a legacy result without a prepared aggrega
   await screen.findByText('Recommendations');
   expect(screen.queryByRole('button', { name: /voltar/i })).not.toBeInTheDocument();
 });
+import {
+  startProgress,
+  saveProgress,
+  readLocalDraft,
+  saveLocalDraft,
+} from '../_lib/journey-progress';
+it('restores the saved phase and snapshot independently of an old URL', async () => {
+  (startProgress as jest.Mock).mockResolvedValueOnce({
+    id: 'journey',
+    phase: 'job',
+    withoutResume: true,
+  });
+  (readLocalDraft as jest.Mock).mockResolvedValueOnce(snapshot);
+  list.mockResolvedValue([]);
+  restore.mockResolvedValue(snapshot);
+  window.history.replaceState({}, '', '/conversa');
+  render(<ConversationPageClient />);
+  await screen.findByText('Analyze');
+  expect(persist).toHaveBeenCalledWith(snapshot);
+});
+it('reports phase and draft persistence failures', async () => {
+  window.history.replaceState({}, '', '/conversa');
+  list.mockResolvedValue([resume]);
+  restore.mockResolvedValue(snapshot);
+  (saveLocalDraft as jest.Mock).mockRejectedValueOnce(new Error());
+  render(<ConversationPageClient />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('salvar seu progresso');
+  (saveProgress as jest.Mock).mockRejectedValueOnce(new Error());
+  fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('salvar a etapa'));
+});
+it('reports restoration failures and ignores failures after leaving', async () => {
+  (startProgress as jest.Mock).mockRejectedValueOnce(new Error());
+  const v = render(<ConversationPageClient />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('abrir o progresso');
+  v.unmount();
+  let reject!: (e: Error) => void;
+  (startProgress as jest.Mock).mockImplementationOnce(
+    () =>
+      new Promise((_r, j) => {
+        reject = j;
+      }),
+  );
+  const late = render(<ConversationPageClient />);
+  await act(async () => {});
+  late.unmount();
+  await act(async () => reject(new Error()));
+});
+it('returns to a persisted writing session when opening the site without a phase URL', async () => {
+  const session = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
+  session.phase = 'writing';
+  window.history.replaceState({}, '', '/conversa');
+  restore.mockResolvedValue({ ...snapshot, result: { ...result, preparation: session } });
+  render(<ConversationPageClient />);
+  await screen.findByText('Interview view');
+});
+it('reports failure to create another journey after deletion', async () => {
+  window.history.replaceState({}, '', '/conversa');
+  restore.mockResolvedValue(snapshot);
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<ConversationPageClient />);
+  await screen.findByText('Continuar');
+  (startProgress as jest.Mock).mockRejectedValueOnce(new Error());
+  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('iniciar outra jornada');
+  confirm.mockRestore();
+});
+it('handles early navigation before the durable journey is opened', async () => {
+  let resolve!: (v: unknown) => void;
+  (startProgress as jest.Mock).mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const view = render(<ConversationPageClient />);
+  fireEvent.click(screen.getByRole('button', { name: 'Começar sem currículo' }));
+  await waitFor(() => expect(resolve).toBeDefined());
+  await act(async () => resolve({ id: 'j', phase: 'materials', withoutResume: false }));
+  view.unmount();
+});
+it.each(['navigate', 'unmount'])(
+  'does not overwrite %s while the restored step commits',
+  async (action) => {
+    window.history.replaceState({}, '', '/conversa');
+    restore.mockResolvedValue(snapshot);
+    list.mockResolvedValue([resume]);
+    let resolve!: () => void;
+    (saveProgress as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
+    const view = render(<ConversationPageClient />);
+    await waitFor(() => expect(resolve).toBeDefined());
+    if (action === 'navigate') fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    else view.unmount();
+    await act(async () => resolve());
+    if (action === 'navigate') expect(window.location.search).toBe('?etapa=recommendations');
+  },
+);

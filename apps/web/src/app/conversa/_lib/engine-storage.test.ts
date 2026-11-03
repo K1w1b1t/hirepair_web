@@ -94,3 +94,11 @@ it('commits the approved profile together with the expected session revision', a
   ).rejects.toThrow('REVISION_CONFLICT');
   expect(await readHeaderProfile()).toEqual(profile);
 });
+it('does not resurrect an initial session queued before explicit deletion', async () => {
+  await deleteEngine();
+  const pending = saveEngine(s(), null);
+  const deletion = deleteEngine();
+  await expect(pending).rejects.toThrow('REVISION_CONFLICT');
+  await deletion;
+  expect(await readEngine()).toBeNull();
+});

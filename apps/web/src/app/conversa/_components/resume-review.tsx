@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import {
+  applyCommand,
   canWrite,
   manualResumeFacts,
   approveResume,
@@ -8,6 +9,13 @@ import {
   type Session,
   type ResumeSection,
 } from '@hirepair/interview-engine';
+import { saveLocalDraft } from '../_lib/journey-progress';
+import { useRetainedDraft } from './use-retained-draft';
+import type { ExportArtifact } from '../_lib/pdf-contract';
+import { completeResume } from '../_lib/completed-resumes';
+import { cleanupJourney } from '../_lib/cleanup-journey';
+import { PdfPreview } from './pdf-preview';
+import { PdfExport } from './pdf-export';
 import { TurnstileChallenge } from './turnstile-challenge';
 import {
   generateResume,
@@ -29,10 +37,15 @@ export function ResumeReview({
   draft: JobDraft;
   onChange: (session: Session) => void;
 }>) {
+  const [archived, setArchived] = useState(false);
+  const [artifact, setArtifact] = useState<ExportArtifact>();
+  const [exportError, setExportError] = useState('');
   const [challenge, setChallenge] = useState<GuestChallenge>();
   const [profile, setProfile] = useState(emptyProfile);
   const [profileReady, setProfileReady] = useState(false);
-  const [requestedEditing, setEditing] = useState<ResumeSection | 'profile' | null>(null);
+  const [requestedEditing, setEditing, editorError] = useRetainedDraft<
+    ResumeSection | 'profile' | null
+  >('review-editor', null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -65,6 +78,30 @@ export function ResumeReview({
       live = false;
     };
   }, [draft.targetRole]);
+  useEffect(() => {
+    let live = true;
+    setArtifact(undefined);
+    setExportError('');
+    if (!writing?.draft || !profileReady || editing) return;
+    void import('../_lib/render-pdf')
+      .then(({ renderPdf }) =>
+        renderPdf({
+          document: writing.draft!,
+          profile,
+          archetype: session.strategy?.archetype ?? 'A_FIRST_JOB',
+        }),
+      )
+      .then((value) => {
+        if (live) setArtifact(value);
+      })
+      .catch((error) => {
+        if (live)
+          setExportError(error instanceof Error ? error.message : 'Não foi possível gerar o PDF.');
+      });
+    return () => {
+      live = false;
+    };
+  }, [writing?.draft, profile, profileReady, editing, session.strategy?.archetype]);
   async function commit(next: Session, confirmedProfile?: HeaderProfile) {
     const saved = await commitInterview(session, next.writing, () => next, confirmedProfile);
     onChange(saved);
@@ -173,6 +210,10 @@ export function ResumeReview({
           draft: { ...document, sections },
         },
       });
+      await Promise.all([
+        saveLocalDraft(`section-title:${sectionId}`, null),
+        saveLocalDraft(`section-text:${sectionId}`, null),
+      ]);
       setEditing(null);
     } catch {
       setError('Não foi possível salvar. Suas alterações continuam abertas.');
@@ -181,6 +222,8 @@ export function ResumeReview({
     }
   }
   async function approve() {
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     setError('');
     try {
@@ -191,10 +234,35 @@ export function ResumeReview({
         { hash, profileHash, approvedAt: Date.now() },
         profileReady,
       );
-      await commit(approved, { ...profile, confirmed: true });
+      if (artifact!.contentHash !== hash || artifact!.profileHash !== profileHash)
+        throw new Error('STALE_ARTIFACT');
+      const saved = applyCommand(
+        session,
+        crypto.randomUUID(),
+        await hashValue({ hash, profileHash, fileHash: artifact!.fileHash }),
+        session.revision,
+        () => approved,
+      );
+      await completeResume(
+        {
+          id: saved.id,
+          title: profile.professionalTitle || draft.targetRole || 'Meu currículo',
+          approvedAt: saved.writing!.approval!.approvedAt,
+          document: saved.writing!.draft!,
+          profile: { ...profile, confirmed: true },
+          session: saved,
+          artifact: artifact!,
+        },
+        session.revision,
+      );
+      onChange(saved);
+      setArchived(true);
+      await cleanupJourney();
+      window.location.replace(`/meus-curriculos/${encodeURIComponent(saved.id)}`);
     } catch {
       setError('Não foi possível aprovar. Tente salvar novamente.');
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   }
@@ -208,7 +276,18 @@ export function ResumeReview({
             ? 'Currículo aprovado'
             : 'Confira seu currículo'}
       </h1>
-      {error && <p role="alert">{error}</p>}
+      {(error || editorError) && <p role="alert">{error || editorError}</p>}
+      {exportError && <p role="alert">{exportError}</p>}
+      {writing?.draft && !editing && !artifact && !exportError && (
+        <p role="status">Preparando a prévia do PDF…</p>
+      )}
+      {artifact &&
+        !editing &&
+        (writing?.status === 'approved' && archived ? (
+          <PdfExport artifact={artifact} />
+        ) : (
+          <PdfPreview blob={artifact.blob} />
+        ))}
       {!currentAuthorization && (
         <p role="alert">
           As informações usadas neste currículo mudaram. Revise os fatos e as afirmações dependentes
@@ -243,7 +322,12 @@ export function ResumeReview({
           <ProfileEditor
             profile={profile}
             busy={busy}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              void saveLocalDraft('profile-editor', null).catch(() =>
+                setError('Não foi possível descartar o rascunho.'),
+              );
+              setEditing(null);
+            }}
             onSave={async (value) => {
               setBusy(true);
               setError('');
@@ -256,6 +340,7 @@ export function ResumeReview({
                   value,
                 );
                 setProfile(value);
+                await saveLocalDraft('profile-editor', null);
                 setEditing(null);
               } catch {
                 setError('Não foi possível salvar seus contatos.');
@@ -269,7 +354,14 @@ export function ResumeReview({
             key={editing.id}
             section={editing}
             busy={busy}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              const id = (editing as ResumeSection).id;
+              void Promise.all([
+                saveLocalDraft(`section-title:${id}`, null),
+                saveLocalDraft(`section-text:${id}`, null),
+              ]).catch(() => setError('Não foi possível descartar o rascunho.'));
+              setEditing(null);
+            }}
             onSave={(value) => void saveSection(value)}
           />
         ) : (
@@ -323,25 +415,28 @@ export function ResumeReview({
                 </section>
               ))}
             </article>
-            {editable && (
+            {(editable || (writing.status === 'approved' && !archived)) && (
               <>
-                <button
-                  className="button button-outline"
-                  onClick={() =>
-                    setEditing({
-                      id: crypto.randomUUID(),
-                      title: '',
-                      experienceId: null,
-                      units: [],
-                    })
-                  }
-                >
-                  Adicionar seção
-                </button>
+                {editable && (
+                  <button
+                    className="button button-outline"
+                    onClick={() =>
+                      setEditing({
+                        id: crypto.randomUUID(),
+                        title: '',
+                        experienceId: null,
+                        units: [],
+                      })
+                    }
+                  >
+                    Adicionar seção
+                  </button>
+                )}
                 <button
                   className="button button-primary"
                   disabled={
                     busy ||
+                    !artifact ||
                     !profileReady ||
                     !writing.draft.sections.length ||
                     !canWrite(session) ||
@@ -349,7 +444,7 @@ export function ResumeReview({
                   }
                   onClick={() => void approve()}
                 >
-                  Aprovar currículo
+                  {writing.status === 'approved' ? 'Aprovar PDF e salvar' : 'Aprovar currículo'}
                 </button>
               </>
             )}
@@ -369,7 +464,7 @@ export function ProfileEditor({
   onSave: (profile: HeaderProfile) => Promise<void>;
   onCancel: () => void;
 }>) {
-  const [value, setValue] = useState(profile);
+  const [value, setValue, draftError] = useRetainedDraft('profile-editor', profile);
   return (
     <form
       className="resume-section-editor"
@@ -379,6 +474,7 @@ export function ProfileEditor({
       }}
     >
       <p className="resume-editor-context">Cabeçalho do currículo</p>
+      {draftError && <p role="alert">{draftError}</p>}
       <p>Nome e contatos ficam neste aparelho e não são enviados à IA.</p>
       {(['name', 'professionalTitle', 'email', 'phone'] as const).map((key) => (
         <label key={key}>
@@ -417,8 +513,14 @@ export function SectionEditor({
   onSave: (section: ResumeSection | null) => void;
   onCancel: () => void;
 }>) {
-  const [title, setTitle] = useState(section.title),
-    [text, setText] = useState(section.units.map((unit) => unit.text).join('\n'));
+  const [title, setTitle, titleError] = useRetainedDraft(
+    `section-title:${section.id}`,
+    section.title,
+  );
+  const [text, setText, textError] = useRetainedDraft(
+    `section-text:${section.id}`,
+    section.units.map((unit) => unit.text).join('\n'),
+  );
   return (
     <form
       className="resume-section-editor"
@@ -441,6 +543,7 @@ export function SectionEditor({
       }}
     >
       <p className="resume-editor-context">Seção do currículo</p>
+      {(titleError || textError) && <p role="alert">{titleError || textError}</p>}
       <label htmlFor="resume-section-title">
         Título da seção{' '}
         <input
