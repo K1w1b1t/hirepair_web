@@ -25,8 +25,11 @@ recolocação e especialista admitem duas. A exceção de carreira longa em tran
 não é inferida nesta versão, pois não há um sinal explícito no contrato atual.
 Excesso pede ajuste na revisão; não diminui indefinidamente o corpo da fonte.
 
-A revisão exibe os bytes reais pelo PDF.js e mantém o documento HTML como
-alternativa textual. A aprovação referencia os hashes do conteúdo e dos contatos,
+Por decisão de interface, a revisão mostra apenas as seções editáveis; o PDF é
+preparado e validado em segundo plano. Depois da aprovação do conteúdo, a tela
+aprovada exibe os bytes reais pelo PDF.js, sem repetir visualmente as seções.
+O HTML equivalente fica disponível apenas aos leitores de tela. A aprovação
+referencia os hashes do conteúdo e dos contatos,
 bem como hash dos bytes, renderizador e preset no registro local. Somente após o
 commit do registro o currículo é anunciado como salvo. O download reutiliza esse
 Blob; reabertura não chama IA nem troca o PDF por uma nova renderização.
@@ -34,7 +37,8 @@ Object URLs existem apenas durante a apresentação e são revogadas na saída.
 
 Uma aprovação anterior à exportação pode ser aberta em `/conversa`: a pessoa
 precisa aprovar o PDF para incluí-lo na biblioteca. Não há conversão automática
-que atribua aprovação visual a um arquivo ainda não exibido.
+de arquivos antigos sem a conferência pertinente. Para novos currículos, a
+aprovação é do conteúdo; a prévia visual do arquivo aparece depois dela.
 
 ## Persistência e retomada
 

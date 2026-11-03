@@ -576,3 +576,23 @@ it('uses the target role when the optional header has no title', async () => {
     expect.any(Number),
   );
 });
+it('shows only editable sections during content review without a PDF preview', async () => {
+  render(<Harness initial={reviewingSession()} />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aprovar currículo' })).toBeEnabled(),
+  );
+  expect(screen.getByRole('article', { name: 'Currículo' })).not.toHaveClass('sr-only');
+  expect(screen.getByRole('button', { name: 'Editar Resumo' })).toBeInTheDocument();
+  expect(screen.queryByText('Prévia PDF')).not.toBeInTheDocument();
+});
+it('hides approved HTML sections while showing the PDF preview', async () => {
+  const approved = approveResume(
+    reviewingSession(),
+    { hash: 'document', profileHash: 'profile', approvedAt: 1 },
+    true,
+  );
+  render(<Harness initial={approved} />);
+  await screen.findByText('Prévia PDF');
+  expect(screen.getByRole('article', { name: 'Currículo' })).toHaveClass('sr-only');
+  expect(screen.queryByRole('button', { name: 'Editar Resumo' })).not.toBeInTheDocument();
+});

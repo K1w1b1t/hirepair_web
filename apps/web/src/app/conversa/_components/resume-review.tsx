@@ -279,15 +279,11 @@ export function ResumeReview({
       {(error || editorError) && <p role="alert">{error || editorError}</p>}
       {exportError && <p role="alert">{exportError}</p>}
       {writing?.draft && !editing && !artifact && !exportError && (
-        <p role="status">Preparando a prévia do PDF…</p>
+        <p role="status">Preparando o arquivo PDF…</p>
       )}
-      {artifact &&
-        !editing &&
-        (writing?.status === 'approved' && archived ? (
-          <PdfExport artifact={artifact} />
-        ) : (
-          <PdfPreview blob={artifact.blob} />
-        ))}
+      {writing?.status === 'approved' &&
+        artifact &&
+        (archived ? <PdfExport artifact={artifact} /> : <PdfPreview blob={artifact.blob} />)}
       {!currentAuthorization && (
         <p role="alert">
           As informações usadas neste currículo mudaram. Revise os fatos e as afirmações dependentes
@@ -371,7 +367,7 @@ export function ResumeReview({
                 ? 'Você concluiu a revisão. Seu currículo está salvo neste aparelho.'
                 : 'Use o botão Editar de cada seção para ajustar o texto. Ao aprovar o currículo, você confirma todas as informações, incluindo suas alterações.'}
             </p>
-            <article className="resume-document" aria-label="Currículo">
+            <article className={editable ? 'resume-document' : 'sr-only'} aria-label="Currículo">
               <header className="resume-edit-block resume-document-header">
                 <div className="resume-section-heading">
                   {profileName && <strong className="resume-name">{profileName}</strong>}

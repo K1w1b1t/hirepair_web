@@ -54,24 +54,21 @@ export function ResumeLibrary({ id }: { id?: string }) {
         ) : item ? (
           <>
             <PdfExport artifact={item.artifact} />
-            <details>
-              <summary>Versão textual acessível</summary>
-              <article className="resume-document">
-                <header>
-                  <h2>{item.profile.name}</h2>
-                  <p>{item.profile.professionalTitle}</p>
-                  <p>{[item.profile.email, item.profile.phone].filter(Boolean).join(' · ')}</p>
-                </header>
-                {item.document.sections.map((section) => (
-                  <section key={section.id}>
-                    <h2>{section.title}</h2>
-                    {section.units.map((unit) => (
-                      <p key={unit.id}>{unit.text}</p>
-                    ))}
-                  </section>
-                ))}
-              </article>
-            </details>
+            <article className="sr-only" aria-label="Versão textual do currículo">
+              <header>
+                <h2>{item.profile.name}</h2>
+                <p>{item.profile.professionalTitle}</p>
+                <p>{[item.profile.email, item.profile.phone].filter(Boolean).join(' · ')}</p>
+              </header>
+              {item.document.sections.map((section) => (
+                <section key={section.id}>
+                  <h2>{section.title}</h2>
+                  {section.units.map((unit) => (
+                    <p key={unit.id}>{unit.text}</p>
+                  ))}
+                </section>
+              ))}
+            </article>
           </>
         ) : id ? (
           <p role="alert">

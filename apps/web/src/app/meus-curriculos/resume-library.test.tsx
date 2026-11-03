@@ -74,3 +74,12 @@ it('ignores results and errors after leaving', async () => {
   w.unmount();
   await act(async () => reject(new Error()));
 });
+it('keeps approved sections accessible without a visible textual panel', async () => {
+  (readCompletedResume as jest.Mock).mockResolvedValue(fixture);
+  render(<ResumeLibrary id="r" />);
+  await screen.findByText('Baixar PDF');
+  expect(screen.queryByText('Versão textual acessível')).not.toBeInTheDocument();
+  expect(screen.getByRole('article', { name: 'Versão textual do currículo' })).toHaveClass(
+    'sr-only',
+  );
+});

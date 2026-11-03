@@ -140,9 +140,9 @@ async function seedReview(
 test('aprova, baixa o PDF exato e reabre pela biblioteca', async ({ page }) => {
   await seedReview(page);
   await expect(page.getByRole('heading', { name: 'Confira seu currículo' })).toBeVisible();
-  await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(1, {
-    timeout: 60000,
-  });
+  await expect(page.getByRole('button', { name: 'Aprovar currículo', exact: true })).toBeEnabled();
+  await expect(page.locator('.pdf-pages')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Editar Experiência profissional' })).toBeVisible();
   await page.screenshot({ path: `${evidence}/review-desktop.png`, fullPage: true });
   await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
   await page.waitForURL(/\/meus-curriculos\/[^/]+$/);
@@ -167,6 +167,10 @@ test('aprova, baixa o PDF exato e reabre pela biblioteca', async ({ page }) => {
   expect(text.indexOf('Experiência 1')).toBeLessThan(text.indexOf('Experiência 2'));
   await loadingTask.destroy();
   await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(1);
+  await expect(page.locator('.library-content details')).toHaveCount(0);
+  await expect(page.getByRole('article', { name: 'Versão textual do currículo' })).toHaveClass(
+    'sr-only',
+  );
   await page.screenshot({ path: `${evidence}/approved-desktop.png`, fullPage: true });
   await page.getByRole('link', { name: 'Voltar para home' }).click();
   await expect(page).toHaveURL('/');
@@ -223,9 +227,8 @@ test('duas páginas preservam todas as palavras e excesso retorna pendência', a
   const longName =
     'Ana Exemplo Sintética de Albuquerque dos Santos Oliveira Costa Ferreira de Souza e Silva';
   await seedReview(page, 'E_SPECIALIST', 24, longName);
-  await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(2, {
-    timeout: 60000,
-  });
+  await expect(page.getByRole('button', { name: 'Aprovar currículo', exact: true })).toBeEnabled();
+  await expect(page.locator('.pdf-pages')).toHaveCount(0);
   await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
   await page.waitForURL(/\/meus-curriculos\/[^/]+$/);
   const waiting = page.waitForEvent('download');
