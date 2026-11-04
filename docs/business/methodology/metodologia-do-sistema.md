@@ -1,5 +1,14 @@
 # Metodologia do Sistema
 
+> **Atualização de produto — 01/11/2026, #15:** a entrevista guiada organiza e
+> seleciona fatos automaticamente, usando a vaga, os relatos e referências
+> sintéticas locais. A pessoa responde por voz ou texto; não precisa revisar
+> uma lista de fatos. Essa decisão substitui, nesta jornada, as exigências de
+> confirmação manual deste documento. Seleção não certifica veracidade; origem,
+> versões, negativas e conflitos continuam preservados. Enriquecer significa
+> esclarecer e organizar o que foi declarado, sem inventar realizações. Ver
+> [ADR 0015](../../architecture/adr-0015-guided-interview.md).
+
 > **O que é este documento.** É a definição da metodologia que o produto executa: o que
 > é **regra dura** (o sistema decide e não negocia), o que é **parâmetro mixável** (o
 > usuário escolhe dentro de opções válidas) e **como a informação entra** (o usuário
@@ -89,7 +98,7 @@ O arquétipo é **derivado**, não escolhido livremente pelo candidato: sai da l
 vínculo formal? há quanto tempo? na área-alvo?) mais a vaga-alvo declarada. Ele define a
 estrutura macro — e essa estrutura é **regra dura**.
 
-**Regra de interface e UX (Rodada 2): O candidato nunca é forçado a escolher o arquétipo em um menu (A, B, C, D, E).** Exibir códigos de arquétipo ou exigir que o usuário decida qual a melhor estrutura para si é um erro de experiência (feedback Pedro/Rodada 2). O sistema deriva a estrutura ideal a partir do perfil e da vaga-alvo e apenas informa a estrutura aplicada.
+**Regra de interface e UX:** o sistema sugere a estrutura a partir do perfil e da vaga-alvo, sem exibir códigos A/B/C/D/E. A pessoa vê os nomes claros das alternativas e pode trocar a sugestão; a escolha aplicada fica explícita antes da redação.
 
 ### 4.1 Matriz de estrutura por arquétipo
 
@@ -268,19 +277,19 @@ Daí duas regras duras:
    dirigido a uma vaga sendo reusado para todas é uma das falhas mais caras e mais
    invisíveis que existem.
 
-### 6.2 Achados que a interface é obrigada a mostrar
+### 6.2 Achados internos para orientar a entrevista
 
-Isto é regra dura de produto: o diagnóstico não é opcional nem escondido atrás de
-paywall. O usuário **vê** o que está errado; a correção assistida é que pode ser o valor
-pago.
+Decisão de produto revisada: o diagnóstico é processamento interno, sem tela ou relatório de achados para o candidato. A pessoa importa o currículo; os achados alimentam o plano do motor e ajudam a preparar perguntas neutras. Quando a entrevista estiver disponível, a preparação leva diretamente à primeira pergunta. Não se exige que a pessoa interprete alertas, hipóteses, severidades ou problemas técnicos antes de contar sua história.
 
-| Achado | Como o sistema trata | Severidade |
+A detecção não é condicionada a pagamento. Cada achado conserva evidência, natureza, ação e versão/hash do documento. Sanitização antes da IA e proteção do futuro artefato continuam responsabilidades independentes.
+
+| Achado interno | Como o sistema trata | Severidade |
 |---|---|---|
 | **Gap na linha do tempo** | Aponta o período, e destaca que **gap recente pesa mais que gap antigo**. Pede a narrativa (que pode viver na entrevista, não no papel). Oferece resgatar experiência omitida que tape o buraco — inclusive informal ou curta | Alta se recente |
 | **Descrição inflada** | Sinaliza escopo declarado acima do cargo real e explica o risco: não é ética, é **sustentabilidade em entrevista** | Alta |
 | **Ferramenta/habilidade que não se sustenta** | Marca como passivo, não ativo, e propõe cortar | Alta |
 | **Nome de outra empresa/vaga no documento** | Descarte quase automático; bloqueia exportação como "currículo padrão" | Crítica |
-| **Quebra de parsing** (colunas, tabela, gráfico de nível, imagem, palavras coladas) | Mostra o texto como a máquina lê e corrige na origem | Crítica em modo ATS |
+| **Quebra de parsing** (colunas, tabela, gráfico de nível, imagem, palavras coladas) | Registra a evidência disponível no texto extraído e uma ação de correção na origem | Crítica em modo ATS |
 | **Dado sensível ou discriminatório** (CPF, RG, estado civil, nascimento, filiação, foto) | Remove por padrão e explica o porquê (LGPD + espaço semântico) | Alta |
 | **Tamanho acima do arquétipo** | Aponta o que está competindo por espaço, não só "está grande" | Média |
 | **Perfil acima da vaga** ("superqualificado, vai sair rápido") | Sinaliza que ativo numa trilha é passivo em outra | Média |
@@ -295,7 +304,7 @@ diante de tom de reprovação.
 
 **Regra dura: o sistema separa o que é fato do que é suposição.** Nos dois casos essa
 distinção foi decisiva — sem o baseline do funil, todo diagnóstico é hipótese
-priorizada. O produto deve dizer isso, não fingir certeza. Um diagnóstico que soa
+priorizada. Os contratos internos devem preservar isso, sem promover hipóteses a fatos confirmados. Um diagnóstico que soa
 absoluto e erra queima a confiança inteira; um que se declara hipótese e acerta ganha
 duas vezes.
 
@@ -536,8 +545,8 @@ primeira oferta boa, não na vaga ideal.
    vaga"), nunca de **resultado**.
 3. **Nunca exporta com dado sensível** que não sirva à avaliação de competência.
 4. **Nunca oferece um artefato que quebra parsing** como arquivo de submissão.
-5. **Nunca esconde diagnóstico atrás de paywall**, nem deixa o usuário preencher tudo
-   para só então revelar cobrança.
+5. **Nunca condiciona a detecção de problemas ao pagamento**, nem deixa o usuário preencher tudo
+   para só então revelar cobrança. O diagnóstico interno orienta a entrevista e a proteção do artefato, sem relatório de achados para o candidato.
 6. **Nunca publica a transcrição crua** nem usa o relato falado sem confirmação.
 7. **Nunca decide a trilha pelo usuário** — explicita o trade-off e recomenda.
 8. **Nunca trata omissão legítima como esconder.** Currículo é seleção, não confissão;

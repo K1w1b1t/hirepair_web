@@ -1,0 +1,125 @@
+import { purgeRaw, type Session } from '@hirepair/interview-engine';
+let writeGeneration = 0;
+export function invalidateEngineWrites(): void {
+  writeGeneration++;
+}
+function database(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('LOCAL_STORAGE_UNAVAILABLE'));
+      return;
+    }
+    const request = indexedDB.open('hirepair-interview', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('session');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(new Error('LOCAL_STORAGE_UNAVAILABLE'));
+  });
+}
+export async function transaction<T>(
+  mode: IDBTransactionMode,
+  operation: (store: IDBObjectStore, set: (value: T) => void, fail: (error: Error) => void) => void,
+): Promise<T> {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('session', mode);
+    let result: T;
+    let failure: Error | null = null;
+    tx.oncomplete = () => {
+      db.close();
+      resolve(result);
+    };
+    tx.onabort = tx.onerror = () => {
+      db.close();
+      reject(failure ?? new Error('LOCAL_STORAGE_UNAVAILABLE'));
+    };
+    operation(
+      tx.objectStore('session'),
+      (value) => {
+        result = value;
+      },
+      (error) => {
+        failure = error;
+        tx.abort();
+      },
+    );
+  });
+}
+export function readEngine(): Promise<Session | null> {
+  return transaction('readwrite', (store, set) => {
+    const request = store.get('active');
+    request.onsuccess = () => {
+      const current = (request.result as Session | undefined) ?? null;
+      if (!current) {
+        set(null);
+        return;
+      }
+      const purged = purgeRaw(current, Date.now());
+      if (purged !== current) store.put(purged, 'active');
+      set(purged);
+    };
+  });
+}
+export function saveEngine(
+  session: Session,
+  expectedRevision: number | null,
+  profile?: HeaderProfile,
+): Promise<void> {
+  const generation = writeGeneration;
+  return transaction('readwrite', (store, set, fail) => {
+    const request = store.get('active');
+    request.onsuccess = () => {
+      const current = request.result as Session | undefined;
+      if (
+        generation !== writeGeneration ||
+        (current?.revision ?? null) !== expectedRevision ||
+        (current && current.id !== session.id)
+      ) {
+        fail(new Error('REVISION_CONFLICT'));
+        return;
+      }
+      store.put(session, 'active');
+      if (profile) store.put(profile, 'header-profile');
+      set(undefined);
+    };
+  });
+}
+export function deleteEngine(): Promise<void> {
+  invalidateEngineWrites();
+  return transaction('readwrite', (store, set) => {
+    store.delete('active');
+    store.delete('header-profile');
+    store.delete('journey');
+    store.delete('drafts');
+    set(undefined);
+  });
+}
+export interface HeaderProfile {
+  professionalTitle?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  name: string;
+  email: string;
+  phone: string;
+  confirmed: boolean;
+}
+export function readHeaderProfile(): Promise<HeaderProfile | null> {
+  return transaction('readonly', (store, set) => {
+    const request = store.get('header-profile');
+    request.onsuccess = () => set((request.result as HeaderProfile | undefined) ?? null);
+  });
+}
+export function saveHeaderProfile(profile: HeaderProfile): Promise<void> {
+  return transaction('readwrite', (store, set, fail) => {
+    const request = store.get('active');
+    request.onsuccess = () => {
+      if (!request.result) {
+        fail(new Error('REVISION_CONFLICT'));
+        return;
+      }
+      store.put(profile, 'header-profile');
+      set(undefined);
+    };
+  });
+}

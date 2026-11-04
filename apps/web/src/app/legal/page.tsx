@@ -20,7 +20,7 @@ export default function LegalPage() {
         Privacidade, cookies e termos
       </h1>
       <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">
-        Última atualização: 16 de setembro de 2026.
+        Última atualização: 28 de outubro de 2026.
       </p>
 
       <article className="mt-10 space-y-10 leading-7 text-[var(--color-text-muted)]">
@@ -36,6 +36,33 @@ export default function LegalPage() {
             conteúdo solicitado. Dados de currículo, respostas e informações profissionais não são
             usados para publicidade. Podemos usar provedores técnicos necessários para operar o
             serviço, sempre conforme a finalidade informada.
+          </p>
+          <p className="mt-3">
+            A preparação do plano de entrevista usa o Groq e envia uma cópia do texto profissional e
+            da vaga, com identificadores e contatos reconhecidos removidos. Essa remoção reduz os
+            dados enviados, mas não garante anonimização. O histórico profissional pode identificar
+            você. O processamento ocorre fora do Brasil. Para materiais reais, usamos a configuração
+            de retenção zero do provedor; não usamos o Gemini gratuito para seus materiais. Os
+            originais, a vaga e as sugestões permanecem neste navegador, sem expiração automática,
+            até você excluir sua jornada no aplicativo ou limpar os dados do navegador. Relatos
+            brutos serão descartados após a confirmação dos fatos; os fatos e trechos de origem
+            necessários permanecem na jornada local. Em aparelhos compartilhados, outras pessoas
+            podem acessá-los. No modo visitante, esses materiais não criam conta nem histórico no
+            nosso banco.
+          </p>
+          <p className="mt-3">
+            Para proteger o serviço, mantemos identificadores pseudônimos de acesso, versões do
+            consentimento e metadados de uso de IA por até 30 dias. As cotas expiram conforme suas
+            janelas de uso; os registros não incluem o conteúdo dos materiais. O consentimento para
+            a análise é separado da sua escolha sobre analytics e cookies opcionais.
+          </p>
+          <p className="mt-3">
+            O ditado por voz é opcional e usa o reconhecimento de fala do seu navegador. Ao ativar o
+            microfone, o áudio pode ser enviado ao serviço de reconhecimento usado pelo navegador,
+            conforme as políticas desse serviço, e pode exigir conexão com a internet. O HirePair
+            não armazena a gravação de áudio; o texto reconhecido fica no campo para você revisar e
+            é tratado como o conteúdo digitado. Você pode parar o ditado ou continuar usando apenas
+            a digitação.
           </p>
           <p className="mt-3">
             Você pode pedir confirmação, acesso, correção, anonimização, bloqueio, eliminação,

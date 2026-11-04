@@ -34,6 +34,7 @@ describe('HttpLoggingInterceptor', () => {
         context({
           method: 'POST',
           url: '/resumes?x=secret',
+          route: { path: '/resumes' },
           headers: { authorization: 'Bearer x' },
           body: { contentMarkdown: 'private' },
         }),
@@ -57,29 +58,25 @@ describe('HttpLoggingInterceptor', () => {
       });
   });
 
-  it('redacts and bounds development payloads', (done) => {
-    const interceptor = createInterceptor(false);
-    interceptor
+  it('never logs headers, request bodies or responses in development either', (done) => {
+    createInterceptor(false)
       .intercept(
         context({
           method: 'POST',
-          url: '/users',
-          headers: { authorization: 'Bearer x', accept: 'json' },
-          body: { email: 'a@b.com', safe: 'visible', nested: { password: 'x' } },
+          url: '/users?secret=x',
+          headers: { authorization: 'Bearer private' },
+          body: { email: 'a@b.com', safe: 'also private' },
         }),
-        { handle: () => of({ value: 'x'.repeat(600) }) },
+        { handle: () => of({ value: 'private response' }) },
       )
       .subscribe({
         complete: () => {
-          const calls = log.mock.calls as unknown as Array<[Record<string, unknown>]>;
-          const incoming = calls[0][0] as {
-            headers: Record<string, unknown>;
-            body: Record<string, unknown>;
-          };
-          expect(incoming.headers.authorization).toBe('[REDACTED]');
-          expect(incoming.body.email).toBe('[REDACTED]');
-          expect(incoming.body.safe).toBe('visible');
-          expect(JSON.stringify(calls[1][0])).toContain('[+88 chars]');
+          expect(JSON.stringify(log.mock.calls)).not.toMatch(
+            /Bearer private|a@b.com|also private|private response|secret=x/,
+          );
+          expect(
+            (log.mock.calls as unknown as [Record<string, unknown>][])[0][0],
+          ).not.toHaveProperty('body');
           done();
         },
       });
@@ -124,4 +121,35 @@ describe('HttpLoggingInterceptor', () => {
         },
       });
   });
+});
+
+it('logs database metrics and safe types for non-Error failures', (done) => {
+  const log = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  const interceptor = new HttpLoggingInterceptor({
+    get: () => ({ statementCount: 2, totalMs: 3.5 }),
+  } as never);
+  interceptor
+    .intercept(
+      {
+        getType: () => 'http',
+        switchToHttp: () => ({
+          getRequest: () => ({ method: 'GET', url: '/x' }),
+          getResponse: () => ({ statusCode: 400 }),
+        }),
+      } as never,
+      { handle: () => throwError(() => 'private') },
+    )
+    .subscribe({
+      error: () => {
+        expect(log).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dbStatementCount: 2,
+            dbTotalMs: 4,
+            errorType: 'string',
+          }) as unknown,
+        );
+        log.mockRestore();
+        done();
+      },
+    });
 });

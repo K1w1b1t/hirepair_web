@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { DiscordService } from '../common/discord/discord.service';
+import { RedisService } from '../operational/redis.service';
 import { CoreModule } from './core.module';
 
 @Controller('rate-limit-contract')
@@ -25,7 +26,11 @@ describe('CoreModule rate limiting', () => {
   let app: INestApplication;
 
   beforeEach(async () => {
+    let hits = 0;
+    process.env.GUEST_ACCESS_SECRET = 's'.repeat(32);
     const module = await Test.createTestingModule({ imports: [RateLimitContractModule] })
+      .overrideProvider(RedisService)
+      .useValue({ run: jest.fn(() => Promise.resolve([++hits, 60_000, hits > 10 ? 60_000 : 0])) })
       .overrideProvider(DiscordService)
       .useValue({})
       .compile();

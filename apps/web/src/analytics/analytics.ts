@@ -4,7 +4,11 @@ import posthog from 'posthog-js';
 
 export type AnalyticsConsent = 'granted' | 'denied';
 export type FunnelEvent =
-  'session_started' | 'facts_confirmed' | 'resume_generated' | 'whatsapp_shared';
+  | 'session_started'
+  | 'interview_completed'
+  | 'facts_confirmed'
+  | 'resume_generated'
+  | 'whatsapp_shared';
 type FunnelProperties = { funnel_session_id: string };
 
 const COOKIE_NAME = 'analytics_consent';

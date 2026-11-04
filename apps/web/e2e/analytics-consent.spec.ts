@@ -1,4 +1,24 @@
+import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
+
+for (const decision of ['denied', 'granted']) {
+  test(`não renderiza o modal ao navegar da home com consentimento ${decision}`, async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      { name: 'analytics_consent', value: decision, url: 'http://127.0.0.1:3000' },
+    ]);
+    await page.route(/posthog\.com/, (route) => route.abort());
+    const response = await page.goto('/');
+    expect(await response!.text()).not.toContain('class="analytics-consent__dialog"');
+    await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
+    await page.getByRole('link', { name: 'Começar a conversa' }).click();
+    await expect(page).toHaveURL(/\/conversa/);
+    await expect(page.locator('.analytics-consent__dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
+  });
+}
 
 test('persiste recusa, permite revogação e não contacta PostHog antes do opt-in', async ({
   page,
@@ -17,9 +37,53 @@ test('persiste recusa, permite revogação e não contacta PostHog antes do opt-
   expect(postHogRequests).toBe(0);
 
   await page.getByRole('button', { name: 'Preferências de cookies' }).click();
-  await page.getByRole('button', { name: 'Sim, quero ajudar' }).click();
+  await page.getByRole('button', { name: 'Aceito' }).click();
   await expect.poll(() => postHogRequests).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Preferências de cookies' }).click();
   await page.getByRole('button', { name: 'Agora não' }).click();
   await expect(page.getByRole('button', { name: 'Preferências de cookies' })).toBeVisible();
 });
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1280, height: 800 },
+]) {
+  test(`mantém preferências no canto inferior direito em ${viewport.width}px`, async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      {
+        name: 'analytics_consent',
+        value: 'denied',
+        url: `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? 3000}`,
+      },
+    ]);
+    await page.setViewportSize(viewport);
+    const inset = viewport.width <= 576 ? 12 : 16;
+    for (const route of ['/', '/legal', '/meus-curriculos', '/conversa']) {
+      await page.goto(route);
+      const button = page.getByRole('button', { name: 'Preferências de cookies' });
+      await expect(button).toBeVisible();
+      for (const scroll of [0, 2000]) {
+        await page.evaluate((y) => window.scrollTo(0, y), scroll);
+        await expect
+          .poll(async () => {
+            const box = (await button.boundingBox())!;
+            return {
+              right: Math.round(viewport.width - box.x - box.width),
+              bottom: Math.round(viewport.height - box.y - box.height),
+            };
+          })
+          .toEqual({ right: inset, bottom: inset });
+        if (route === '/legal' && scroll === 2000)
+          await page.screenshot({
+            path: resolve(
+              __dirname,
+              `../../../docs/backend/evidence/20/cookies-${viewport.width === 390 ? 'mobile' : 'desktop'}.png`,
+            ),
+            fullPage: false,
+          });
+      }
+    }
+  });
+}

@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import Image from 'next/image';
+import { JourneyResume } from './journey-resume';
 import { Countdown } from './countdown';
 
 const launchDate = '2026-11-01T00:00:00-03:00';
@@ -105,6 +107,7 @@ function MailIcon() {
 export default function Home() {
   return (
     <main className="overflow-hidden">
+      <JourneyResume />
       <header className="relative z-20 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-10">
         <a aria-label="HirePair — início" href="#inicio">
           <Brand />
@@ -117,9 +120,9 @@ export default function Home() {
             Para quem
           </a>
         </nav>
-        <a className="button button-small button-outline" href="#contato">
-          Fale com a gente
-        </a>
+        <Link className="button button-small button-outline" href="/meus-curriculos">
+          Meus currículos
+        </Link>
       </header>
 
       <section className="relative" id="inicio">

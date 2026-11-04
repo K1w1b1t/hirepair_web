@@ -1,12 +1,49 @@
-import { render, screen } from '@testing-library/react';
+import 'fake-indexeddb/auto';
+import { serialize, deserialize } from 'node:v8';
+import { preparationFixture } from '../../../test/preparation';
+import { deleteEngine } from './_lib/engine-storage';
+Object.defineProperty(globalThis, 'structuredClone', {
+  configurable: true,
+  value: (value: unknown) => deserialize(serialize(value)),
+});
+jest.mock('./_components/turnstile-challenge', () => ({
+  TurnstileChallenge: ({
+    onReady,
+  }: {
+    onReady: (challenge: { token: string; termsVersion: string; privacyVersion: string }) => void;
+  }) => {
+    const { useEffect } = jest.requireActual<typeof import('react')>('react');
+    useEffect(() => {
+      onReady({ token: 'challenge', termsVersion: '2026-10-07', privacyVersion: '2026-10-07' });
+    }, [onReady]);
+    return null;
+  },
+}));
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { clearStoredResumes } from './_lib/resume-storage';
 import ConversationPage, { metadata } from './page';
 
+function textFile(content: string, name: string): File {
+  const file = new File([content], name, { type: 'text/plain' });
+  Object.defineProperty(file, 'text', { value: () => Promise.resolve(content) });
+  return file;
+}
+
 describe('ConversationPage', () => {
-  it('presents a welcoming first wizard step without HR jargon', () => {
+  beforeEach(async () => {
+    await clearStoredResumes();
+    await deleteEngine();
+    localStorage.clear();
+    window.history.replaceState({}, '', '/conversa');
+  });
+  it('presents the old resume import step without HR jargon', async () => {
     render(<ConversationPage />);
+    await act(async () => undefined);
     expect(
-      screen.getByRole('heading', { level: 1, name: /vamos montar seu currículo/i }),
+      screen.getByRole('heading', { level: 1, name: /jornada profissional/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /escolher arquivo/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/colar o texto/i)).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 5')).toBeInTheDocument();
     const backLink = screen.getByRole('link', { name: /voltar para o início/i });
     expect(backLink).toHaveAttribute('href', '/');
@@ -14,6 +51,79 @@ describe('ConversationPage', () => {
     expect(backLink.querySelector('svg')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Pair' })).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/talent acquisition|pipeline|ATS/i);
+  });
+
+  it('moves from materials to a clean vacancy step without stale content', async () => {
+    render(<ConversationPage />);
+    const input = screen.getByLabelText(/enviar currículo/i);
+
+    fireEvent.change(input, {
+      target: {
+        files: [
+          textFile('Atendimento ao cliente', 'curriculo.txt'),
+          textFile('Analista de suporte', 'experiencia.txt'),
+        ],
+      },
+    });
+
+    expect(await screen.findByText('curriculo.txt')).toBeInTheDocument();
+    const summary = screen.getByRole('complementary', { name: 'Resumo dos materiais' });
+    expect(await screen.findByRole('button', { name: /^continuar$/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pronto para continuar' })).toBeInTheDocument();
+    expect(summary.querySelector('.wizard-journey-check svg')).toBeInTheDocument();
+    expect(summary.querySelector('.wizard-materials-mark')).not.toBeInTheDocument();
+    expect(summary).not.toHaveTextContent(/nenhum deles é tratado como principal/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^continuar$/i }));
+    await act(async () => undefined);
+    expect(window.location.search).toBe('?etapa=job');
+    expect(
+      screen.queryByRole('complementary', { name: 'Resumo dos materiais' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ver resumo/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Orientação da análise' })).toHaveTextContent(
+      /sugestões aparecerão aqui/i,
+    );
+    expect(screen.getByText('Passo 2 de 5')).toBeInTheDocument();
+    expect(screen.queryByText('Atendimento ao cliente')).not.toBeInTheDocument();
+    expect(screen.queryByText('Analista de suporte')).not.toBeInTheDocument();
+  });
+
+  it('moves analysis results to a separate recommendation step', async () => {
+    const originalFetch = globalThis.fetch;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+      .mockImplementationOnce((_url: string, options: { body: string }) =>
+        Promise.resolve({
+          ok: true,
+          json: async () => preparationFixture(JSON.parse(options.body)),
+        }),
+      );
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
+    render(<ConversationPage />);
+    fireEvent.change(screen.getByLabelText(/enviar currículo/i), {
+      target: { files: [textFile('Mecânico de manutenção', 'curriculo.txt')] },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /^continuar$/i }));
+    fireEvent.change(screen.getByLabelText(/requisitos da vaga/i), {
+      target: { value: 'Vaga para engenheiro mecânico' },
+    });
+    fireEvent.change(screen.getByLabelText('Seu objetivo pessoal'), {
+      target: { value: 'ENTER_FAST' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+    expect(
+      await screen.findByRole('progressbar', { name: 'Progresso da entrevista' }),
+    ).toBeInTheDocument();
+    expect(window.location.search).toBe('?etapa=interview');
+    expect(
+      screen.getByRole('progressbar', { name: 'Progresso da entrevista' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/requisitos da vaga/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /começar entrevista/i })).not.toBeInTheDocument();
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
   });
 
   it('has route-specific metadata', () => {

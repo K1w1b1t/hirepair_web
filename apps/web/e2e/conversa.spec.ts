@@ -1,21 +1,31 @@
+import { preparationFixture } from '../test/preparation';
 import { expect, test } from '@playwright/test';
+import { mockGuestChallenge } from './helpers/guest-challenge';
 
 test.describe('wizard acolhedor', () => {
+  async function dismissAnalytics(page: import('@playwright/test').Page) {
+    const dismissButton = page.getByRole('button', { name: 'Agora não' });
+    await dismissButton.waitFor({ state: 'visible' });
+    await dismissButton.click();
+  }
+
   test('abre pela landing e se adapta ao celular', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.getByRole('link', { name: 'Começar a conversa' }).click();
 
     await expect(page).toHaveURL(/\/conversa$/);
-    await expect(page.getByRole('heading', { name: /vamos montar seu currículo/i })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /vamos começar pela sua jornada profissional/i }),
+    ).toBeVisible();
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
     await expect(page.getByRole('complementary')).toBeHidden();
-    await page.getByRole('button', { name: 'Agora não' }).click();
+    await dismissAnalytics(page);
 
-    await page.getByRole('button', { name: /ver currículo/i }).click();
-    await expect(page.getByRole('dialog', { name: /prévia do currículo/i })).toBeVisible();
+    await page.getByRole('button', { name: /ver resumo/i }).click();
+    await expect(page.getByRole('dialog', { name: /resumo dos materiais/i })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog', { name: /prévia do currículo/i })).toBeHidden();
+    await expect(page.getByRole('dialog', { name: /resumo dos materiais/i })).toBeHidden();
   });
 
   test('mostra a conversa e a prévia lado a lado no desktop', async ({ page }) => {
@@ -24,6 +34,84 @@ test.describe('wizard acolhedor', () => {
 
     await expect(page.getByRole('main')).toBeVisible();
     await expect(page.getByRole('complementary')).toBeVisible();
-    await expect(page.getByRole('button', { name: /ver currículo/i })).toBeHidden();
+    await expect(page.getByRole('button', { name: /ver resumo/i })).toBeHidden();
+  });
+
+  test('extrai um currículo PDF selecionado pelo usuário', async ({ page }) => {
+    await page.goto('/conversa');
+    await dismissAnalytics(page);
+
+    await page.getByLabel('Enviar currículo').setInputFiles('e2e/fixtures/mock-resume.pdf');
+
+    await expect(page.getByText('mock-resume.pdf').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pronto para continuar' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continuar' })).toBeVisible();
+    await expect(page.getByText('Gabriel Rodrigues').filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText('Engenheiro de software').filter({ visible: true })).toHaveCount(0);
+  });
+
+  test('persiste a vaga e retoma a entrevista apesar de uma URL antiga', async ({ page }) => {
+    await mockGuestChallenge(page);
+
+    await page.route('**/guest/access', async (route) => {
+      await route.fulfill({ json: { accessToken: 'guest-token' }, status: 201 });
+    });
+    await page.route('**/guest/interview-preparation', async (route) => {
+      expect(route.request().postData()).not.toContain('123.456.789-00');
+      expect(route.request().headers()['idempotency-key']).toBeTruthy();
+      await route.fulfill({
+        json: preparationFixture(route.request().postDataJSON()),
+        status: 201,
+      });
+    });
+
+    await page.goto('/conversa');
+    await dismissAnalytics(page);
+    await page
+      .getByLabel('Colar o texto')
+      .fill('Mecânico de manutenção industrial. CPF: 123.456.789-00');
+    await page.getByRole('button', { name: 'Adicionar material' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+
+    await expect(page.getByText('Passo 2 de 5')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /qual vaga você quer buscar/i })).toBeVisible();
+    await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
+    await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
+    await page.getByLabel(/requisitos da vaga/i).blur();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: 'test-results/43-objetivo.png', fullPage: true });
+    await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+    await page.reload();
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
+      'Vaga para engenheiro mecânico.',
+    );
+    await page.getByLabel(/requisitos da vaga/i).fill('Vaga corrigida');
+    await page.reload();
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue('Vaga corrigida');
+    await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
+    await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
+    await page.getByLabel('Objetivo provisório').selectOption('yes');
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button', { name: /analisar e sugerir/i }).click();
+
+    await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Plano inicial de investigação' })).toHaveCount(
+      0,
+    );
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: 'test-results/43-plano.png', fullPage: true });
+    await expect(page.getByRole('button', { name: /Escrever|Enviar resposta/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.goto('/conversa?etapa=job');
+    await expect(page).toHaveURL(/etapa=interview/);
+    await expect(page.getByRole('textbox', { name: 'Sua resposta' })).toBeVisible();
+    await page.getByRole('button', { name: 'Voltar para home' }).click();
+    await page.getByRole('button', { name: 'Sair e descartar' }).click();
+    await expect(page).toHaveURL('/');
+    await page.getByRole('link', { name: 'Começar a conversa' }).click();
+    await expect(page.getByRole('heading', { name: /jornada profissional/i })).toBeVisible();
+    await expect(page.getByText('Mecânico de manutenção industrial.')).toHaveCount(0);
   });
 });

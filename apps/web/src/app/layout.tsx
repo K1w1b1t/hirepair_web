@@ -13,7 +13,10 @@ export const metadata: Metadata = createRootMetadata();
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${heading.variable} ${body.variable} min-h-screen antialiased`}>
+      <body
+        className={`${heading.variable} ${body.variable} min-h-screen antialiased`}
+        suppressHydrationWarning
+      >
         {children}
         <AnalyticsConsentControl />
       </body>

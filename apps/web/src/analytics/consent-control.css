@@ -141,16 +141,24 @@
   font-family: var(--font-heading);
   font-size: 0.75rem;
   font-weight: 650;
-  margin-left: auto;
+  margin: 0;
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   padding: 0.6rem 0.9rem;
   pointer-events: auto;
 }
 
-(max-width: 36rem) {
+@media (max-width: 36rem) {
   .analytics-consent {
     bottom: 0.75rem;
     left: 0.75rem;
     right: 0.75rem;
+  }
+
+  .analytics-consent__preferences {
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   .analytics-consent__content {

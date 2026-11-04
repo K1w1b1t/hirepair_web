@@ -20,7 +20,7 @@ Sem o token correspondente, cada integração é no-op. O upload de source maps 
 2. Configure replay de 10% para todas as sessões consentidas e um trigger group adicional de 100% para sessões com `$exception`.
 3. Crie um destino Discord para `$exception`, filtrado por `environment=production` e `telemetry_source=browser`.
 4. Crie outro destino Discord para `ai_fallback_triggered`, filtrado por `environment=production`.
-5. Crie o funil `session_started → facts_confirmed → resume_generated → whatsapp_shared`. Somente `session_started` tem hook atualmente; não simule os demais.
+5. Crie o funil guiado `session_started → interview_completed → resume_generated → whatsapp_shared`. Os dois primeiros hooks existem; geração e compartilhamento continuam reservados às respectivas entregas. `interview_completed` só ocorre após persistir a seleção utilizável do motor, com o mesmo `funnel_session_id`; renderizar ou retomar a conclusão não emite de novo. `facts_confirmed` permanece exclusivo de confirmação humana legada e não é emitido pela seleção automática.
 
 ## Cadastro na Vercel
 

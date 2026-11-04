@@ -1,0 +1,504 @@
+'use client';
+import { ExitJourney } from './exit-journey';
+import { cleanupJourney } from '../_lib/cleanup-journey';
+import {
+  startProgress,
+  saveProgress,
+  readLocalDraft,
+  saveLocalDraft,
+  type JourneyProgress,
+} from '../_lib/journey-progress';
+import { InterviewWorkspace } from './interview-workspace';
+import { type Session } from '@hirepair/interview-engine';
+import { cancelPreparation } from '../_lib/guest-api';
+import { deleteEngine, saveEngine } from '../_lib/engine-storage';
+import { removeBrowserValue } from '../_lib/browser-storage';
+import { ANALYSIS_KEY } from '../_lib/job-analysis';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type JobAnalysisResult, type JobDraft, type JobPreferences } from '../_lib/job-analysis';
+import { clearStoredResumes, listStoredResumes, type StoredResume } from '../_lib/resume-storage';
+import { ImportPanel } from './import-panel';
+import { JobExampleStep, JobRecommendationsStep } from './job-example-step';
+import { WizardShell } from './wizard-shell';
+
+import {
+  initialDraft,
+  persistJourney,
+  restoreJourney,
+  type JourneySnapshot,
+} from '../_lib/journey-storage';
+
+type JourneyPhase = 'materials' | 'job' | 'recommendations' | 'interview';
+const PHASE_QUERY_PARAM = 'etapa';
+
+function phaseFromQuery(value: string | null): JourneyPhase {
+  return value === 'job' || value === 'recommendations' || value === 'interview'
+    ? value
+    : 'materials';
+}
+
+function restoredPhase(
+  requested: JourneyPhase,
+  documentCount: number,
+  hasAnalysis: boolean,
+  withoutResume: boolean,
+): JourneyPhase {
+  if ((requested === 'recommendations' || requested === 'interview') && !hasAnalysis)
+    return documentCount ? 'job' : 'materials';
+  if (requested === 'recommendations' && withoutResume && hasAnalysis) return 'interview';
+  if (requested === 'job' && documentCount === 0 && !withoutResume) return 'materials';
+  return requested;
+}
+
+function stepForPhase(phase: JourneyPhase): number {
+  if (phase === 'materials') return 1;
+  if (phase === 'job') return 2;
+  return phase === 'interview' ? 4 : 3;
+}
+
+function JourneyCheck() {
+  return (
+    <span aria-hidden="true" className="wizard-journey-check">
+      <svg fill="none" height="22" viewBox="0 0 24 24" width="22">
+        <path
+          d="m5 12.5 4.5 4.5L19 7.5"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.25"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function MaterialsSummary({
+  documentCount,
+  onStart,
+}: {
+  documentCount: number;
+  onStart: () => void;
+}) {
+  const hasDocuments = documentCount > 0;
+  return (
+    <section aria-live="polite" className="wizard-journey-summary">
+      {hasDocuments ? <JourneyCheck /> : null}
+      <p className="section-kicker">Sua base para os próximos passos</p>
+      <h2 className="font-[family-name:var(--font-heading)] text-2xl font-medium text-[var(--color-navy)]">
+        {hasDocuments ? 'Pronto para continuar' : 'Tudo o que você trouxer conta'}
+      </h2>
+      <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+        {hasDocuments
+          ? 'Seus materiais estão prontos. Agora vamos entender qual vaga você quer buscar.'
+          : 'Adicione um ou mais currículos. Vamos reunir as informações para preparar a próxima etapa.'}
+      </p>
+      {hasDocuments ? (
+        <button
+          className="button button-primary wizard-start-button"
+          onClick={onStart}
+          type="button"
+        >
+          Continuar
+        </button>
+      ) : null}
+      <div className="wizard-analysis-note">
+        <JourneyCheck />
+        <p>
+          Seus materiais ficam neste navegador até você limpar os dados dele. Ao analisar, uma cópia
+          do texto com identificadores reconhecidos removidos é enviada à IA. Em aparelhos
+          compartilhados, outras pessoas podem acessar os materiais locais.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function JobContextPreview() {
+  return (
+    <section className="wizard-empty-preview">
+      <span aria-hidden="true" className="wizard-paper-mark" />
+      <h2 className="font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-navy)]">
+        Suas sugestões aparecerão aqui
+      </h2>
+      <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+        Depois da análise, você poderá revisar a estrutura, o objetivo e o tom do currículo.
+      </p>
+    </section>
+  );
+}
+
+function ConversationPreview({
+  phase,
+  documentCount,
+  hasAnalysis,
+  onStart,
+}: {
+  phase: JourneyPhase;
+  documentCount: number;
+  hasAnalysis: boolean;
+  onStart: (next: JourneyPhase) => void;
+}) {
+  if (phase === 'materials')
+    return (
+      <MaterialsSummary
+        documentCount={documentCount}
+        onStart={() => onStart(hasAnalysis ? 'recommendations' : 'job')}
+      />
+    );
+  if (phase === 'job') return <JobContextPreview />;
+  return null;
+}
+
+function ConversationStep({
+  phase,
+  documents,
+  draft,
+  result,
+  preferences,
+  onDocumentsChange,
+  onDraftChange,
+  onComplete,
+  onPreferencesChange,
+  onEditJob,
+  onStartInterview,
+  onSessionChange,
+}: {
+  phase: JourneyPhase;
+  documents: StoredResume[];
+  draft: JobDraft;
+  result: JobAnalysisResult | undefined;
+  preferences: JobPreferences | undefined;
+  onDocumentsChange: (documents: StoredResume[]) => void;
+  onDraftChange: (draft: JobDraft) => void;
+  onComplete: (analysis: JobAnalysisResult, hash: string) => void;
+  onPreferencesChange: (preferences: JobPreferences) => void;
+  onEditJob: () => void;
+  onStartInterview: () => void;
+  onSessionChange: (session: Session) => void;
+}) {
+  if (phase === 'interview' && result?.preparation)
+    return (
+      <InterviewWorkspace
+        session={result.preparation}
+        draft={{ ...draft, targetRole: result.targetRole }}
+        onChange={onSessionChange}
+      />
+    );
+  if (phase === 'materials') return <ImportPanel onDocumentsChange={onDocumentsChange} />;
+  if (phase === 'job')
+    return (
+      <JobExampleStep
+        documents={documents}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onComplete={onComplete}
+      />
+    );
+  return (
+    <JobRecommendationsStep
+      result={result as JobAnalysisResult}
+      preferences={preferences as JobPreferences}
+      onPreferencesChange={onPreferencesChange}
+      onEditJob={onEditJob}
+      onContinue={onStartInterview}
+    />
+  );
+}
+
+export function ConversationPageClient() {
+  const progressRef = useRef<JourneyProgress | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+  const [localError, setLocalError] = useState('');
+  const [documents, setDocuments] = useState<StoredResume[]>([]);
+  const documentsRef = useRef<StoredResume[]>([]);
+  const [phase, setPhase] = useState<JourneyPhase>('materials');
+  const [draft, setDraft] = useState<JobDraft>(initialDraft);
+  const [result, setResult] = useState<JobAnalysisResult>();
+  const [preferences, setPreferences] = useState<JobPreferences>();
+  const [inputHash, setInputHash] = useState<string>();
+  const [hydrated, setHydrated] = useState(false);
+  const hydratedRef = useRef(false);
+  const hasUserNavigated = useRef(false);
+
+  const transitionTo = useCallback((nextPhase: JourneyPhase) => {
+    hasUserNavigated.current = true;
+    setPhase(nextPhase);
+    if (progressRef.current) {
+      progressRef.current = {
+        ...progressRef.current,
+        phase: nextPhase,
+        withoutResume:
+          progressRef.current.withoutResume ||
+          new URLSearchParams(window.location.search).get('sem-curriculo') === '1',
+      };
+      void saveProgress(progressRef.current).catch(() =>
+        setLocalError('Não foi possível salvar a etapa. Reabra a jornada.'),
+      );
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
+    window.history.replaceState(window.history.state, '', url);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const restoreConversation = async () => {
+      await cleanupJourney();
+      const progress = await startProgress();
+      progressRef.current = progress;
+      const requestedPhase = phaseFromQuery(
+        progress.phase !== 'materials'
+          ? progress.phase
+          : new URLSearchParams(window.location.search).get(PHASE_QUERY_PARAM),
+      );
+      const storedResumes = await listStoredResumes();
+      if (!mounted) return;
+      setDocuments(storedResumes);
+      documentsRef.current = storedResumes;
+
+      const retained = await readLocalDraft<JourneySnapshot>('journey-snapshot');
+      if (retained) persistJourney(retained);
+      const saved = await restoreJourney(storedResumes);
+      if (!mounted) return;
+      setDraft(saved.draft);
+      setResult(saved.result);
+      setPreferences(saved.preferences);
+      setInputHash(saved.inputHash);
+      hydratedRef.current = true;
+      setHydrated(true);
+      const hasAnalysis = Boolean(saved.result);
+
+      const withoutResume =
+        progress.withoutResume ||
+        new URLSearchParams(window.location.search).get('sem-curriculo') === '1';
+      const effectivePhase =
+        saved.result?.preparation &&
+        (['confirmation', 'ready'].includes(saved.result.preparation.phase) ||
+          (!new URLSearchParams(window.location.search).has('etapa') &&
+            ['interview', 'writing'].includes(saved.result.preparation.phase)))
+          ? 'interview'
+          : requestedPhase;
+      const nextPhase = restoredPhase(
+        effectivePhase,
+        storedResumes.length,
+        hasAnalysis,
+        withoutResume,
+      );
+      if (!hasUserNavigated.current) {
+        progressRef.current = { ...progress, phase: nextPhase, withoutResume };
+        await saveProgress(progressRef.current);
+        if (!mounted || hasUserNavigated.current) return;
+        setPhase(nextPhase);
+        const url = new URL(window.location.href);
+        url.searchParams.set(PHASE_QUERY_PARAM, nextPhase);
+        window.history.replaceState(window.history.state, '', url);
+      }
+    };
+    void restoreConversation().catch(() => {
+      if (mounted)
+        setLocalError(
+          'Não foi possível abrir o progresso salvo. Recarregue para tentar novamente.',
+        );
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [transitionTo]);
+
+  useEffect(() => {
+    if (hydrated && result?.preparation?.writing?.status !== 'approved') {
+      const snapshot = {
+        draft,
+        result: result ? { ...result, preparation: undefined } : undefined,
+        preferences,
+        inputHash,
+      };
+      persistJourney(snapshot);
+      void saveLocalDraft('journey-snapshot', snapshot).catch(() =>
+        setLocalError('Não foi possível salvar seu progresso.'),
+      );
+    }
+  }, [draft, hydrated, inputHash, preferences, result]);
+
+  const invalidateAnalysis = useCallback(() => {
+    setResult(undefined);
+    setPreferences(undefined);
+    setInputHash(undefined);
+  }, []);
+  const handleDocumentsChange = useCallback(
+    (updatedDocuments: StoredResume[]) => {
+      if (!hydratedRef.current) return;
+      const current = documentsRef.current;
+      if (
+        JSON.stringify(current.map(({ id, text }) => ({ id, text }))) !==
+        JSON.stringify(updatedDocuments.map(({ id, text }) => ({ id, text })))
+      ) {
+        invalidateAnalysis();
+        documentsRef.current = updatedDocuments;
+        setDocuments(updatedDocuments);
+      }
+      if (updatedDocuments.length === 0) transitionTo('materials');
+    },
+    [invalidateAnalysis, transitionTo],
+  );
+  const handleDraftChange = (next: JobDraft) => {
+    if (
+      next.objective !== draft.objective ||
+      next.provisional !== draft.provisional ||
+      next.hasJob !== draft.hasJob ||
+      next.jobText !== draft.jobText ||
+      next.targetRole !== draft.targetRole
+    )
+      invalidateAnalysis();
+    setDraft(next);
+  };
+  const handleComplete = (analysis: JobAnalysisResult, hash: string) => {
+    setResult(analysis);
+    setInputHash(hash);
+    setPreferences({
+      archetype: analysis.suggestedArchetype,
+      objective: analysis.suggestedObjective,
+      tone: analysis.suggestedTone,
+    });
+    transitionTo(analysis.preparation ? 'interview' : 'recommendations');
+  };
+
+  const goBack =
+    phase === 'materials' ? undefined : () => transitionTo(phase === 'job' ? 'materials' : 'job');
+
+  return (
+    <WizardShell
+      focused={phase === 'interview'}
+      currentStep={
+        phase === 'interview' &&
+        ['confirmation', 'ready'].includes(result?.preparation?.phase ?? '')
+          ? 5
+          : stepForPhase(phase)
+      }
+      onBack={goBack}
+      preview={
+        phase === 'interview' ? null : (
+          <ConversationPreview
+            phase={phase}
+            documentCount={documents.length}
+            hasAnalysis={Boolean(result && preferences)}
+            onStart={transitionTo}
+          />
+        )
+      }
+      previewLabel={phase === 'materials' ? 'Resumo dos materiais' : 'Orientação da análise'}
+      previewOnMobile={phase === 'materials'}
+      previewTitle="Materiais para análise"
+      previewTriggerLabel="Ver resumo"
+      totalSteps={5}
+    >
+      <div className="w-full min-w-0">
+        {result?.preparation?.writing?.status !== 'approved' && <ExitJourney />}
+        {phase !== 'interview' && (
+          <button
+            type="button"
+            className="button button-outline"
+            onClick={() => {
+              if (!window.confirm('Excluir os materiais e toda a jornada deste navegador?')) return;
+              cancelPreparation();
+              void deleteEngine()
+                .then(async () => {
+                  if (!(await clearStoredResumes())) throw new Error('LOCAL_STORAGE_UNAVAILABLE');
+                })
+                .then(() => {
+                  removeBrowserValue(ANALYSIS_KEY);
+                  removeBrowserValue('hirepair_analysis_pending');
+                  removeBrowserValue('hirepair_interview_pending');
+                  removeBrowserValue('hirepair_engine_funnel');
+                  sessionStorage.removeItem('hirepair_funnel_session_id');
+                  sessionStorage.removeItem('hirepair_session_started_captured');
+                  documentsRef.current = [];
+                  setDocuments([]);
+                  setDraft(initialDraft);
+                  invalidateAnalysis();
+                  setResetKey((value) => value + 1);
+                  setLocalError('');
+                  void startProgress()
+                    .then((entry) => {
+                      progressRef.current = entry;
+                      transitionTo('materials');
+                    })
+                    .catch(() => setLocalError('Não foi possível iniciar outra jornada.'));
+                })
+                .catch(() =>
+                  setLocalError('Não foi possível excluir os dados locais. Tente novamente.'),
+                );
+            }}
+          >
+            Excluir minha jornada deste aparelho
+          </button>
+        )}
+        {localError ? <p role="alert">{localError}</p> : null}
+        {phase === 'materials' && documents.length === 0 && (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('sem-curriculo', '1');
+              window.history.replaceState(window.history.state, '', url);
+              transitionTo('job');
+            }}
+          >
+            Começar sem currículo
+          </button>
+        )}
+        <ConversationStep
+          key={resetKey}
+          phase={phase}
+          documents={documents}
+          draft={draft}
+          result={result}
+          preferences={preferences}
+          onDocumentsChange={handleDocumentsChange}
+          onDraftChange={handleDraftChange}
+          onComplete={handleComplete}
+          onPreferencesChange={(next) => {
+            if (next.objective !== draft.objective && draft.objective) {
+              handleDraftChange({ ...draft, objective: next.objective });
+              transitionTo('job');
+              return;
+            }
+            const session = result?.preparation;
+            if (!session) {
+              setPreferences(next);
+              return;
+            }
+            const updated = {
+              ...session,
+              revision: session.revision + 1,
+              strategy: {
+                ...session.strategy!,
+                version: session.strategy!.version + 1,
+                archetype: next.archetype,
+                tone: next.tone,
+              },
+              content: session.content ? { ...session.content, valid: false } : null,
+            };
+            void saveEngine(updated, session.revision)
+              .then(() => {
+                setResult({ ...result, preparation: updated });
+                setPreferences(next);
+              })
+              .catch(() =>
+                setLocalError(
+                  'Não foi possível salvar sua escolha. Reabra a jornada para usar a versão atual.',
+                ),
+              );
+          }}
+          onEditJob={() => transitionTo('job')}
+          onStartInterview={() => transitionTo('interview')}
+          onSessionChange={(session) =>
+            setResult((value) => (value ? { ...value, preparation: session } : value))
+          }
+        />
+      </div>
+    </WizardShell>
+  );
+}

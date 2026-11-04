@@ -14,7 +14,7 @@ describe('TelemetryService', () => {
     await service.captureAiFallback({
       fromProvider: 'gemini',
       fromModel: 'gemini-model',
-      toProvider: 'groq-70b',
+      toProvider: 'groq-120b',
       toModel: 'groq-model',
       status: 503,
       traceId: 'trace-1',
@@ -32,7 +32,7 @@ describe('TelemetryService', () => {
     await service.captureAiFallback({
       fromProvider: 'gemini',
       fromModel: 'gemini-model',
-      toProvider: 'groq-70b',
+      toProvider: 'groq-120b',
       toModel: 'groq-model',
       status: 429,
       traceId: 'trace-1',
@@ -51,7 +51,7 @@ describe('TelemetryService', () => {
         telemetry_source: 'server',
         from_provider: 'gemini',
         from_model: 'gemini-model',
-        to_provider: 'groq-70b',
+        to_provider: 'groq-120b',
         to_model: 'groq-model',
         status: 429,
         trace_id: 'trace-1',
@@ -67,7 +67,7 @@ describe('TelemetryService', () => {
       service.captureAiFallback({
         fromProvider: 'gemini',
         fromModel: 'gemini-model',
-        toProvider: 'groq-70b',
+        toProvider: 'groq-120b',
         toModel: 'groq-model',
         status: 503,
         traceId: 'trace-1',

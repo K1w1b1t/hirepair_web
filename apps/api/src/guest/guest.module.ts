@@ -1,0 +1,26 @@
+import { WritingController } from '../interview/writing.controller';
+import { WritingService } from '../interview/writing.service';
+import { BlockService } from '../interview/block.service';
+import { PreparationController } from '../interview/preparation.controller';
+import { PreparationService } from '../interview/preparation.service';
+import { TurnstileService } from './turnstile.service';
+import { OperationalModule } from '../operational/operational.module';
+import { Module } from '@nestjs/common';
+import { GuestAccessService } from './guest-access.service';
+import { GuestAnalysisService } from './guest-analysis.service';
+import { GuestController } from './guest.controller';
+import { GuestQuotaService } from './guest-quota.service';
+@Module({
+  imports: [OperationalModule],
+  controllers: [GuestController, PreparationController, WritingController],
+  providers: [
+    WritingService,
+    PreparationService,
+    BlockService,
+    GuestAccessService,
+    GuestQuotaService,
+    GuestAnalysisService,
+    TurnstileService,
+  ],
+})
+export class GuestModule {}

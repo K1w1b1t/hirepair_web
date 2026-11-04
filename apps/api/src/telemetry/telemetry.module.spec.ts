@@ -16,7 +16,7 @@ describe('TelemetryModule', () => {
       service.captureAiFallback({
         fromProvider: 'gemini',
         fromModel: 'a',
-        toProvider: 'groq-70b',
+        toProvider: 'groq-120b',
         toModel: 'b',
         status: 503,
         traceId: 'trace',
