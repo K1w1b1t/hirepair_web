@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { createWritingTestSession } from '../../test/writing';
 import { startGuided, type Session } from '@hirepair/interview-engine';
 import { createHash } from 'node:crypto';
@@ -11,6 +11,11 @@ export async function seedReview(
   reference?: PdfInput,
 ) {
   await page.goto('/meus-curriculos');
+  await expect(
+    page
+      .getByRole('button', { name: 'Agora não' })
+      .or(page.getByRole('button', { name: 'Preferências de cookies' })),
+  ).toBeVisible();
   if (await page.getByRole('button', { name: 'Agora não' }).isVisible())
     await page.getByRole('button', { name: 'Agora não' }).click();
   const s = startGuided(createWritingTestSession());
