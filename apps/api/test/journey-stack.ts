@@ -144,77 +144,79 @@ export async function createJourneyStack(live = false, port = 0) {
     completionTokens: number | null;
     status: number;
   }> = [];
-  global.fetch = async (url, options) => {
-    const address = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
-    if (address.startsWith('https://challenges.cloudflare.com/'))
-      return new Response(
-        JSON.stringify({ success: true, hostname: '127.0.0.1', action: 'guest_access' }),
-      );
-    if (address.startsWith('https://api.groq.com/')) {
-      if (typeof options?.body !== 'string') throw new Error('Expected JSON provider body');
-      const body = JSON.parse(options.body) as {
-        model: string;
-        messages: Array<{ content: string }>;
-        response_format: unknown;
-      };
-      const start = Date.now();
-      if (!live && control.failure) {
-        calls.push({
-          model: body.model,
-          promptHash: '',
-          schemaHash: '',
-          systemHash: '',
-          latencyMs: 0,
-          promptTokens: null,
-          completionTokens: null,
-          status: control.failure === 'invalid' ? 200 : Number(control.failure),
-        });
-        return control.failure === 'invalid'
-          ? new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }))
-          : new Response('{}', {
-              status: Number(control.failure),
-              headers: { 'retry-after': '60' },
-            });
-      }
-      const result = live
-        ? await originalFetch(url, options)
-        : new Response(
-            JSON.stringify({
-              choices: [
-                {
-                  message: {
-                    content: JSON.stringify(
-                      controlledOutput(
-                        body.messages[0].content,
-                        JSON.parse(body.messages[1].content) as Prompt,
-                      ),
-                    ),
-                  },
-                  finish_reason: 'stop',
-                },
-              ],
-              usage: { prompt_tokens: 100, completion_tokens: 100 },
-            }),
-          );
-      const usage = (await result
-        .clone()
-        .json()
-        .catch(() => ({}))) as { usage?: { prompt_tokens: number; completion_tokens: number } };
-      const hash = (value: unknown) =>
-        createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  const callProvider: typeof fetch = async (url, options) => {
+    if (typeof options?.body !== 'string') throw new Error('Expected JSON provider body');
+    const body = JSON.parse(options.body) as {
+      model: string;
+      messages: Array<{ content: string }>;
+      response_format: unknown;
+    };
+    const start = Date.now();
+    if (!live && control.failure) {
       calls.push({
         model: body.model,
-        promptHash: hash(body.messages[1].content),
-        systemHash: hash(body.messages[0].content),
-        schemaHash: hash(body.response_format),
-        latencyMs: Date.now() - start,
-        promptTokens: usage.usage?.prompt_tokens ?? null,
-        completionTokens: usage.usage?.completion_tokens ?? null,
-        status: result.status,
+        promptHash: '',
+        schemaHash: '',
+        systemHash: '',
+        latencyMs: 0,
+        promptTokens: null,
+        completionTokens: null,
+        status: control.failure === 'invalid' ? 200 : Number(control.failure),
       });
-      return result;
+      return control.failure === 'invalid'
+        ? new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }))
+        : new Response('{}', {
+            status: Number(control.failure),
+            headers: { 'retry-after': '60' },
+          });
     }
-    // Unexpected external effects are forbidden in this integration process.
+    const result = live
+      ? await originalFetch(url, options)
+      : new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify(
+                    controlledOutput(
+                      body.messages[0].content,
+                      JSON.parse(body.messages[1].content) as Prompt,
+                    ),
+                  ),
+                },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: { prompt_tokens: 100, completion_tokens: 100 },
+          }),
+        );
+    const usage = (await result
+      .clone()
+      .json()
+      .catch(() => ({}))) as { usage?: { prompt_tokens: number; completion_tokens: number } };
+    const hash = (value: unknown) =>
+      createHash('sha256').update(JSON.stringify(value)).digest('hex');
+    calls.push({
+      model: body.model,
+      promptHash: hash(body.messages[1].content),
+      systemHash: hash(body.messages[0].content),
+      schemaHash: hash(body.response_format),
+      latencyMs: Date.now() - start,
+      promptTokens: usage.usage?.prompt_tokens ?? null,
+      completionTokens: usage.usage?.completion_tokens ?? null,
+      status: result.status,
+    });
+    return result;
+  };
+  global.fetch = (url, options) => {
+    const address = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    if (address.startsWith('https://challenges.cloudflare.com/'))
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ success: true, hostname: '127.0.0.1', action: 'guest_access' }),
+        ),
+      );
+    if (address.startsWith('https://api.groq.com/')) return callProvider(url, options);
     if (!['localhost', '127.0.0.1'].includes(new URL(address).hostname))
       throw new Error('Unexpected external request');
     return originalFetch(url, options);

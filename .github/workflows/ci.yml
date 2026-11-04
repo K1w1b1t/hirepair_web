@@ -171,7 +171,7 @@ jobs:
         env:
           POSTGRES_DB: hirepair_eval
           POSTGRES_USER: hirepair
-          POSTGRES_PASSWORD: hirepair_secret
+          POSTGRES_PASSWORD: ${{ github.run_id }}
         ports:
           - 15434:5432
         options: >-
@@ -189,8 +189,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://hirepair:hirepair_secret@127.0.0.1:15434/hirepair_eval
-      INTEGRATION_DATABASE_URL: postgresql://hirepair:hirepair_secret@127.0.0.1:15434/hirepair_eval
+      DATABASE_URL: ${{ format('postgresql://hirepair:{0}@127.0.0.1:15434/hirepair_eval', github.run_id) }}
+      INTEGRATION_DATABASE_URL: ${{ format('postgresql://hirepair:{0}@127.0.0.1:15434/hirepair_eval', github.run_id) }}
       INTEGRATION_REDIS_URL: redis://127.0.0.1:16379
     steps:
       - uses: actions/checkout@v4
