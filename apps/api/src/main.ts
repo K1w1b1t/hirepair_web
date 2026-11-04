@@ -24,10 +24,15 @@ export async function bootstrap(): Promise<void> {
 let server: Promise<NestExpressApplication> | undefined;
 
 export default async function handler(req: Request, res: Response): Promise<void> {
-  server ??= createApp().then(async (app) => {
-    await app.init();
-    return app;
-  });
+  server ??= createApp()
+    .then(async (app) => {
+      await app.init();
+      return app;
+    })
+    .catch((error: unknown) => {
+      server = undefined;
+      throw error;
+    });
   const app = await server;
   app.getHttpAdapter().getInstance()(req, res);
 }
