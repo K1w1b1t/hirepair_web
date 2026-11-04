@@ -7,7 +7,18 @@ function section(id: string, title: string, lines: string[]): ResumeSection {
   return {
     id,
     title,
-    experienceId: null,
+    experienceId: [
+      'project',
+      'apprentice',
+      'assistant',
+      'current',
+      'finance',
+      'geo',
+      'support',
+      'intern',
+    ].includes(id)
+      ? id
+      : null,
     units: lines.map((text, index) => ({
       id: `${id}-${index}`,
       text,
@@ -30,7 +41,11 @@ export const PRESENTATION_REFERENCES: Array<{
         name: 'Pessoa Exemplo — Engenharia',
         professionalTitle: 'Estágio em Engenharia Mecânica',
         email: 'engenharia@example.com',
-        phone: '',
+        phone: '(11) 00000-0000',
+        location: 'Cidade Exemplo, SP',
+        linkedin: 'linkedin.com/in/perfil-exemplo',
+        github: 'github.com/perfil-exemplo',
+        portfolio: 'https://example.com/portfolio',
         confirmed: true,
       },
       document: {
@@ -76,7 +91,11 @@ export const PRESENTATION_REFERENCES: Array<{
         name: 'Pessoa Exemplo — Software',
         professionalTitle: 'Engenheiro de Software | Backend e Cloud',
         email: 'software@example.com',
-        phone: '',
+        phone: '(11) 00000-0000',
+        location: 'Cidade Exemplo, SP',
+        linkedin: 'linkedin.com/in/perfil-exemplo',
+        github: 'github.com/perfil-exemplo',
+        portfolio: 'https://example.com/portfolio',
         confirmed: true,
       },
       document: {

@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, Font, Link, pdf } from '@react-pdf/renderer';
 import { pageLimit, type PdfInput, type ExportArtifact } from './pdf-contract';
+import { contactLine, resumeBlocks } from './resume-presentation';
 import { hashValue } from './interview-session';
 Font.register({
   family: 'Public Sans',
@@ -16,8 +17,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
   const text = [
     profile.name,
     profile.professionalTitle || '',
-    profile.email,
-    profile.phone,
+    contactLine(profile),
     ...document.sections.flatMap((section) => [
       section.title,
       ...section.units.map((unit) => unit.text),
@@ -35,33 +35,82 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
       <Page
         size="A4"
         style={{
-          padding: 42,
+          padding: 36,
           fontFamily: 'Public Sans',
           fontSize: 10,
-          lineHeight: 1.45,
+          lineHeight: 1.35,
           color: '#252626',
         }}
       >
-        <View style={{ marginBottom: 4 }} wrap={false}>
-          {profile.name && <Text style={{ fontSize: 20, fontWeight: 700 }}>{profile.name}</Text>}
+        <View
+          style={{
+            marginBottom: 4,
+            paddingBottom: 8,
+            borderBottomWidth: 1.2,
+            borderBottomColor: '#193b60',
+          }}
+          wrap={false}
+        >
+          {profile.name && (
+            <Text style={{ fontSize: 20, fontWeight: 700, color: '#193b60' }}>{profile.name}</Text>
+          )}
           {profile.professionalTitle && (
             <Text style={{ fontSize: 12, marginTop: 4 }}>{profile.professionalTitle}</Text>
           )}
-          {[profile.email, profile.phone].filter(Boolean).map((value, index) => (
-            <Text key={index}>{value}</Text>
-          ))}
+          <Text style={{ fontSize: 9, color: '#555968', marginTop: 4 }}>
+            {contactLine(profile)}
+          </Text>
         </View>
         {/* Presence hints need preceding siblings in the page flow, not an isolated section wrapper. */}
-        {document.sections.flatMap((section) => [
+        {resumeBlocks(document.sections).flatMap(({ section, areaTitle, isExperience }) => [
+          areaTitle && (
+            <Text
+              key={`area:${section.id}`}
+              minPresenceAhead={90}
+              style={{
+                fontWeight: 700,
+                fontSize: 11,
+                color: '#193b60',
+                textTransform: 'uppercase',
+                marginTop: 12,
+                marginBottom: 5,
+                paddingBottom: 3,
+                borderBottomWidth: 0.5,
+                borderBottomColor: '#bbc9d8',
+              }}
+            >
+              {areaTitle}
+            </Text>
+          ),
           <Text
             key={`heading:${section.id}`}
             minPresenceAhead={60}
-            style={{ fontWeight: 700, fontSize: 12, marginTop: 12, marginBottom: 6 }}
+            style={
+              isExperience
+                ? { fontWeight: 700, fontSize: 10, marginTop: 8, marginBottom: 4 }
+                : {
+                    fontWeight: 700,
+                    fontSize: 11,
+                    color: '#193b60',
+                    textTransform: 'uppercase',
+                    marginTop: 12,
+                    marginBottom: 5,
+                    paddingBottom: 3,
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: '#bbc9d8',
+                  }
+            }
           >
             {section.title}
           </Text>,
           ...section.units.map((unit) => (
-            <Text key={unit.id} orphans={2} widows={2} style={{ marginBottom: 5 }}>
+            <Text
+              key={unit.id}
+              orphans={2}
+              widows={2}
+              style={{ marginBottom: 4, paddingLeft: isExperience ? 9 : 0 }}
+            >
+              {isExperience && '• '}
               {unit.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
                 /^https?:\/\//.test(part) ? (
                   <Link key={i} src={part}>
@@ -104,7 +153,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
     profileHash: await hashValue({ ...profile, confirmed: true }),
     fileHash,
     rendererVersion: 'react-pdf-4.9.0',
-    layoutVersion: 'single-column-v2',
+    layoutVersion: 'reference-column-v3',
     pageCount,
   };
 }

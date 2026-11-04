@@ -73,7 +73,7 @@ it('renders unchanged text, links and hashes with a versioned layout', async () 
     pageCount: 1,
     mime: 'application/pdf',
     fileName: 'curriculo-Atendente.pdf',
-    layoutVersion: 'single-column-v2',
+    layoutVersion: 'reference-column-v3',
   });
   expect(artifact.fileHash).toHaveLength(64);
   expect(artifact.contentHash).toHaveLength(64);
@@ -132,4 +132,32 @@ it('reserves enough room after section headings for the first two body lines', a
   expect(reserves).toHaveLength(input.document.sections.length);
   // Two body lines (10pt × 1.45) plus the paragraph spacing must fit after the heading.
   expect(reserves.every((space) => space >= 2 * 10 * 1.45 + 5)).toBe(true);
+});
+it('renders the reference hierarchy and complete contacts in the exported document', async () => {
+  const profile = {
+    ...input.profile,
+    location: 'Cidade, SP',
+    linkedin: 'linkedin.com/in/exemplo',
+    github: 'github.com/exemplo',
+    portfolio: 'https://example.com',
+  };
+  await renderPdf({
+    ...input,
+    profile,
+    document: {
+      ...input.document,
+      sections: [{ ...input.document.sections[0], experienceId: 'job' }],
+    },
+  });
+  const tree = JSON.stringify((pdf as jest.Mock).mock.calls.at(-1)[0]);
+  for (const value of [
+    'Cidade, SP',
+    'linkedin.com/in/exemplo',
+    'github.com/exemplo',
+    'https://example.com',
+    'Experiência e projetos',
+    'borderBottomWidth',
+    '#193b60',
+  ])
+    expect(tree).toContain(value);
 });

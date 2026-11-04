@@ -6,7 +6,11 @@ import { expectCookieAtViewportCorner } from './helpers/viewport-evidence';
 for (const withResume of [true, false]) {
   test(`HTTP real: ${withResume ? 'currículo ruim' : 'sem currículo e sem áudio'} até PDF e biblioteca`, async ({
     page,
+    context,
   }, testInfo) => {
+    await context.addCookies([
+      { name: 'analytics_consent', value: 'denied', url: 'http://127.0.0.1:3100' },
+    ]);
     if (!withResume) {
       await page.setViewportSize({ width: 390, height: 844 });
       // The previous scenario's writing reservation shares the provider minute window.
@@ -35,7 +39,7 @@ for (const withResume of [true, false]) {
         statuses.push(response.status());
     });
     await page.goto('/conversa');
-    await page.getByRole('button', { name: 'Agora não' }).click();
+    await expectCookieAtViewportCorner(page);
     if (withResume) {
       await page
         .getByLabel('Colar o texto')

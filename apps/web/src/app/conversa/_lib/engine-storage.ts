@@ -95,6 +95,10 @@ export function deleteEngine(): Promise<void> {
 }
 export interface HeaderProfile {
   professionalTitle?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
   name: string;
   email: string;
   phone: string;

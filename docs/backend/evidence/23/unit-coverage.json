@@ -123,5 +123,35 @@
     "branches": 100,
     "functions": 100,
     "lines": 100
+  },
+  "web/src/app/conversa/_components/header-profile.tsx": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "web/src/app/conversa/_components/resume-review.tsx": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "web/src/app/conversa/_lib/render-pdf.tsx": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "web/src/app/conversa/_lib/resume-presentation.ts": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "web/src/app/meus-curriculos/resume-library.tsx": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
   }
 }

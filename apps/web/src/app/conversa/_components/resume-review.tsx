@@ -14,6 +14,7 @@ import { useRetainedDraft } from './use-retained-draft';
 import type { ExportArtifact } from '../_lib/pdf-contract';
 import { completeResume } from '../_lib/completed-resumes';
 import { cleanupJourney } from '../_lib/cleanup-journey';
+import { contactLine, PROFILE_FIELDS, resumeBlocks } from '../_lib/resume-presentation';
 import { PdfPreview } from './pdf-preview';
 import { PdfExport } from './pdf-export';
 import { TurnstileChallenge } from './turnstile-challenge';
@@ -386,14 +387,16 @@ export function ResumeReview({
                 {profile.professionalTitle && (
                   <p className="resume-professional-title">{profile.professionalTitle}</p>
                 )}
-                <p className="resume-contacts">
-                  {[profile.email, profile.phone].filter(Boolean).join(' · ')}
-                </p>
+                <p className="resume-contacts">{contactLine(profile)}</p>
               </header>
-              {writing.draft.sections.map((section) => (
-                <section key={section.id} className="resume-edit-block">
+              {resumeBlocks(writing.draft.sections).map(({ section, areaTitle, isExperience }) => (
+                <section
+                  key={section.id}
+                  className={`resume-edit-block ${isExperience ? 'resume-experience' : 'resume-area'}`}
+                >
+                  {areaTitle && <h2 className="resume-area-title">{areaTitle}</h2>}
                   <div className="resume-section-heading">
-                    <h2>{section.title}</h2>
+                    {isExperience ? <h3>{section.title}</h3> : <h2>{section.title}</h2>}
                     {editable && (
                       <button
                         type="button"
@@ -406,7 +409,9 @@ export function ResumeReview({
                     )}
                   </div>
                   {section.units.map((unit) => (
-                    <p key={unit.id}>{unit.text}</p>
+                    <p key={unit.id} className={isExperience ? 'resume-bullet' : undefined}>
+                      {unit.text}
+                    </p>
                   ))}
                 </section>
               ))}
@@ -472,16 +477,9 @@ export function ProfileEditor({
       <p className="resume-editor-context">Cabeçalho do currículo</p>
       {draftError && <p role="alert">{draftError}</p>}
       <p>Nome e contatos ficam neste aparelho e não são enviados à IA.</p>
-      {(['name', 'professionalTitle', 'email', 'phone'] as const).map((key) => (
+      {PROFILE_FIELDS.map(([key, label]) => (
         <label key={key}>
-          {
-            {
-              name: 'Nome',
-              professionalTitle: 'Título profissional',
-              email: 'E-mail',
-              phone: 'Telefone',
-            }[key]
-          }
+          {label}
           <input
             maxLength={200}
             value={value[key] ?? ''}

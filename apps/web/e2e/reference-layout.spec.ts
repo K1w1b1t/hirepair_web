@@ -30,6 +30,14 @@ for (const reference of PRESENTATION_REFERENCES) {
     await expect(page.getByRole('button', { name: 'Aprovar currículo', exact: true })).toBeEnabled({
       timeout: 15000,
     });
+    await expect(
+      page.getByRole('heading', { name: 'Experiência e projetos', exact: true }),
+    ).toBeVisible();
+    await expectCookieAtViewportCorner(page);
+    await page.screenshot({
+      path: resolve(evidence, `${reference.id}-review-viewport.png`),
+      fullPage: false,
+    });
     await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
     await page.waitForURL(/meus-curriculos\/[^/]+$/);
     await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(
@@ -56,11 +64,24 @@ for (const reference of PRESENTATION_REFERENCES) {
       }),
     );
     const text = pages.join(' ').replace(/\s+/g, ' ').trim();
+    for (const value of [
+      reference.input.profile.name,
+      reference.input.profile.email,
+      reference.input.profile.phone,
+      reference.input.profile.location!,
+      reference.input.profile.linkedin!,
+      reference.input.profile.github!,
+      reference.input.profile.portfolio!,
+      'Experiência e projetos',
+    ])
+      expect(text.toLocaleLowerCase('pt-BR')).toContain(value.toLocaleLowerCase('pt-BR'));
     for (const section of reference.input.document.sections) {
-      expect(text).toContain(section.title);
+      expect(text.toLocaleLowerCase('pt-BR')).toContain(section.title.toLocaleLowerCase('pt-BR'));
       const headingPage = pages
         .map((value) => value.replace(/\s+/g, ' ').trim())
-        .find((value) => value.includes(section.title));
+        .find((value) =>
+          value.toLocaleLowerCase('pt-BR').includes(section.title.toLocaleLowerCase('pt-BR')),
+        );
       expect(headingPage).toContain(section.units[0].text);
       for (const unit of section.units) expect(text).toContain(unit.text);
     }

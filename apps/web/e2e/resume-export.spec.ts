@@ -97,7 +97,7 @@ test('estado vazio, retomada e descarte confirmado', async ({ page, context }) =
 test('duas páginas preservam todas as palavras e excesso retorna pendência', async ({ page }) => {
   const longName =
     'Ana Exemplo Sintética de Albuquerque dos Santos Oliveira Costa Ferreira de Souza e Silva';
-  await seedReview(page, 'E_SPECIALIST', 24, longName);
+  await seedReview(page, 'E_SPECIALIST', 48, longName);
   await expect(page.getByRole('button', { name: 'Aprovar currículo', exact: true })).toBeEnabled();
   await expect(page.locator('.pdf-pages')).toHaveCount(0);
   await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
@@ -120,9 +120,9 @@ test('duas páginas preservam todas as palavras e excesso retorna pendência', a
     longName,
     'Atendente',
     'ana@example.com',
-    'Experiência profissional',
+    'EXPERIÊNCIA PROFISSIONAL',
     ...Array.from(
-      { length: 24 },
+      { length: 48 },
       (_, i) =>
         `Atendeu clientes com atenção e organização. Experiência ${i + 1} — São Paulo, 2024–2026. https://example.com/projeto`,
     ),
@@ -131,7 +131,7 @@ test('duas páginas preservam todas as palavras e excesso retorna pendência', a
   await task.destroy();
   await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(2);
   await page.screenshot({ path: `${evidence}/two-pages-desktop.png`, fullPage: true });
-  await seedReview(page, 'A_FIRST_JOB', 24);
+  await seedReview(page, 'A_FIRST_JOB', 48);
   await expect(page.locator('.resume-review').getByRole('alert')).toContainText(
     'ultrapassou o limite de 1 página',
   );

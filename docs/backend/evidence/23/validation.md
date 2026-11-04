@@ -111,3 +111,40 @@ os dois PDFs completos e posição do controle antes/depois da rolagem.
 mediu 100% nas quatro métricas do renderizador alterado. As duas jornadas HTTP
 integradas foram executadas anteriormente; nesta revisão suas mudanças se limitam
 a capturas e asserções de posição, com nova execução pela CI.
+
+## Padrão visual do currículo — revisão das referências locais
+
+O layout `reference-column-v3` usa cabeçalho azul com nome, título profissional
+e contatos em linha, divisória principal e títulos de áreas em caixa alta com
+linhas finas. Experiências identificadas pelo contrato `experienceId` ficam sob
+“Experiência e projetos”, com subtítulos em negrito e marcadores. Não se infere
+tipo de experiência a partir do texto nem se reordena ou elimina conteúdo.
+A conferência editável segue essa hierarquia; aprovado e download usam o mesmo
+PDF armazenado. Arquivos já aprovados não são alterados retroativamente.
+
+O editor local oferece nome, título, cidade/UF, e-mail, telefone, LinkedIn,
+GitHub e portfólio/site. Campos ausentes em perfis antigos continuam opcionais;
+somente dados preenchidos pela pessoa entram no cabeçalho, sem envio à IA.
+Não se acrescentam foto, documentos, endereço completo ou informações inferidas.
+As referências de engenharia e software continuam anonimizadas e manuais,
+com PDFs completos de uma e duas páginas, sem atribuição de geração pela IA.
+
+A correção da CI cobre duas causas verificadas: rejeição de Promise sem um
+`Error` no helper de IndexedDB (SonarCloud) e CSS que ocultava o controle de consentimento durante toda a entrevista,
+inclusive a conferência. A regra foi removida e o teste integrado configura
+consentimento negado antes da navegação; chamadas reais de IA continuam desativadas.
+
+As evidências atuais incluem `*-review-viewport.png` para a conferência e
+`*-desktop-viewport.png`/`*-mobile-viewport.png` para o aprovado, além das páginas
+extraídas do PDF baixado. Contatos diretos ficam em uma linha; links profissionais
+em outra, com quebra natural em telas estreitas. Os cenários verificam todos os
+campos preenchidos no PDF, todos os parágrafos e os limites de páginas, além de
+título e primeiro parágrafo juntos. O cenário artificial de duas páginas usa
+48 itens após a compactação visual, preservando a comparação integral do texto.
+
+Validação final do design: `npm run test:e2e` — 25 cenários passaram.
+`npm run test` — 958 testes passaram (296 API, 435 web, 227 motor).
+A cobertura unitária dos cinco módulos de apresentação alterados é 100% em
+instruções, ramos, funções e linhas: renderizador, apresentação compartilhada,
+cabeçalho, conferência e alternativa acessível da biblioteca. O teste de
+contatos em duas linhas e a alternativa acessível falharam antes da implementação.

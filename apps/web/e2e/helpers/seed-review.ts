@@ -65,7 +65,8 @@ export async function seedReview(
       const open = indexedDB.open('hirepair-interview', 1);
       await new Promise<void>((resolve, reject) => {
         open.onupgradeneeded = () => open.result.createObjectStore('session');
-        open.onerror = () => reject(open.error);
+        open.onerror = () =>
+          reject(new Error('Não foi possível abrir IndexedDB', { cause: open.error }));
         open.onsuccess = () => {
           const db = open.result,
             tx = db.transaction('session', 'readwrite'),
