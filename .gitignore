@@ -46,3 +46,6 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# Local evaluation traces and visitor credentials
+eval-runs/

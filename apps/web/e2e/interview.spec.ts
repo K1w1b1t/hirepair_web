@@ -4,8 +4,14 @@ import { preparationFixture } from '../test/preparation';
 import { mockGuestChallenge } from './helpers/guest-challenge';
 import type { InterviewBlockRequest, Session } from '@hirepair/interview-engine';
 async function captureScreen(page: Page, options: NonNullable<Parameters<Page['screenshot']>[0]>) {
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return window.scrollY;
+      }),
+    )
+    .toBe(0);
   return page.screenshot(options);
 }
 async function savedState(page: Page) {

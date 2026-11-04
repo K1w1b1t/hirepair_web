@@ -26,7 +26,9 @@
     "test:operational": "ts-node test/operational.redis.integration.ts",
     "prebuild": "npm run build -w @hirepair/interview-engine",
     "eval:interview": "ts-node scripts/interview-eval.ts",
-    "eval:writing": "ts-node scripts/writing-eval.ts"
+    "eval:writing": "ts-node scripts/writing-eval.ts",
+    "eval:journey": "ts-node scripts/journey-eval.ts",
+    "test:journey:http": "ts-node test/journey.http.integration.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

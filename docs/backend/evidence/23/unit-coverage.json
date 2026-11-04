@@ -1,0 +1,102 @@
+{
+  "engine/block.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/contracts.ts": {
+    "statements": 100.0,
+    "functions": 100,
+    "branches": 100
+  },
+  "engine/diagnostic.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/engine.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/experience-findings.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/fixtures.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100
+  },
+  "engine/guided-eval.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/guided.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/index.ts": {
+    "statements": 100.0,
+    "functions": 100,
+    "branches": 100
+  },
+  "engine/interview.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/journey-evaluation.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/journey-runner.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/negative-answer.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/pending-turns.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/resume-knowledge.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100
+  },
+  "engine/schemas.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/timeline.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/writing-evaluation.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "engine/writing.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  },
+  "web/interview-blocks.ts": {
+    "statements": 100.0,
+    "functions": 100.0,
+    "branches": 100.0
+  }
+}

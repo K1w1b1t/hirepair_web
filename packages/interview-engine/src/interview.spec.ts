@@ -417,3 +417,35 @@ it('selects consolidated confirmation after the person has explicitly kept usabl
   s.links[0].declarationTurnId = 't';
   expect(nextAction(s).kind).toBe('review');
 });
+
+it('refreshes writing strategy after extracting evidence with and without an imported resume', () => {
+  const noDocument = answerInterview(session(), turn());
+  const result = incorporateBlock(noDocument, block(noDocument), ['t'], 'new-facts');
+  expect(result.strategy).toMatchObject({
+    valid: true,
+    inputs: result.inputs,
+    archetype: 'A_FIRST_JOB',
+  });
+  const imported = prepare({ ...session(), phase: 'preparation' }, extraction, analysis);
+  const answered = { ...noDocument, strategy: imported.strategy };
+  const changed = incorporateBlock(answered, block(answered), ['t'], 'new-facts');
+  expect(changed.strategy).toMatchObject({
+    valid: true,
+    inputs: changed.inputs,
+    archetype: analysis.archetype,
+  });
+  const analyzed = incorporateBlock(
+    noDocument,
+    {
+      ...block(noDocument),
+      analysis: { ...analysis, archetype: 'E_SPECIALIST', reason: 'Evidência técnica declarada.' },
+    },
+    ['t'],
+    'new-facts',
+  );
+  expect(analyzed.strategy).toMatchObject({
+    archetype: 'E_SPECIALIST',
+    tone: 'TECHNICAL',
+    reason: 'Evidência técnica declarada.',
+  });
+});

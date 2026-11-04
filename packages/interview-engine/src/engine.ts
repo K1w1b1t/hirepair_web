@@ -191,6 +191,23 @@ const tones: Record<Strategy['archetype'], Strategy['tone']> = {
   D_SAME_FIELD_RETURN: 'NEUTRAL',
   E_SPECIALIST: 'TECHNICAL',
 };
+export function strategyFor(
+  s: Session,
+  archetype: Strategy['archetype'],
+  reason: string,
+): Strategy {
+  return {
+    id: 'strategy',
+    version: (s.strategy?.version ?? 0) + 1,
+    inputs: { ...s.inputs },
+    dependencies: ['resumes', 'job', 'objective', 'facts'],
+    valid: true,
+    archetype,
+    tone: tones[archetype],
+    reason,
+    formula: archetype === 'C_OPERATIONAL' ? 'SCOPE_COMPLIANCE' : 'CAR',
+  };
+}
 export function prepare(s: Session, extraction: Extraction, analysis: CriteriaAnalysis): Session {
   if (s.phase !== 'preparation' || !s.objective) throw new Error('INVALID_PREPARATION');
   const facts: Fact[] = extraction.facts.map((f) => ({
@@ -208,17 +225,7 @@ export function prepare(s: Session, extraction: Extraction, analysis: CriteriaAn
     criteria: analysis.criteria,
     links: analysis.links,
     phase: 'interview',
-    strategy: {
-      id: 'strategy',
-      version: (s.strategy?.version ?? 0) + 1,
-      inputs: { ...s.inputs },
-      dependencies: ['resumes', 'job', 'objective', 'facts'],
-      valid: true,
-      archetype: analysis.archetype,
-      tone: tones[analysis.archetype],
-      reason: analysis.reason,
-      formula: analysis.archetype === 'C_OPERATIONAL' ? 'SCOPE_COMPLIANCE' : 'CAR',
-    },
+    strategy: strategyFor(s, analysis.archetype, analysis.reason),
   };
   return { ...updated, plan: replan(updated) };
 }

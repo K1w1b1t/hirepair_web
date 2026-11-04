@@ -14,7 +14,15 @@ const eslintConfig = [
   // `eslint .` varreria a saida do build. Sem isto o lint passa antes do build
   // e falha depois, so pela ordem em que os comandos rodam.
   {
-    ignores: ['.next/**', 'out/**', 'build/**', 'coverage/**', 'next-env.d.ts'],
+    ignores: [
+      '.next/**',
+      'out/**',
+      'build/**',
+      'coverage/**',
+      'next-env.d.ts',
+      'playwright-report/**',
+      'test-results/**',
+    ],
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 ];

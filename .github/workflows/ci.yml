@@ -94,6 +94,9 @@ jobs:
       - name: Evaluate grounded writing fixtures without provider calls
         run: npm run eval:writing -w apps/api
 
+      - name: Evaluate complete journey contracts without provider calls
+        run: npm run eval:journey -w apps/api
+
       - name: Run build
         run: npm run build
 
@@ -154,5 +157,58 @@ jobs:
           name: playwright-report
           path: |
             apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: warn
+
+  journey-integration:
+    name: Real HTTP journey and PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality-and-build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hirepair_eval
+          POSTGRES_USER: hirepair
+          POSTGRES_PASSWORD: hirepair_secret
+        ports:
+          - 15434:5432
+        options: >-
+          --health-cmd "pg_isready -U hirepair -d hirepair_eval"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 16379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hirepair:hirepair_secret@127.0.0.1:15434/hirepair_eval
+      INTEGRATION_DATABASE_URL: postgresql://hirepair:hirepair_secret@127.0.0.1:15434/hirepair_eval
+      INTEGRATION_REDIS_URL: redis://127.0.0.1:16379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npm run test:journey:http -w apps/api
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:integration -w apps/web
+      - name: Upload synthetic journey evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-integration
+          path: |
+            apps/web/playwright-report/integration/
             apps/web/test-results/
           if-no-files-found: warn
