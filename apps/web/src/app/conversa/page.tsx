@@ -1,3 +1,4 @@
+import { JourneyOwner } from './_components/journey-owner';
 import type { Metadata } from 'next';
 import { ConversationPageClient } from './_components/conversation-page-client';
 
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ConversationPage() {
-  return <ConversationPageClient />;
+  return (
+    <JourneyOwner>
+      <ConversationPageClient />
+    </JourneyOwner>
+  );
 }

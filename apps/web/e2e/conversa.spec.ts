@@ -50,7 +50,7 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByText('Engenheiro de software').filter({ visible: true })).toHaveCount(0);
   });
 
-  test('separa vaga e recomendações em etapas claras', async ({ page }) => {
+  test('persiste a vaga e retoma a entrevista apesar de uma URL antiga', async ({ page }) => {
     await mockGuestChallenge(page);
 
     await page.route('**/guest/access', async (route) => {
@@ -81,6 +81,14 @@ test.describe('wizard acolhedor', () => {
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: 'test-results/43-objetivo.png', fullPage: true });
     await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+    await page.reload();
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
+      'Vaga para engenheiro mecânico.',
+    );
+    await page.getByLabel(/requisitos da vaga/i).fill('Vaga corrigida');
+    await page.reload();
+    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue('Vaga corrigida');
+    await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
     await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
     await page.getByLabel('Objetivo provisório').selectOption('yes');
     await page.getByRole('checkbox').check();
@@ -97,16 +105,12 @@ test.describe('wizard acolhedor', () => {
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.goto('/conversa?etapa=job');
-    await expect(page).toHaveURL(/etapa=job/);
-    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
-      'Vaga para engenheiro mecânico.',
-    );
-    await page.getByLabel(/requisitos da vaga/i).fill('Vaga corrigida');
-    await page.reload();
-    await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue('Vaga corrigida');
-    await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
-    page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }).click();
+    await expect(page).toHaveURL(/etapa=interview/);
+    await expect(page.getByRole('textbox', { name: 'Sua resposta' })).toBeVisible();
+    await page.getByRole('button', { name: 'Voltar para home' }).click();
+    await page.getByRole('button', { name: 'Sair e descartar' }).click();
+    await expect(page).toHaveURL('/');
+    await page.getByRole('link', { name: 'Começar a conversa' }).click();
     await expect(page.getByRole('heading', { name: /jornada profissional/i })).toBeVisible();
     await expect(page.getByText('Mecânico de manutenção industrial.')).toHaveCount(0);
   });

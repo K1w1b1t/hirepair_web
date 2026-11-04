@@ -1,3 +1,4 @@
+jest.mock('./journey-resume', () => ({ JourneyResume: () => null }));
 import { render, screen } from '@testing-library/react';
 import Home from './page';
 

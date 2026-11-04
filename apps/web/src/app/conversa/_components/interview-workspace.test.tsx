@@ -1,3 +1,7 @@
+jest.mock('../_lib/journey-progress', () => ({
+  readLocalDraft: jest.fn(async () => null),
+  saveLocalDraft: jest.fn(async () => {}),
+}));
 import { serialize, deserialize } from 'node:v8';
 Object.defineProperty(globalThis, 'structuredClone', {
   configurable: true,

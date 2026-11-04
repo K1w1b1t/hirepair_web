@@ -1,4 +1,8 @@
 import { purgeRaw, type Session } from '@hirepair/interview-engine';
+let writeGeneration = 0;
+export function invalidateEngineWrites(): void {
+  writeGeneration++;
+}
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -11,7 +15,7 @@ function database(): Promise<IDBDatabase> {
     request.onerror = () => reject(new Error('LOCAL_STORAGE_UNAVAILABLE'));
   });
 }
-async function transaction<T>(
+export async function transaction<T>(
   mode: IDBTransactionMode,
   operation: (store: IDBObjectStore, set: (value: T) => void, fail: (error: Error) => void) => void,
 ): Promise<T> {
@@ -60,11 +64,13 @@ export function saveEngine(
   expectedRevision: number | null,
   profile?: HeaderProfile,
 ): Promise<void> {
+  const generation = writeGeneration;
   return transaction('readwrite', (store, set, fail) => {
     const request = store.get('active');
     request.onsuccess = () => {
       const current = request.result as Session | undefined;
       if (
+        generation !== writeGeneration ||
         (current?.revision ?? null) !== expectedRevision ||
         (current && current.id !== session.id)
       ) {
@@ -78,8 +84,12 @@ export function saveEngine(
   });
 }
 export function deleteEngine(): Promise<void> {
+  invalidateEngineWrites();
   return transaction('readwrite', (store, set) => {
-    store.clear();
+    store.delete('active');
+    store.delete('header-profile');
+    store.delete('journey');
+    store.delete('drafts');
     set(undefined);
   });
 }
