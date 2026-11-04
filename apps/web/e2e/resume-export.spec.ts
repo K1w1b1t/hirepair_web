@@ -171,7 +171,7 @@ test('aprova, baixa o PDF exato e reabre pela biblioteca', async ({ page }) => {
   await expect(page.getByRole('article', { name: 'Versão textual do currículo' })).toHaveClass(
     'sr-only',
   );
-  await page.screenshot({ path: `${evidence}/approved-desktop.png`, fullPage: true });
+  await page.screenshot({ path: `${evidence}/approved-desktop.png`, fullPage: false });
   await page.getByRole('link', { name: 'Voltar para home' }).click();
   await expect(page).toHaveURL('/');
   await page.screenshot({ path: `${evidence}/home-desktop.png`, fullPage: false });
@@ -194,7 +194,7 @@ test('aprova, baixa o PDF exato e reabre pela biblioteca', async ({ page }) => {
       .digest('hex'),
   ).toBe(downloadedHash);
   await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(1);
-  await page.screenshot({ path: `${evidence}/approved-mobile.png`, fullPage: true });
+  await page.screenshot({ path: `${evidence}/approved-mobile.png`, fullPage: false });
 });
 test('estado vazio, retomada e descarte confirmado', async ({ page, context }) => {
   await page.goto('/meus-curriculos');
