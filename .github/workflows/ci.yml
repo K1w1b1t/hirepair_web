@@ -82,7 +82,7 @@ jobs:
       - name: Enforce complete unit coverage for interview changes
         run: |
           npm run test:cov -w @hirepair/interview-engine
-          npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,interview-blocks,journey-storage}.ts' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
+          npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom='src/app/conversa/_components/{conversation-page-client,header-profile,interview-workspace,job-example-step,resume-review,voice-text-field,wizard-shell}.tsx' --collectCoverageFrom='src/app/conversa/_components/use-guided-voice.ts' --collectCoverageFrom='src/app/conversa/_lib/{engine-storage,guest-api,interview-session,interview-blocks,journey-storage,resume-presentation}.ts' --collectCoverageFrom='src/app/conversa/_lib/render-pdf.tsx' --collectCoverageFrom='src/app/meus-curriculos/resume-library.tsx' --collectCoverageFrom='src/analytics/analytics.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
           npm run test:cov -w @hirepair/api -- --runInBand --collectCoverageFrom='{guest/{guest-quota.service,guest.module},interview/{block.service,preparation.controller,evaluation},operational/ai-budget.service}.ts' --coverageThreshold='{"global":{"statements":100,"branches":100,"functions":100,"lines":100}}'
 
       - name: Validate operational limits against disposable Redis
@@ -93,6 +93,9 @@ jobs:
 
       - name: Evaluate grounded writing fixtures without provider calls
         run: npm run eval:writing -w apps/api
+
+      - name: Evaluate complete journey contracts without provider calls
+        run: npm run eval:journey -w apps/api
 
       - name: Run build
         run: npm run build
@@ -154,5 +157,64 @@ jobs:
           name: playwright-report
           path: |
             apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: warn
+
+  journey-integration:
+    name: Real HTTP journey and PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality-and-build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hirepair_eval
+          POSTGRES_USER: hirepair
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+        ports:
+          - 15434:5432
+        options: >-
+          --health-cmd "pg_isready -U hirepair -d hirepair_eval"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 16379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ${{ format('postgresql://hirepair:{0}@127.0.0.1:15434/hirepair_eval', github.run_id) }}
+      INTEGRATION_DATABASE_URL: ${{ format('postgresql://hirepair:{0}@127.0.0.1:15434/hirepair_eval', github.run_id) }}
+      INTEGRATION_REDIS_URL: redis://127.0.0.1:16379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Install locked dependencies without implicit lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Initialize the audited Prisma engine and workspace artifacts
+        run: |
+          node node_modules/@prisma/engines/scripts/postinstall.js
+          npm run db:generate
+          npm run build -w @hirepair/interview-engine
+      - run: npm run db:deploy
+      - run: npm run test:journey:http -w apps/api
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
+      - run: npm run test:e2e:integration -w apps/web
+      - name: Upload synthetic journey evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-integration
+          path: |
+            apps/web/playwright-report/integration/
             apps/web/test-results/
           if-no-files-found: warn

@@ -1,142 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { mockGuestChallenge } from './helpers/guest-challenge';
+import { seedReview } from './helpers/seed-review';
 test.beforeEach(async ({ page }) => {
   await mockGuestChallenge(page);
 });
-import { createWritingTestSession } from '../test/writing';
-import { startGuided, type Session } from '@hirepair/interview-engine';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 const evidence = resolve(__dirname, '../../../docs/backend/evidence/20');
-async function seedReview(
-  page: Page,
-  archetype = 'D_SAME_FIELD_RETURN',
-  units = 3,
-  profileName = 'Ana Exemplo Sintética',
-) {
-  await page.goto('/meus-curriculos');
-  if (await page.getByRole('button', { name: 'Agora não' }).isVisible())
-    await page.getByRole('button', { name: 'Agora não' }).click();
-  const s = startGuided(createWritingTestSession());
-  s.guided!.status = 'complete';
-  s.writing = {
-    status: 'review',
-    key: 'writing',
-    inputHash: 'input',
-    approval: null,
-    original: null,
-    draft: {
-      version: 1,
-      explanation: 'Fixture sintética #20',
-      sections: [
-        {
-          id: 'summary',
-          title: 'Experiência profissional',
-          experienceId: null,
-          units: Array.from({ length: units }, (_, i) => ({
-            id: `u${i}`,
-            text: `Atendeu clientes com atenção e organização. Experiência ${i + 1} — São Paulo, 2024–2026. https://example.com/projeto`,
-            factIds: ['f'],
-            criterionIds: [],
-          })),
-        },
-      ],
-    },
-  };
-  s.strategy = {
-    id: 'strategy',
-    version: 1,
-    valid: true,
-    inputs: s.inputs,
-    dependencies: [],
-    archetype: archetype as NonNullable<Session['strategy']>['archetype'],
-    tone: 'DIRECT',
-    reason: 'Fixture sintética',
-    formula: 'CAR',
-  };
-  const draft = {
-    hasJob: false,
-    jobText: '',
-    targetRole: 'Atendente',
-    objective: 'ENTER_FAST',
-    accepted: false,
-  };
-  const inputHash = createHash('sha256')
-    .update(JSON.stringify({ documents: [], draft }))
-    .digest('hex');
-  await page.evaluate(
-    async ({ s, draft, inputHash, profileName }) => {
-      const open = indexedDB.open('hirepair-interview', 1);
-      await new Promise<void>((resolve, reject) => {
-        open.onupgradeneeded = () => open.result.createObjectStore('session');
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result,
-            tx = db.transaction('session', 'readwrite'),
-            store = tx.objectStore('session');
-          store.put(s, 'active');
-          store.put(
-            {
-              name: profileName,
-              professionalTitle: 'Atendente',
-              email: 'ana@example.com',
-              phone: '',
-              confirmed: true,
-            },
-            'header-profile',
-          );
-          store.put({ id: 'journey', phase: 'interview', withoutResume: true }, 'journey');
-          tx.oncomplete = () => {
-            db.close();
-            resolve();
-          };
-        };
-      });
-      localStorage.setItem(
-        'hirepair_job_analysis',
-        JSON.stringify({
-          version: 3,
-          draft,
-          inputHash,
-          preferences: {
-            archetype: s.strategy!.archetype,
-            objective: 'ENTER_FAST',
-            tone: 'DIRECT',
-          },
-          result: {
-            targetRole: 'Atendente',
-            summary: 'Fixture sintética',
-            requirements: [],
-            suggestedArchetype: s.strategy!.archetype,
-            suggestedObjective: 'ENTER_FAST',
-            suggestedTone: 'DIRECT',
-            reason: 'Fixture sintética',
-          },
-        }),
-      );
-    },
-    { s, draft, inputHash, profileName },
-  );
-  // Calculate with the exact production fingerprint shape in the browser fixture.
-  await page.evaluate(async () => {
-    const value = JSON.parse(localStorage.getItem('hirepair_job_analysis')!);
-    const payload = JSON.stringify({
-      version: 2,
-      objective: value.draft.objective,
-      provisional: !!value.draft.provisional,
-      documents: [],
-      hasJob: value.draft.hasJob,
-      target: value.draft.targetRole,
-    });
-    value.inputHash = Array.from(
-      new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))),
-      (b) => b.toString(16).padStart(2, '0'),
-    ).join('');
-    localStorage.setItem('hirepair_job_analysis', JSON.stringify(value));
-  });
-  await page.goto('/conversa?etapa=interview&sem-curriculo=1');
-}
 test('aprova, baixa o PDF exato e reabre pela biblioteca', async ({ page }) => {
   await seedReview(page);
   await expect(page.getByRole('heading', { name: 'Confira seu currículo' })).toBeVisible();
@@ -226,7 +97,7 @@ test('estado vazio, retomada e descarte confirmado', async ({ page, context }) =
 test('duas páginas preservam todas as palavras e excesso retorna pendência', async ({ page }) => {
   const longName =
     'Ana Exemplo Sintética de Albuquerque dos Santos Oliveira Costa Ferreira de Souza e Silva';
-  await seedReview(page, 'E_SPECIALIST', 24, longName);
+  await seedReview(page, 'E_SPECIALIST', 48, longName);
   await expect(page.getByRole('button', { name: 'Aprovar currículo', exact: true })).toBeEnabled();
   await expect(page.locator('.pdf-pages')).toHaveCount(0);
   await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
@@ -249,9 +120,9 @@ test('duas páginas preservam todas as palavras e excesso retorna pendência', a
     longName,
     'Atendente',
     'ana@example.com',
-    'Experiência profissional',
+    'EXPERIÊNCIA PROFISSIONAL',
     ...Array.from(
-      { length: 24 },
+      { length: 48 },
       (_, i) =>
         `Atendeu clientes com atenção e organização. Experiência ${i + 1} — São Paulo, 2024–2026. https://example.com/projeto`,
     ),
@@ -260,7 +131,7 @@ test('duas páginas preservam todas as palavras e excesso retorna pendência', a
   await task.destroy();
   await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(2);
   await page.screenshot({ path: `${evidence}/two-pages-desktop.png`, fullPage: true });
-  await seedReview(page, 'A_FIRST_JOB', 24);
+  await seedReview(page, 'A_FIRST_JOB', 48);
   await expect(page.locator('.resume-review').getByRole('alert')).toContainText(
     'ultrapassou o limite de 1 página',
   );

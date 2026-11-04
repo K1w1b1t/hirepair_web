@@ -83,3 +83,22 @@ it('keeps approved sections accessible without a visible textual panel', async (
     'sr-only',
   );
 });
+it('preserves every stored contact in the accessible approved version', async () => {
+  (readCompletedResume as jest.Mock).mockResolvedValue({
+    ...fixture,
+    profile: {
+      ...fixture.profile,
+      location: 'Cidade, SP',
+      email: 'ana@example.com',
+      phone: '123',
+      linkedin: 'linkedin.com/in/exemplo',
+      github: 'github.com/exemplo',
+      portfolio: 'https://example.com',
+    },
+  });
+  render(<ResumeLibrary id="r" />);
+  await screen.findByText('Baixar PDF');
+  expect(screen.getByRole('article', { name: 'Versão textual do currículo' })).toHaveTextContent(
+    'Cidade, SP | 123 | ana@example.com linkedin.com/in/exemplo | github.com/exemplo | https://example.com',
+  );
+});

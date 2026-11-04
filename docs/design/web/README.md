@@ -78,3 +78,26 @@ desta entrega. Ver [ADR 0020](../../architecture/adr-0020-local-pdf-library.md).
 
 O botão **Preferências de cookies** fica fixo no canto inferior direito da janela
 em todas as telas, inclusive após rolagem, respeitando a área segura do aparelho.
+
+Os títulos de seção dos novos PDFs acompanham o início do texto na paginação
+(`single-column-v2`), mantendo a quebra de parágrafos longos e os limites de páginas.
+Evidências da interface devem capturar a viewport; um PDF integral é um artefato
+separado. Exemplos de apresentação com conteúdo manual devem ser identificados
+como referências esperadas, sem atribuição de geração ao motor de IA.
+
+## Padrão visual do currículo — revisão das referências locais
+
+O layout `reference-column-v3` usa cabeçalho azul com nome, título profissional
+e contatos em linha, divisória principal e títulos de áreas em caixa alta com
+linhas finas. Experiências identificadas pelo contrato `experienceId` ficam sob
+“Experiência e projetos”, com subtítulos em negrito e marcadores. Não se infere
+tipo de experiência a partir do texto nem se reordena ou elimina conteúdo.
+A conferência editável segue essa hierarquia; aprovado e download usam o mesmo
+PDF armazenado. Arquivos já aprovados não são alterados retroativamente.
+
+O editor local oferece nome, título, cidade/UF, e-mail, telefone, LinkedIn,
+GitHub e portfólio/site. Campos ausentes em perfis antigos continuam opcionais;
+somente dados preenchidos pela pessoa entram no cabeçalho, sem envio à IA.
+Não se acrescentam foto, documentos, endereço completo ou informações inferidas.
+As referências de engenharia e software continuam anonimizadas e manuais,
+com PDFs completos de uma e duas páginas, sem atribuição de geração pela IA.

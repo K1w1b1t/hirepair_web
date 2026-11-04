@@ -6,7 +6,7 @@ import {
   type InterviewBlockRequest,
   type InterviewBlockResult,
   type Session,
-  type Turn,
+  pendingInterviewTurns,
 } from '@hirepair/interview-engine';
 import { sanitizeMaterial } from './sanitize-material';
 import type { JobDraft } from './job-analysis';
@@ -17,19 +17,7 @@ export interface BlockPlan {
   deferred: boolean;
   blocked: boolean;
 }
-export function pendingInterviewTurns(s: Session): Turn[] {
-  const analyzed = new Set(interviewState(s).analyzedTurnIds);
-  return s.turns.filter(
-    (t) =>
-      !analyzed.has(t.id) &&
-      !!t.answer.text &&
-      (['specific', 'vague'].includes(t.answer.kind) ||
-        (t.answer.kind === 'absence' &&
-          t.question.topicId !== 'guided:first' &&
-          t.question.topicId !== 'guided:first-informal' &&
-          !t.question.topicId.startsWith('guided:next:'))),
-  );
-}
+export { pendingInterviewTurns } from '@hirepair/interview-engine';
 export function planInterviewBlock(
   s: Session,
   draft: JobDraft,

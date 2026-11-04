@@ -73,7 +73,7 @@ it('renders unchanged text, links and hashes with a versioned layout', async () 
     pageCount: 1,
     mime: 'application/pdf',
     fileName: 'curriculo-Atendente.pdf',
-    layoutVersion: 'single-column-v1',
+    layoutVersion: 'reference-column-v3',
   });
   expect(artifact.fileHash).toHaveLength(64);
   expect(artifact.contentHash).toHaveLength(64);
@@ -109,4 +109,64 @@ it('blocks missing glyphs and propagates render failures', async () => {
     },
   });
   await expect(renderPdf(input)).rejects.toThrow('font failed');
+});
+
+it('reserves enough room after section headings for the first two body lines', async () => {
+  await renderPdf(input);
+  const tree: unknown = (pdf as jest.Mock).mock.calls.at(-1)[0];
+  const reserves: number[] = [];
+  const parents: unknown[] = [];
+  function inspect(node: unknown, parent?: unknown) {
+    if (Array.isArray(node)) return node.forEach((child) => inspect(child, parent));
+    if (node && typeof node === 'object' && 'props' in node) {
+      const props = (node as ReactElement<{ children?: unknown; minPresenceAhead?: number }>).props;
+      if (typeof props.minPresenceAhead === 'number') {
+        reserves.push(props.minPresenceAhead);
+        parents.push(parent);
+      }
+      inspect(props.children, (node as ReactElement).type);
+    }
+  }
+  inspect(tree);
+  expect(parents).toEqual(input.document.sections.map(() => 'page'));
+  expect(reserves).toHaveLength(input.document.sections.length);
+  // Two body lines (10pt × 1.45) plus the paragraph spacing must fit after the heading.
+  expect(reserves.every((space) => space >= 2 * 10 * 1.45 + 5)).toBe(true);
+});
+it('renders the reference hierarchy and complete contacts in the exported document', async () => {
+  const profile = {
+    ...input.profile,
+    location: 'Cidade, SP',
+    linkedin: 'linkedin.com/in/exemplo',
+    github: 'github.com/exemplo',
+    portfolio: 'https://example.com',
+  };
+  await renderPdf({
+    ...input,
+    profile,
+    document: {
+      ...input.document,
+      sections: [{ ...input.document.sections[0], experienceId: 'job' }],
+    },
+  });
+  const tree = JSON.stringify((pdf as jest.Mock).mock.calls.at(-1)[0]);
+  for (const value of [
+    'Cidade, SP',
+    'linkedin.com/in/exemplo',
+    'github.com/exemplo',
+    'https://example.com',
+    'Experiência e projetos',
+    'borderBottomWidth',
+    '#193b60',
+  ])
+    expect(tree).toContain(value);
+});
+it('keeps a clear gap and independent line heights between name and professional title', async () => {
+  await renderPdf(input);
+  const tree = (pdf as jest.Mock).mock.calls.at(-1)[0];
+  const header = tree.props.children.props.children[0];
+  const [name, title] = header.props.children;
+  expect(name.props.style.lineHeight).toBe(1.2);
+  expect(title.props.style.lineHeight).toBe(1.3);
+  expect(title.props.style.marginTop).toBeGreaterThanOrEqual(8);
 });

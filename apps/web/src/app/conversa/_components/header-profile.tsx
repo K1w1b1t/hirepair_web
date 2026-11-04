@@ -5,6 +5,7 @@ import {
   saveHeaderProfile,
   type HeaderProfile as Profile,
 } from '../_lib/engine-storage';
+import { PROFILE_FIELDS } from '../_lib/resume-presentation';
 const empty: Profile = { name: '', email: '', phone: '', confirmed: false };
 export function HeaderProfile() {
   const [profile, setProfile] = useState(empty);
@@ -40,13 +41,13 @@ export function HeaderProfile() {
     <details>
       <summary>Nome e contatos opcionais</summary>
       <p>Estes dados ficam separados dos relatos, neste aparelho, e não são enviados à IA.</p>
-      {(['name', 'email', 'phone'] as const).map((key) => (
+      {PROFILE_FIELDS.map(([key, label]) => (
         <label key={key} htmlFor={`header-${key}`}>
-          {{ name: 'Nome', email: 'E-mail', phone: 'Telefone' }[key]}
+          {label}
           <input
             id={`header-${key}`}
             maxLength={200}
-            value={profile[key]}
+            value={profile[key] ?? ''}
             disabled={busy}
             onChange={(event) =>
               setProfile({ ...profile, [key]: event.target.value, confirmed: false })

@@ -596,3 +596,16 @@ it('hides approved HTML sections while showing the PDF preview', async () => {
   expect(screen.getByRole('article', { name: 'Currículo' })).toHaveClass('sr-only');
   expect(screen.queryByRole('button', { name: 'Editar Resumo' })).not.toBeInTheDocument();
 });
+it('edits complete local contacts and presents experience entries under an area heading', async () => {
+  const s = reviewingSession();
+  s.writing!.draft!.sections[0].experienceId = 'job';
+  render(<Harness initial={s} />);
+  await act(async () => {});
+  expect(screen.getByRole('heading', { name: 'Experiência e projetos' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Editar nome e contatos' }));
+  for (const label of ['Cidade e estado', 'LinkedIn', 'GitHub', 'Portfólio ou site']) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: `${label} exemplo` } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+  expect(await screen.findByText(/Cidade e estado exemplo/)).toHaveTextContent('LinkedIn exemplo');
+});

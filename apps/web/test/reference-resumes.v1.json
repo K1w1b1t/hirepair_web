@@ -1,0 +1,365 @@
+[
+  {
+    "id": "engineering-entry",
+    "expectedPages": 1,
+    "input": {
+      "archetype": "A_FIRST_JOB",
+      "profile": {
+        "name": "Pessoa Exemplo — Engenharia",
+        "professionalTitle": "Estágio em Engenharia Mecânica",
+        "email": "engenharia@example.com",
+        "phone": "(11) 00000-0000",
+        "location": "Cidade Exemplo, SP",
+        "linkedin": "linkedin.com/in/perfil-exemplo",
+        "github": "github.com/perfil-exemplo",
+        "portfolio": "https://example.com/portfolio",
+        "confirmed": true
+      },
+      "document": {
+        "version": 1,
+        "explanation": "Referência esperada de apresentação, anonimizada e inserida manualmente. Não gerada por IA.",
+        "sections": [
+          {
+            "id": "objective",
+            "title": "Objetivo profissional",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "objective-0",
+                "text": "Estágio em engenharia mecânica, com interesse em suporte a projetos, desenho e documentação técnica. Estudante de engenharia automotiva com experiência prática em manutenção e diagnóstico e participação no desenvolvimento estrutural de um veículo acadêmico.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "education",
+            "title": "Formação acadêmica e cursos",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "education-0",
+                "text": "Bacharelado em Engenharia Automotiva — Universidade Exemplo | 2024–2029 | Cursando.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "education-1",
+                "text": "Mecânica automotiva — Escola Técnica Exemplo | Cursando. Formação complementar em veículos híbridos e elétricos e características de motores a combustão.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "education-2",
+                "text": "Treinamentos em direção, suspensão, controle de chassi e componentes de sistemas automotivos.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "project",
+            "title": "Projeto acadêmico — desenvolvimento de veículo | Em andamento",
+            "experienceId": "project",
+            "units": [
+              {
+                "id": "project-0",
+                "text": "Participa do desenvolvimento da estrutura mecânica de um protótipo, aplicando conceitos de engenharia e interpretação de desenho técnico.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "project-1",
+                "text": "Colabora nas decisões de projeto, na análise dos requisitos e na solução de problemas do veículo acadêmico.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "apprentice",
+            "title": "Jovem aprendiz — Concessionária Horizonte | 2025–atual",
+            "experienceId": "apprentice",
+            "units": [
+              {
+                "id": "apprentice-0",
+                "text": "Apoia manutenções preventivas e corretivas, diagnóstico e rastreamento de falhas em conjunto com os profissionais responsáveis.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "apprentice-1",
+                "text": "Tem contato prático com sistemas de veículos híbridos e elétricos, complementando a formação técnica.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "apprentice-2",
+                "text": "Atende clientes e apoia rotinas de estoque, notas fiscais e organização de peças.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "assistant",
+            "title": "Auxiliar de mecânica — Oficina Azul | 2022–2025",
+            "experienceId": "assistant",
+            "units": [
+              {
+                "id": "assistant-0",
+                "text": "Executou manutenções preventivas e corretivas e participou da identificação de defeitos e análise do funcionamento de componentes.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "assistant-1",
+                "text": "Realizou testes de rodagem e conversou com clientes para apoiar a identificação de problemas e a definição dos serviços necessários.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "skills",
+            "title": "Competências e idiomas",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "skills-0",
+                "text": "Desenho técnico e interpretação de documentação; fundamentos de mecânica aplicada; diagnóstico e análise de problemas; organização e comunicação técnica.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "skills-1",
+                "text": "Trabalho em equipe em projetos de engenharia. Inglês avançado.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "software-career",
+    "expectedPages": 2,
+    "input": {
+      "archetype": "E_SPECIALIST",
+      "profile": {
+        "name": "Pessoa Exemplo — Software",
+        "professionalTitle": "Engenheiro de Software | Backend e Cloud",
+        "email": "software@example.com",
+        "phone": "(11) 00000-0000",
+        "location": "Cidade Exemplo, SP",
+        "linkedin": "linkedin.com/in/perfil-exemplo",
+        "github": "github.com/perfil-exemplo",
+        "portfolio": "https://example.com/portfolio",
+        "confirmed": true
+      },
+      "document": {
+        "version": 1,
+        "explanation": "Referência esperada de apresentação, anonimizada e inserida manualmente. Não gerada por IA.",
+        "sections": [
+          {
+            "id": "summary",
+            "title": "Resumo profissional",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "summary-0",
+                "text": "Engenheiro de software com experiência em backend, sistemas distribuídos e infraestrutura cloud nos setores financeiro, educacional e geoespacial. Atuação no ciclo de desenvolvimento: arquitetura, implementação, testes, deploy, observabilidade e sustentação de serviços.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "stack",
+            "title": "Competências técnicas",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "stack-0",
+                "text": "Backend e APIs: Python, Node.js, NestJS, TypeScript, Django, Flask, FastAPI, APIs REST e GraphQL.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "stack-1",
+                "text": "Dados e processamento: PostgreSQL, PostGIS, Redis, BullMQ, modelagem relacional, otimização de consultas, filas e processamento assíncrono.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "stack-2",
+                "text": "Cloud e entrega: AWS, ECS, EKS, RDS, Docker, Kubernetes, Terraform, GitHub Actions, CI/CD e Git.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "stack-3",
+                "text": "Engenharia: testes automatizados, observabilidade, análise de causa raiz, sistemas distribuídos, performance e mentoria técnica.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "current",
+            "title": "Engenheiro de Software — Empresa Horizonte | 2025–atual",
+            "experienceId": "current",
+            "units": [
+              {
+                "id": "current-0",
+                "text": "Desenvolve serviços backend e fluxos assíncronos para integrações de atendimento por mensagens, e-mail e voz, incluindo ferramentas de simulação e atendimento com IA.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "current-1",
+                "text": "Reestruturou a infraestrutura AWS com Terraform, ajustando o dimensionamento dos recursos e o processamento por filas para reduzir custos de operação.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "current-2",
+                "text": "Mantém ambientes com ECS, RDS e GitHub Actions e melhora o monitoramento de erros, os logs operacionais e os alertas de disponibilidade.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "current-3",
+                "text": "Criou uma estrutura de avaliação automatizada para fluxos de IA, verificando ferramentas, contexto e respostas para identificar regressões.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "finance",
+            "title": "Engenheiro de Software — Plataforma Financeira Exemplo | 2024–2025",
+            "experienceId": "finance",
+            "units": [
+              {
+                "id": "finance-0",
+                "text": "Desenvolveu APIs em Python e sistemas de detecção de fraude bancária em tempo real, com atenção a latência, confiabilidade e concorrência.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "finance-1",
+                "text": "Trabalhou com arquitetura em camadas e processamento por filas para sustentar o volume de requisições e os requisitos operacionais dos serviços.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "finance-2",
+                "text": "Refatorou componentes da API antifraude e do motor de regras e implementou testes de regressão com dados representativos para reduzir a complexidade de manutenção.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "finance-3",
+                "text": "Automatizou a entrega de serviços de machine learning e trabalhou em SDKs de segurança e identificação de dispositivos para diferentes plataformas.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "geo",
+            "title": "Engenheiro de Software — Tecnologia Geoespacial Exemplo | 2023–2024",
+            "experienceId": "geo",
+            "units": [
+              {
+                "id": "geo-0",
+                "text": "Desenvolveu serviços Python com Django, Flask e FastAPI e pipelines distribuídos com Kubernetes e PostGIS para processar dados geográficos e imagens de satélite.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "geo-1",
+                "text": "Implementou processamento baseado em filas para classificação de áreas e operações assíncronas.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "geo-2",
+                "text": "Modelou dados relacionais, índices espaciais e operações de sobreposição e busca para produtos de monitoramento ambiental e risco bancário.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "support",
+            "title": "Analista de Suporte a Sistemas — Educação Exemplo | 2021–2023",
+            "experienceId": "support",
+            "units": [
+              {
+                "id": "support-0",
+                "text": "Atuou em sistemas de produção com Ruby on Rails, Elixir e Vue.js, corrigindo falhas e desenvolvendo funcionalidades em jornadas comerciais.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "support-1",
+                "text": "Coordenou o trabalho da equipe de suporte, a resolução de incidentes e as melhorias de processos. Trabalhou em correções de causa raiz e automação para reduzir a demanda recorrente.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "intern",
+            "title": "Estágio em desenvolvimento — Indústria Exemplo | 2019–2020",
+            "experienceId": "intern",
+            "units": [
+              {
+                "id": "intern-0",
+                "text": "Desenvolveu ferramentas de simulação de desempenho, viabilidade de rotas, carga e custos operacionais para propostas de engenharia de vendas.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "education",
+            "title": "Formação e certificação",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "education-0",
+                "text": "Análise e Desenvolvimento de Sistemas — Universidade Exemplo | Cursando. Estudos anteriores em Ciência e Tecnologia.",
+                "factIds": [],
+                "criterionIds": []
+              },
+              {
+                "id": "education-1",
+                "text": "AWS Certified Solutions Architect — Associate.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          },
+          {
+            "id": "languages",
+            "title": "Idiomas",
+            "experienceId": null,
+            "units": [
+              {
+                "id": "languages-0",
+                "text": "Português nativo | Inglês fluente.",
+                "factIds": [],
+                "criterionIds": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

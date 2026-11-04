@@ -833,10 +833,6 @@
   gap: 0.4rem;
 }
 
-/* A single focused conversation, with no application controls competing for attention. */
-body:has(.guided-interview) .analytics-consent {
-  display: none;
-}
 .guided-interview {
   max-width: 680px;
   margin: 0 auto;
@@ -1019,15 +1015,16 @@ body:has(.guided-interview) .analytics-consent {
   border-radius: 3px;
   box-shadow: 0 6px 24px rgb(37 38 38 / 4%);
   display: grid;
-  gap: 1.4rem;
-  line-height: 1.65;
+  gap: 0.65rem;
+  line-height: 1.35;
+  font-size: 0.9rem;
 }
 .resume-edit-block {
   display: grid;
   gap: 0.5rem;
   width: 100%;
   text-align: left;
-  padding: 0.5rem;
+  padding: 0;
   border-radius: 0.25rem;
 }
 
@@ -1040,7 +1037,25 @@ body:has(.guided-interview) .analytics-consent {
   font-size: 0.85rem;
   letter-spacing: 0.075em;
   text-transform: uppercase;
-  color: var(--color-navy);
+  color: #193b60;
+}
+.resume-area > .resume-section-heading,
+.resume-area-title {
+  border-bottom: 1px solid #bbc9d8;
+  padding-bottom: 0.3rem;
+}
+.resume-experience h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.resume-bullet {
+  padding-left: 1rem;
+  position: relative;
+}
+.resume-bullet::before {
+  content: '•';
+  position: absolute;
+  left: 0;
 }
 .resume-review form,
 .resume-review label {
@@ -1083,21 +1098,27 @@ body:has(.guided-interview) .analytics-consent {
 }
 
 .resume-edit-block + .resume-edit-block {
-  border-top: 1px solid #e1e4ea;
-  padding-top: 1.4rem;
+  padding-top: 0.4rem;
+}
+.resume-document-header {
+  border-bottom: 2px solid #193b60;
+  padding-bottom: 0.65rem;
 }
 .resume-document .resume-name {
+  color: #193b60;
   font-size: clamp(1.4rem, 3vw, 1.85rem);
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.025em;
 }
 .resume-professional-title {
+  margin-top: 0.25rem;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--color-navy);
 }
 .resume-contacts {
+  white-space: pre-line;
   font-size: 0.875rem;
   color: #555968;
   overflow-wrap: anywhere;

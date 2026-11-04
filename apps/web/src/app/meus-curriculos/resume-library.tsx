@@ -6,6 +6,7 @@ import {
   readCompletedResume,
   type CompletedResume,
 } from '../conversa/_lib/completed-resumes';
+import { contactLine } from '../conversa/_lib/resume-presentation';
 import { PdfExport } from '../conversa/_components/pdf-export';
 export function ResumeLibrary({ id }: { id?: string }) {
   const [items, setItems] = useState<CompletedResume[]>([]),
@@ -58,7 +59,7 @@ export function ResumeLibrary({ id }: { id?: string }) {
               <header>
                 <h2>{item.profile.name}</h2>
                 <p>{item.profile.professionalTitle}</p>
-                <p>{[item.profile.email, item.profile.phone].filter(Boolean).join(' · ')}</p>
+                <p>{contactLine(item.profile)}</p>
               </header>
               {item.document.sections.map((section) => (
                 <section key={section.id}>

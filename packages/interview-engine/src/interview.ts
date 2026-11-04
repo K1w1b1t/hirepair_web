@@ -15,6 +15,7 @@ import {
   resume,
   transition,
   resolveDiagnosticFinding,
+  strategyFor,
 } from './engine';
 export const INTERVIEW_LIMITS = {
   reformulations: 2,
@@ -323,6 +324,13 @@ export function incorporateBlock(
     next.criteria = result.analysis.criteria;
     next.links = result.analysis.links;
   }
+  next.strategy = strategyFor(
+    next,
+    result.analysis?.archetype ?? s.strategy?.archetype ?? 'A_FIRST_JOB',
+    result.analysis?.reason ??
+      s.strategy?.reason ??
+      'Estrutura inicial conservadora para as experiências declaradas.',
+  );
   const topics = { ...state.topics };
   for (const assessment of result.assessments) {
     const old = topics[assessment.topicId] ?? open();

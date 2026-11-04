@@ -218,3 +218,15 @@ as demais operações continuam em cinco/30.000. A escrita admite até 3.000 tok
 de saída, dentro dos mesmos 6.000 totais por chamada. Não há mudança de pool,
 limites globais, consentimento ou persistência pessoal no servidor. O contrato e
 as limitações semânticas estão no ADR 0018.
+
+## Avaliação integrada da jornada (#23)
+
+O [harness versionado](../eval/README.md) adiciona `eval:journey` sem chamadas reais
+na CI e uma execução explícita `--live`, apenas com Groq. O modo real usa os mesmos
+serviços e reservas centrais, mais um teto de 30.000 tokens por rodada de até dois
+casos, incluindo preparação, simulador e judge. Não aumenta a franquia do candidato.
+
+Relatórios locais separam contratos, falhas operacionais, judge e revisão humana.
+Credenciais e checkpoints ficam fora do Git. A ausência de configuração do Groq
+produz falha explícita, nunca aprovação semântica. O job de integração usa HTTP,
+PostgreSQL/Redis descartáveis e serviços externos controlados; não acessa Supabase.
