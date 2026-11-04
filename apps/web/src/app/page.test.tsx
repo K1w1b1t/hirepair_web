@@ -3,25 +3,24 @@ import { render, screen } from '@testing-library/react';
 import Home from './page';
 
 describe('Home', () => {
-  it('announces November 1 and keeps one day remaining at the old October 31 deadline', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-10-31T00:00:00-03:00'));
-    try {
-      render(<Home />);
-      expect(screen.getByText('Lançamento em 1º de novembro')).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          'Volte em 1º de novembro de 2026 para acompanhar o lançamento do HirePair.',
-        ),
-      ).toBeInTheDocument();
-      expect(screen.getByText('01', { selector: '[data-unit="dias"]' })).toBeInTheDocument();
-      expect(screen.queryByText('O lançamento chegou.')).not.toBeInTheDocument();
-    } finally {
-      jest.useRealTimers();
-    }
+  it('presents the available product and preserves the journey links without launch messaging', () => {
+    render(<Home />);
+
+    expect(screen.getByText('Seu currículo começa aqui')).toBeInTheDocument();
+    expect(screen.getByText('O que o HirePair oferece')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Começar a conversa' })).toHaveAttribute(
+      'href',
+      '/conversa',
+    );
+    expect(screen.getByRole('link', { name: 'Meus currículos' })).toHaveAttribute(
+      'href',
+      '/meus-curriculos',
+    );
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/lançamento|contagem regressiva|1º de novembro/i);
   });
 
-  it('explains the upcoming product in the main heading', () => {
+  it('explains the product in the main heading', () => {
     render(<Home />);
 
     expect(
