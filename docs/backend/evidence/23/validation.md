@@ -60,3 +60,10 @@ os 12 casos determinísticos e as nove fronteiras HTTP passaram novamente.
 O novo job usa credencial efêmera do próprio run para o Postgres descartável,
 sem senha fixa no workflow. As pausas dos E2E refletem a janela real de orçamento,
 não um aumento da franquia ou uma chamada de IA real na CI.
+
+A instalação do novo job foi conferida numa cópia descartável em `/tmp`:
+`npm ci --ignore-scripts`, inicialização explícita do engine Prisma,
+`npm run db:generate` e build do motor passaram. Sharp e bindings SWC carregaram;
+o binário Playwright local respondeu `Version 1.64.1`. O workflow usa esse binário
+resolvido pelo lockfile, sem instalação implícita via `npx`. A leitura de versão
+Git no harness usa `/usr/bin/git`, sem resolução pelo `PATH`.

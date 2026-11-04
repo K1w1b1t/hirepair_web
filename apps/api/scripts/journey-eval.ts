@@ -319,7 +319,7 @@ async function main() {
       provider: 'groq',
     },
     knowledgeVersion: KNOWLEDGE_VERSION,
-    commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    commit: execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     get reservedTokens() {
       return stack?.reservedTokens ?? 0;
     },
