@@ -1112,6 +1112,7 @@
   letter-spacing: -0.025em;
 }
 .resume-professional-title {
+  margin-top: 0.25rem;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--color-navy);

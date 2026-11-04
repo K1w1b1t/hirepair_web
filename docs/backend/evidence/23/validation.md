@@ -148,3 +148,15 @@ A cobertura unitária dos cinco módulos de apresentação alterados é 100% em
 instruções, ramos, funções e linhas: renderizador, apresentação compartilhada,
 cabeçalho, conferência e alternativa acessível da biblioteca. O teste de
 contatos em duas linhas e a alternativa acessível falharam antes da implementação.
+
+Ajuste final do cabeçalho: o título profissional tem margem superior de 8 pt e
+altura de linha própria no PDF; o nome também define sua altura de linha.
+A conferência recebe espaço adicional equivalente. As referências completas
+foram reexportadas e os prints do aprovado e da conferência foram substituídos.
+O teste unitário do espaçamento falhou antes da correção e passou depois.
+As duas referências de apresentação passaram novamente no navegador.
+
+Os dados manuais das referências passam a residir em `reference-resumes.v1.json`,
+separados do adaptador TypeScript. O SonarCloud tratava a estrutura repetida de
+dados como código duplicado; nenhum limiar foi reduzido ou arquivo excluído da
+análise. Os estilos de título também são compartilhados no renderizador.

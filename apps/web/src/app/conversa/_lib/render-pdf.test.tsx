@@ -161,3 +161,12 @@ it('renders the reference hierarchy and complete contacts in the exported docume
   ])
     expect(tree).toContain(value);
 });
+it('keeps a clear gap and independent line heights between name and professional title', async () => {
+  await renderPdf(input);
+  const tree = (pdf as jest.Mock).mock.calls.at(-1)[0];
+  const header = tree.props.children.props.children[0];
+  const [name, title] = header.props.children;
+  expect(name.props.style.lineHeight).toBe(1.2);
+  expect(title.props.style.lineHeight).toBe(1.3);
+  expect(title.props.style.marginTop).toBeGreaterThanOrEqual(8);
+});

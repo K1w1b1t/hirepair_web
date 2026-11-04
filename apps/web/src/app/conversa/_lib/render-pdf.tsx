@@ -10,6 +10,17 @@ Font.register({
   ],
 });
 Font.registerHyphenationCallback((word) => [word]);
+const areaStyle = {
+  fontWeight: 700,
+  fontSize: 11,
+  color: '#193b60',
+  textTransform: 'uppercase',
+  marginTop: 12,
+  marginBottom: 5,
+  paddingBottom: 3,
+  borderBottomWidth: 0.5,
+  borderBottomColor: '#bbc9d8',
+} as const;
 export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
   const { document, profile } = input;
   const source = Font.getFont({ fontFamily: 'Public Sans' });
@@ -52,10 +63,14 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
           wrap={false}
         >
           {profile.name && (
-            <Text style={{ fontSize: 20, fontWeight: 700, color: '#193b60' }}>{profile.name}</Text>
+            <Text style={{ fontSize: 20, fontWeight: 700, color: '#193b60', lineHeight: 1.2 }}>
+              {profile.name}
+            </Text>
           )}
           {profile.professionalTitle && (
-            <Text style={{ fontSize: 12, marginTop: 4 }}>{profile.professionalTitle}</Text>
+            <Text style={{ fontSize: 12, marginTop: 8, lineHeight: 1.3 }}>
+              {profile.professionalTitle}
+            </Text>
           )}
           <Text style={{ fontSize: 9, color: '#555968', marginTop: 4 }}>
             {contactLine(profile)}
@@ -64,21 +79,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
         {/* Presence hints need preceding siblings in the page flow, not an isolated section wrapper. */}
         {resumeBlocks(document.sections).flatMap(({ section, areaTitle, isExperience }) => [
           areaTitle && (
-            <Text
-              key={`area:${section.id}`}
-              minPresenceAhead={90}
-              style={{
-                fontWeight: 700,
-                fontSize: 11,
-                color: '#193b60',
-                textTransform: 'uppercase',
-                marginTop: 12,
-                marginBottom: 5,
-                paddingBottom: 3,
-                borderBottomWidth: 0.5,
-                borderBottomColor: '#bbc9d8',
-              }}
-            >
+            <Text key={`area:${section.id}`} minPresenceAhead={90} style={areaStyle}>
               {areaTitle}
             </Text>
           ),
@@ -88,17 +89,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
             style={
               isExperience
                 ? { fontWeight: 700, fontSize: 10, marginTop: 8, marginBottom: 4 }
-                : {
-                    fontWeight: 700,
-                    fontSize: 11,
-                    color: '#193b60',
-                    textTransform: 'uppercase',
-                    marginTop: 12,
-                    marginBottom: 5,
-                    paddingBottom: 3,
-                    borderBottomWidth: 0.5,
-                    borderBottomColor: '#bbc9d8',
-                  }
+                : areaStyle
             }
           >
             {section.title}
