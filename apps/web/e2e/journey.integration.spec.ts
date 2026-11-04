@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { expectCookieAtViewportCorner } from './helpers/viewport-evidence';
 
 for (const withResume of [true, false]) {
   test(`HTTP real: ${withResume ? 'currículo ruim' : 'sem currículo e sem áudio'} até PDF e biblioteca`, async ({
@@ -101,11 +102,13 @@ for (const withResume of [true, false]) {
     await expect(
       page.getByRole('button', { name: 'Aprovar currículo', exact: true }),
     ).toBeEnabled();
-    await page.screenshot({ path: testInfo.outputPath('review.png'), fullPage: true });
+    await expectCookieAtViewportCorner(page);
+    await page.screenshot({ path: testInfo.outputPath('review.png'), fullPage: false });
     await page.getByRole('button', { name: 'Aprovar currículo', exact: true }).click();
     await page.waitForURL(/meus-curriculos\/[^/]+$/);
     await expect(page.locator('.pdf-pages canvas[data-rendered=true]')).toHaveCount(1);
-    await page.screenshot({ path: testInfo.outputPath('approved.png'), fullPage: true });
+    await expectCookieAtViewportCorner(page);
+    await page.screenshot({ path: testInfo.outputPath('approved.png'), fullPage: false });
     const downloading = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Baixar PDF' }).click();
     const bytes = new Uint8Array(await readFile((await (await downloading).path())!));

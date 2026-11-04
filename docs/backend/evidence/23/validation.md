@@ -67,3 +67,47 @@ A instalação do novo job foi conferida numa cópia descartável em `/tmp`:
 o binário Playwright local respondeu `Version 1.64.1`. O workflow usa esse binário
 resolvido pelo lockfile, sem instalação implícita via `npx`. A leitura de versão
 Git no harness usa `/usr/bin/git`, sem resolução pelo `PATH`.
+
+## Correção das evidências após revisão visual
+
+As capturas antigas `approved-desktop.png`/`approved-mobile.png` usavam `fullPage`.
+No desktop, uma viewport de 1280×720 produziu uma imagem de 1280×1592. O controle
+fixo de cookies continuou a 16 px do fundo da viewport, parecendo deslocado quando
+a imagem do documento inteiro era vista como uma única tela. A página é rolável;
+a captura não representava a janela disponível. As capturas da jornada passam a
+usar `fullPage: false` e verificam as distâncias do controle à viewport.
+
+O teste de apresentação mede também a posição antes/depois da rolagem e as dimensões
+do PNG: 1280×800 no desktop e 390×844 no mobile. Não foi necessário alterar o CSS
+do controle de cookies.
+
+As referências abaixo têm conteúdo completo, derivado e anonimizado dos exemplos
+autorizados de engenharia e software. São **conteúdo esperado inserido manualmente**
+no renderizador real, não resultado de entrevista ou geração por IA. Elas testam
+apresentação, limites de páginas, preservação de texto e cabeçalhos sem órfãos;
+não certificam a capacidade do motor de produzir esse conteúdo a partir de relatos.
+
+| Referência                       | PDF integral                                   | Viewport desktop                                 | Viewport mobile                                 |
+| -------------------------------- | ---------------------------------------------- | ------------------------------------------------ | ----------------------------------------------- |
+| Entrada em engenharia — 1 página | [PDF esperado](engineering-entry-expected.pdf) | [Janela](engineering-entry-desktop-viewport.png) | [Janela](engineering-entry-mobile-viewport.png) |
+| Carreira em software — 2 páginas | [PDF esperado](software-career-expected.pdf)   | [Janela](software-career-desktop-viewport.png)   | [Janela](software-career-mobile-viewport.png)   |
+
+As imagens `*-expected-page-*.png` são páginas do PDF exportado, sem controles do
+site. As imagens `*-scrolled.png` comprovam a posição do botão após rolar a página.
+A separação entre PDF integral e captura da janela evita repetir a ambiguidade.
+
+O caso de software revelou um título de experiência órfão no fim da primeira
+página. A correção coloca títulos e parágrafos no mesmo fluxo da página, onde a
+reserva de espaço funciona; seções longas continuam podendo quebrar sem cortar
+texto. O teste unitário falhou antes da correção. O teste de PDF exige o título
+e o primeiro parágrafo de cada seção na mesma página. Novos PDFs usam
+`single-column-v2`; arquivos já aprovados continuam preservados na biblioteca.
+
+Validação desta correção: os cinco gates (`npm run lint`, `npm run format:check`,
+`npm run typecheck`, `npm run test`, `npm run build`) passaram; 952 testes unitários
+(296 API, 429 web, 227 motor). `npm run test:e2e` passou com 25 cenários, incluindo
+os dois PDFs completos e posição do controle antes/depois da rolagem.
+`npm run test:cov -w @hirepair/web -- --runInBand --collectCoverageFrom=src/app/conversa/_lib/render-pdf.tsx`
+mediu 100% nas quatro métricas do renderizador alterado. As duas jornadas HTTP
+integradas foram executadas anteriormente; nesta revisão suas mudanças se limitam
+a capturas e asserções de posição, com nova execução pela CI.

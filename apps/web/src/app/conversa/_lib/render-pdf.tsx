@@ -42,7 +42,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
           color: '#252626',
         }}
       >
-        <View style={{ marginBottom: 16 }} wrap={false}>
+        <View style={{ marginBottom: 4 }} wrap={false}>
           {profile.name && <Text style={{ fontSize: 20, fontWeight: 700 }}>{profile.name}</Text>}
           {profile.professionalTitle && (
             <Text style={{ fontSize: 12, marginTop: 4 }}>{profile.professionalTitle}</Text>
@@ -51,26 +51,29 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
             <Text key={index}>{value}</Text>
           ))}
         </View>
-        {document.sections.map((section) => (
-          <View key={section.id} style={{ marginBottom: 12 }}>
-            <Text minPresenceAhead={30} style={{ fontWeight: 700, fontSize: 12, marginBottom: 6 }}>
-              {section.title}
+        {/* Presence hints need preceding siblings in the page flow, not an isolated section wrapper. */}
+        {document.sections.flatMap((section) => [
+          <Text
+            key={`heading:${section.id}`}
+            minPresenceAhead={60}
+            style={{ fontWeight: 700, fontSize: 12, marginTop: 12, marginBottom: 6 }}
+          >
+            {section.title}
+          </Text>,
+          ...section.units.map((unit) => (
+            <Text key={unit.id} orphans={2} widows={2} style={{ marginBottom: 5 }}>
+              {unit.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                /^https?:\/\//.test(part) ? (
+                  <Link key={i} src={part}>
+                    {part}
+                  </Link>
+                ) : (
+                  part
+                ),
+              )}
             </Text>
-            {section.units.map((unit) => (
-              <Text key={unit.id} orphans={2} widows={2} style={{ marginBottom: 5 }}>
-                {unit.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-                  /^https?:\/\//.test(part) ? (
-                    <Link key={i} src={part}>
-                      {part}
-                    </Link>
-                  ) : (
-                    part
-                  ),
-                )}
-              </Text>
-            ))}
-          </View>
-        ))}
+          )),
+        ])}
         <Text
           fixed
           render={({ totalPages }) => {
@@ -101,7 +104,7 @@ export async function renderPdf(input: PdfInput): Promise<ExportArtifact> {
     profileHash: await hashValue({ ...profile, confirmed: true }),
     fileHash,
     rendererVersion: 'react-pdf-4.9.0',
-    layoutVersion: 'single-column-v1',
+    layoutVersion: 'single-column-v2',
     pageCount,
   };
 }

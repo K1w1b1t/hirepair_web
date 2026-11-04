@@ -78,3 +78,9 @@ desta entrega. Ver [ADR 0020](../../architecture/adr-0020-local-pdf-library.md).
 
 O botão **Preferências de cookies** fica fixo no canto inferior direito da janela
 em todas as telas, inclusive após rolagem, respeitando a área segura do aparelho.
+
+Os títulos de seção dos novos PDFs acompanham o início do texto na paginação
+(`single-column-v2`), mantendo a quebra de parágrafos longos e os limites de páginas.
+Evidências da interface devem capturar a viewport; um PDF integral é um artefato
+separado. Exemplos de apresentação com conteúdo manual devem ser identificados
+como referências esperadas, sem atribuição de geração ao motor de IA.

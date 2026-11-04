@@ -73,7 +73,7 @@ it('renders unchanged text, links and hashes with a versioned layout', async () 
     pageCount: 1,
     mime: 'application/pdf',
     fileName: 'curriculo-Atendente.pdf',
-    layoutVersion: 'single-column-v1',
+    layoutVersion: 'single-column-v2',
   });
   expect(artifact.fileHash).toHaveLength(64);
   expect(artifact.contentHash).toHaveLength(64);
@@ -109,4 +109,27 @@ it('blocks missing glyphs and propagates render failures', async () => {
     },
   });
   await expect(renderPdf(input)).rejects.toThrow('font failed');
+});
+
+it('reserves enough room after section headings for the first two body lines', async () => {
+  await renderPdf(input);
+  const tree: unknown = (pdf as jest.Mock).mock.calls.at(-1)[0];
+  const reserves: number[] = [];
+  const parents: unknown[] = [];
+  function inspect(node: unknown, parent?: unknown) {
+    if (Array.isArray(node)) return node.forEach((child) => inspect(child, parent));
+    if (node && typeof node === 'object' && 'props' in node) {
+      const props = (node as ReactElement<{ children?: unknown; minPresenceAhead?: number }>).props;
+      if (typeof props.minPresenceAhead === 'number') {
+        reserves.push(props.minPresenceAhead);
+        parents.push(parent);
+      }
+      inspect(props.children, (node as ReactElement).type);
+    }
+  }
+  inspect(tree);
+  expect(parents).toEqual(input.document.sections.map(() => 'page'));
+  expect(reserves).toHaveLength(input.document.sections.length);
+  // Two body lines (10pt × 1.45) plus the paragraph spacing must fit after the heading.
+  expect(reserves.every((space) => space >= 2 * 10 * 1.45 + 5)).toBe(true);
 });

@@ -119,3 +119,17 @@ telemetria ou mensagens externas além da chamada Groq explicitamente solicitada
 
 Referências: [metodologia](../business/methodology/metodologia-do-sistema.md),
 [fluxo web](../design/web/README.md), [operação](../backend/operational-foundation.md).
+
+## Referências completas de apresentação
+
+[Fixtures de apresentação](../../apps/web/test/reference-resumes.ts) preservam a
+estrutura e a densidade dos exemplos autorizados, com identidades, contatos,
+empregadores e datas anonimizados. São documentos esperados, escritos manualmente,
+para medir o renderizador. Não são saídas do modelo e não substituem a avaliação
+semântica da entrevista/redação. A comparação de conteúdo gerado continua pendente.
+
+O teste `reference-layout.spec.ts` exporta os PDFs reais, confere cada linha,
+verifica os limites de uma/duas páginas e exige que o primeiro parágrafo acompanhe
+seu título. Screenshots de interface usam a viewport; páginas integrais do PDF são
+[artefatos separados](../backend/evidence/23/validation.md). O controle de cookies
+é medido em relação à janela antes e depois da rolagem, sem escondê-lo para capturar.
