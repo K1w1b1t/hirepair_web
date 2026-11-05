@@ -85,6 +85,9 @@ describe('JobExampleStep', () => {
     expect(screen.getByText(/aceite os termos/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox'));
     expect(skip).toBeEnabled();
+    expect(
+      screen.queryByText(/informe uma vaga para analisar ou siga sem vaga/i),
+    ).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Requisitos da vaga'), { target: { value: '   ' } });
     expect(skip).toBeEnabled();
     expect(analyze).toBeDisabled();

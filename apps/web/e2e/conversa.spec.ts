@@ -81,12 +81,18 @@ test.describe('wizard acolhedor', () => {
     const skip = page.getByRole('button', { name: 'Seguir sem vaga' });
     await expect(analyze).toBeDisabled();
     await expect(skip).toBeDisabled();
+    await expect(analyze).toHaveCSS('background-color', 'rgb(223, 221, 217)');
+    await expect(skip).toHaveCSS('color', 'rgb(87, 83, 78)');
     await page.getByRole('checkbox').check();
     await expect(skip).toBeEnabled();
+    await expect(skip).toHaveCSS('background-color', 'rgb(99, 111, 193)');
+    await expect(skip).toHaveCSS('color', 'rgb(255, 255, 255)');
     await page.getByLabel(/requisitos da vaga/i).fill('   ');
     await expect(skip).toBeEnabled();
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga');
     await expect(analyze).toBeEnabled();
+    await expect(analyze).toHaveCSS('background-color', 'rgb(99, 111, 193)');
+    await expect(analyze).toHaveCSS('color', 'rgb(255, 255, 255)');
     await expect(skip).toBeDisabled();
     await page.getByRole('checkbox').uncheck();
     await expect(analyze).toBeDisabled();

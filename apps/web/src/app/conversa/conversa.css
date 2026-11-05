@@ -39,6 +39,14 @@
   gap: 0.75rem;
   margin-top: 1rem;
 }
+.job-actions .button:disabled,
+.job-actions .button:disabled:hover {
+  background: #dfddd9;
+  color: #57534e;
+}
+#job-action-guidance:empty {
+  display: none;
+}
 .job-terms {
   display: block;
   margin: 1rem 0;

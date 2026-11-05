@@ -74,9 +74,7 @@ export function JobExampleStep({
         ? 'Aguarde a verificação para continuar.'
         : voiceBusy
           ? 'Conclua o ditado para continuar.'
-          : hasJob
-            ? 'Analise a vaga para continuar. Para seguir sem vaga, apague o texto.'
-            : 'Informe uma vaga para analisar ou siga sem vaga.';
+          : '';
   const updateDraft = (next: Partial<JobDraft>) => onDraftChange({ ...draft, ...next });
 
   const analyze = async (verifiedChallenge: GuestChallenge, withJob: boolean) => {
@@ -201,7 +199,7 @@ export function JobExampleStep({
         </button>
         <button
           aria-describedby="job-action-guidance"
-          className="button button-outline"
+          className="button button-primary"
           disabled={unavailable || hasJob}
           onClick={challenge ? () => void analyze(challenge, false) : undefined}
           type="button"
