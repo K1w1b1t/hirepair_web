@@ -283,6 +283,18 @@
   min-width: 0;
   padding: 1.5rem;
 }
+.journey-without-resume {
+  display: block;
+  margin: 2rem auto 0;
+  padding: 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.journey-without-resume:hover {
+  color: var(--color-primary);
+}
 .wizard-preview-desktop {
   display: none;
 }

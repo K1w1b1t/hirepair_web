@@ -306,6 +306,12 @@ it('starts without documents, saves the same session and restores the relevant i
   restore.mockResolvedValue({ draft: initialDraft });
   const view = render(<ConversationPageClient />);
   await screen.findByText('Começar sem currículo');
+  const skipResume = screen.getByRole('button', { name: 'Começar sem currículo' });
+  expect(
+    screen.getByText('Clear').compareDocumentPosition(skipResume) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(skipResume).toHaveClass('journey-without-resume');
   fireEvent.click(screen.getByText('Começar sem currículo'));
   expect(window.location.search).toContain('sem-curriculo=1');
   await screen.findByText('Analyze prepared');

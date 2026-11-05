@@ -388,20 +388,6 @@ export function ConversationPageClient() {
       <div className="w-full min-w-0">
         {result?.preparation?.writing?.status !== 'approved' && <ExitJourney />}
         {localError ? <p role="alert">{localError}</p> : null}
-        {phase === 'materials' && documents.length === 0 && (
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.set('sem-curriculo', '1');
-              window.history.replaceState(window.history.state, '', url);
-              transitionTo('job');
-            }}
-          >
-            Começar sem currículo
-          </button>
-        )}
         <ConversationStep
           phase={phase}
           documents={documents}
@@ -450,6 +436,20 @@ export function ConversationPageClient() {
             setResult((value) => (value ? { ...value, preparation: session } : value))
           }
         />
+        {phase === 'materials' && documents.length === 0 && (
+          <button
+            className="journey-without-resume"
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('sem-curriculo', '1');
+              window.history.replaceState(window.history.state, '', url);
+              transitionTo('job');
+            }}
+          >
+            Começar sem currículo
+          </button>
+        )}
       </div>
     </WizardShell>
   );
