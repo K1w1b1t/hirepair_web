@@ -118,20 +118,16 @@ test('preenche currículo, vaga e cargo por ditado dentro das etapas atuais', as
   await speak('Experiência em logística.');
   await page.getByRole('button', { name: 'Confirmar ditado' }).click();
   await expect(page.locator('#job-text')).toHaveValue('Experiência em logística.');
-  await page.getByRole('button', { name: 'Ainda não tenho' }).click();
-  await speak('Auxiliar de logística');
-  await page.getByRole('button', { name: 'Confirmar ditado' }).click();
-  await expect(page.locator('#target-role')).toHaveValue('Auxiliar de logística');
   await expect(page).toHaveURL(/\/conversa\?etapa=job$/);
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
-  await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^analisar$/i })).toBeDisabled();
   await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByRole('checkbox').check();
-  await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^analisar$/i })).toBeEnabled();
   await page.setViewportSize({ width: 1280, height: 800 });
-  const desktopEvidence = testInfo.outputPath('dictation-role-desktop.png');
+  const desktopEvidence = testInfo.outputPath('dictation-job-desktop.png');
   await page.screenshot({ path: desktopEvidence, fullPage: true });
-  await testInfo.attach('Cargo por voz — desktop', {
+  await testInfo.attach('Vaga por voz — desktop', {
     path: desktopEvidence,
     contentType: 'image/png',
   });
@@ -153,5 +149,5 @@ test('continua digitando quando o navegador não oferece ditado', async ({ page 
   await page.getByLabel('Requisitos da vaga').fill('Vaga de atendimento.');
   await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByRole('checkbox').check();
-  await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^analisar$/i })).toBeEnabled();
 });

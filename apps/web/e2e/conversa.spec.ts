@@ -76,11 +76,26 @@ test.describe('wizard acolhedor', () => {
     await expect(page.getByText('Passo 2 de 5')).toBeVisible();
     await expect(page.getByRole('heading', { name: /qual vaga você quer buscar/i })).toBeVisible();
     await expect(page.getByText(/sugestões aparecerão aqui/i)).toBeVisible();
+    await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
+    const analyze = page.getByRole('button', { name: 'Analisar', exact: true });
+    const skip = page.getByRole('button', { name: 'Seguir sem vaga' });
+    await expect(analyze).toBeDisabled();
+    await expect(skip).toBeDisabled();
+    await page.getByRole('checkbox').check();
+    await expect(skip).toBeEnabled();
+    await page.getByLabel(/requisitos da vaga/i).fill('   ');
+    await expect(skip).toBeEnabled();
+    await page.getByLabel(/requisitos da vaga/i).fill('Vaga');
+    await expect(analyze).toBeEnabled();
+    await expect(skip).toBeDisabled();
+    await page.getByRole('checkbox').uncheck();
+    await expect(analyze).toBeDisabled();
+    await expect(skip).toBeDisabled();
     await page.getByLabel(/requisitos da vaga/i).fill('Vaga para engenheiro mecânico.');
     await page.getByLabel(/requisitos da vaga/i).blur();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: 'test-results/43-objetivo.png', fullPage: true });
-    await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /^analisar$/i })).toBeDisabled();
     await page.reload();
     await expect(page.getByLabel(/requisitos da vaga/i)).toHaveValue(
       'Vaga para engenheiro mecânico.',
@@ -92,7 +107,7 @@ test.describe('wizard acolhedor', () => {
     await page.getByLabel('Seu objetivo pessoal').selectOption('CHANGE_FIELD');
     await page.getByLabel('Objetivo provisório').selectOption('yes');
     await page.getByRole('checkbox').check();
-    await page.getByRole('button', { name: /analisar e sugerir/i }).click();
+    await page.getByRole('button', { name: /^analisar$/i }).click();
 
     await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

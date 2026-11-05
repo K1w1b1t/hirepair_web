@@ -164,7 +164,7 @@ async function begin(
   await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByLabel(/requisitos da vaga/i).fill('Atendimento ao público');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: /analisar e sugerir/i }).click();
+  await page.getByRole('button', { name: /^analisar$/i }).click();
   await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }

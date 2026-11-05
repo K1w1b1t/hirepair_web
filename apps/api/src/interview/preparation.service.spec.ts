@@ -81,13 +81,20 @@ describe('PreparationService', () => {
       { ...input, documents: [] },
       { ...input, documents: [{ id: 'x', text: ' ' }] },
       { ...input, documents: [input.documents[0], input.documents[0]] },
-      { ...input, jobText: '' },
       { ...input, jobText: 'a'.repeat(20_001) },
     ])
       await expect(service.prepare('token', invalid, 'network', 'key')).rejects.toMatchObject({
         status: 400,
       });
     expect(quota.reserveAnalysis).not.toHaveBeenCalled();
+  });
+  it('prepares a journey without a vacancy or target role', async () => {
+    ai.generateText
+      .mockReset()
+      .mockResolvedValueOnce({ text: JSON.stringify(extraction) })
+      .mockResolvedValueOnce({ text: JSON.stringify({ ...analysis, criteria: [], links: [] }) });
+    const result = await service.prepare('token', { ...input, jobText: '' }, 'network', 'key');
+    expect(result.session.criteria).toEqual([]);
   });
   it('supports a target without inferring vacancy criteria', async () => {
     ai.generateText

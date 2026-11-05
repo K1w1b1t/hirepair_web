@@ -40,8 +40,7 @@ export class PreparationService {
       new Set(request.documents.map((d) => d.id)).size !== request.documents.length
     )
       throw operationalError('ANALYSIS_MATERIAL_EMPTY', 400);
-    const target = request.jobText?.trim() || request.targetRole?.trim();
-    if (!target) throw operationalError('ANALYSIS_TARGET_EMPTY', 400);
+    const target = request.jobText?.trim() || request.targetRole?.trim() || '';
     if (request.documents.reduce((n, d) => n + d.text.length, target.length) > 20_000)
       throw operationalError('AI_INPUT_TOO_LARGE', 400);
     const sources = request.documents.map((d) => {
