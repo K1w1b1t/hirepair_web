@@ -13,20 +13,21 @@ beforeEach(() => {
     this.dispatchEvent(new Event('close'));
   };
 });
-it('opens from the explicit exit or home link and cancels without deleting', () => {
+it('opens from the home link and restores focus on cancellation without deleting', () => {
   render(
     <>
       <ExitJourney />
       <Link href="/">Início</Link>
     </>,
   );
-  const trigger = screen.getByRole('button', { name: 'Voltar para home' });
+  const trigger = screen.getByRole('link');
+  expect(screen.queryByRole('button', { name: 'Voltar para home' })).not.toBeInTheDocument();
   fireEvent.click(trigger);
   expect(screen.getByRole('dialog')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Continuar criando' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(trigger).toHaveFocus();
-  fireEvent.click(screen.getByRole('link'));
+  fireEvent.click(trigger);
   expect(screen.getByRole('dialog')).toBeVisible();
   expect(cleanupJourney).not.toHaveBeenCalled();
 });
@@ -54,8 +55,13 @@ it('keeps failed deletion visible and protects an in-flight deletion from Escape
 });
 it('deletes only on explicit confirmation', async () => {
   (cleanupJourney as jest.Mock).mockResolvedValue(undefined);
-  render(<ExitJourney />);
-  fireEvent.click(screen.getByRole('button', { name: 'Voltar para home' }));
+  render(
+    <>
+      <ExitJourney />
+      <Link href="/">Início</Link>
+    </>,
+  );
+  fireEvent.click(screen.getByRole('link'));
   fireEvent.click(screen.getByRole('button', { name: 'Sair e descartar' }));
   await waitFor(() => expect(cleanupJourney).toHaveBeenCalledWith(true));
 });

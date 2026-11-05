@@ -6,9 +6,8 @@ jest.mock('../_lib/journey-progress', () => ({
 }));
 jest.mock('../_lib/cleanup-journey', () => ({ cleanupJourney: jest.fn(async () => {}) }));
 jest.mock('./exit-journey', () => ({ ExitJourney: () => null }));
-import { clearStoredResumes } from '../_lib/resume-storage';
 import { preparationFixture } from '../../../../test/preparation';
-import { saveEngine, deleteEngine } from '../_lib/engine-storage';
+import { saveEngine } from '../_lib/engine-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ConversationPageClient } from './conversation-page-client';
 import type { StoredResume } from '../_lib/resume-storage';
@@ -178,7 +177,7 @@ describe('conversation persistence and transitions', () => {
     expect(window.location.search).toBe('?etapa=recommendations');
     expect(persist).toHaveBeenLastCalledWith(snapshot);
   });
-  it('restores valid analysis, synchronizes edit/back URLs and retains preferences', async () => {
+  it('retains preferences when editing the vacancy', async () => {
     window.history.replaceState({}, '', '/conversa?etapa=recommendations');
     restore.mockResolvedValue(snapshot);
     render(<ConversationPageClient />);
@@ -186,12 +185,8 @@ describe('conversation persistence and transitions', () => {
     fireEvent.click(screen.getByText('Preferences'));
     fireEvent.click(screen.getByText('Edit job'));
     expect(window.location.search).toBe('?etapa=job');
-    fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
-    expect(window.location.search).toBe('?etapa=materials');
-    fireEvent.click(screen.getByText('Continuar'));
-    expect(window.location.search).toBe('?etapa=recommendations');
-    fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
-    expect(window.location.search).toBe('?etapa=job');
+    expect(screen.getByRole('link', { name: 'Voltar para o início' })).toHaveAttribute('href', '/');
+    expect(screen.queryByText('Excluir minha jornada deste aparelho')).not.toBeInTheDocument();
   });
   it('invalidates derived analysis when materials change and preserves unchanged material', async () => {
     restore.mockResolvedValue(snapshot);
@@ -261,23 +256,6 @@ describe('conversation persistence and transitions', () => {
   });
 });
 
-it('deletes the whole local journey only after explicit confirmation', async () => {
-  window.history.replaceState({}, '', '/conversa');
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
-  list.mockResolvedValue([resume]);
-  restore.mockResolvedValue(snapshot);
-  render(<ConversationPageClient />);
-  await screen.findByText('Continuar');
-  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
-  expect(confirm).toHaveBeenCalled();
-  confirm.mockReturnValue(true);
-  list.mockResolvedValue([]);
-  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
-  await waitFor(() => expect(screen.queryByText('Continuar')).not.toBeInTheDocument());
-  expect(window.location.search).toBe('?etapa=materials');
-  confirm.mockRestore();
-});
-
 it('saves communication choices against the current local revision and invalidates content', async () => {
   window.history.replaceState({}, '', '/conversa?etapa=recommendations');
   list.mockResolvedValue([resume]);
@@ -307,7 +285,7 @@ it('returns to preparation after the person changes the declared objective', asy
   fireEvent.click(screen.getByText('New objective'));
   expect(window.location.search).toBe('?etapa=job');
 });
-it('reports storage conflicts and deletion failures without claiming success', async () => {
+it('reports storage conflicts without claiming success', async () => {
   window.history.replaceState({}, '', '/conversa?etapa=recommendations');
   list.mockResolvedValue([resume]);
   const session = preparationFixture({ sessionId: 's', funnelSessionId: 'f' }).session;
@@ -321,26 +299,6 @@ it('reports storage conflicts and deletion failures without claiming success', a
   await screen.findByText('Recommendations');
   fireEvent.click(screen.getByText('Preferences'));
   expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar');
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
-  (deleteEngine as jest.Mock).mockRejectedValueOnce(new Error('unavailable'));
-  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
-  await waitFor(() =>
-    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível excluir'),
-  );
-  confirm.mockRestore();
-});
-
-it('does not report full deletion when document storage fails to clear', async () => {
-  window.history.replaceState({}, '', '/conversa');
-  list.mockResolvedValue([resume]);
-  restore.mockResolvedValue(snapshot);
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
-  (clearStoredResumes as jest.Mock).mockResolvedValueOnce(false);
-  render(<ConversationPageClient />);
-  await screen.findByText('Continuar');
-  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível excluir');
-  confirm.mockRestore();
 });
 it('starts without documents, saves the same session and restores the relevant interview screen', async () => {
   window.history.replaceState({}, '', '/conversa');
@@ -348,6 +306,12 @@ it('starts without documents, saves the same session and restores the relevant i
   restore.mockResolvedValue({ draft: initialDraft });
   const view = render(<ConversationPageClient />);
   await screen.findByText('Começar sem currículo');
+  const skipResume = screen.getByRole('button', { name: 'Começar sem currículo' });
+  expect(
+    screen.getByText('Clear').compareDocumentPosition(skipResume) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(skipResume).toHaveClass('journey-without-resume');
   fireEvent.click(screen.getByText('Começar sem currículo'));
   expect(window.location.search).toContain('sem-curriculo=1');
   await screen.findByText('Analyze prepared');
@@ -474,17 +438,6 @@ it('returns to a persisted writing session when opening the site without a phase
   restore.mockResolvedValue({ ...snapshot, result: { ...result, preparation: session } });
   render(<ConversationPageClient />);
   await screen.findByText('Interview view');
-});
-it('reports failure to create another journey after deletion', async () => {
-  window.history.replaceState({}, '', '/conversa');
-  restore.mockResolvedValue(snapshot);
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
-  render(<ConversationPageClient />);
-  await screen.findByText('Continuar');
-  (startProgress as jest.Mock).mockRejectedValueOnce(new Error());
-  fireEvent.click(screen.getByRole('button', { name: 'Excluir minha jornada deste aparelho' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('iniciar outra jornada');
-  confirm.mockRestore();
 });
 it('handles early navigation before the durable journey is opened', async () => {
   let resolve!: (v: unknown) => void;

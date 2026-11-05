@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cleanupJourney } from '../_lib/cleanup-journey';
 export function ExitJourney() {
   const dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLButtonElement>(null);
+    trigger = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   useEffect(() => {
@@ -11,6 +11,7 @@ export function ExitJourney() {
       const anchor = (e.target as Element).closest('a');
       if (anchor?.getAttribute('href') === '/') {
         e.preventDefault();
+        trigger.current = anchor;
         dialog.current?.showModal();
       }
     };
@@ -18,10 +19,10 @@ export function ExitJourney() {
       if (location.pathname === '/') sessionStorage.setItem('hirepair_home_exit_intent', '1');
     };
     window.addEventListener('popstate', historyExit);
-    document.addEventListener('click', open);
+    document.addEventListener('click', open, true);
     if (new URLSearchParams(location.search).get('sair') === '1') dialog.current?.showModal();
     return () => {
-      document.removeEventListener('click', open);
+      document.removeEventListener('click', open, true);
       window.removeEventListener('popstate', historyExit);
     };
   }, []);
@@ -38,13 +39,6 @@ export function ExitJourney() {
   }
   return (
     <div className="journey-exit">
-      <button
-        ref={trigger}
-        className="button button-outline"
-        onClick={() => dialog.current?.showModal()}
-      >
-        Voltar para home
-      </button>
       <dialog
         className="exit-dialog"
         ref={dialog}
