@@ -107,7 +107,7 @@ test.describe('wizard acolhedor', () => {
     await page.goto('/conversa?etapa=job');
     await expect(page).toHaveURL(/etapa=interview/);
     await expect(page.getByRole('textbox', { name: 'Sua resposta' })).toBeVisible();
-    await page.getByRole('button', { name: 'Voltar para home' }).click();
+    await page.getByRole('link', { name: 'Voltar para o início' }).click();
     await page.getByRole('button', { name: 'Sair e descartar' }).click();
     await expect(page).toHaveURL('/');
     await page.getByRole('link', { name: 'Começar a conversa' }).click();
