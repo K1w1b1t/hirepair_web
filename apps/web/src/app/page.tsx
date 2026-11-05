@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { JourneyResume } from './journey-resume';
-import { Countdown } from './countdown';
 
-const launchDate = '2026-11-01T00:00:00-03:00';
 const whatsappUrl =
   'https://wa.me/5511913165266?text=Ol%C3%A1%21%20Quero%20saber%20mais%20sobre%20o%20HirePair.';
 const emailUrl = 'mailto:tech@kiwibit.com.br?subject=Quero%20conhecer%20o%20HirePair';
@@ -132,7 +130,7 @@ export default function Home() {
           <div>
             <p className="eyebrow">
               <span className="status-dot" />
-              Lançamento em 1º de novembro
+              Seu currículo começa aqui
             </p>
             <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-heading)] text-4xl font-extrabold leading-[1.06] tracking-[-0.04em] text-[var(--color-navy)] sm:text-6xl lg:text-7xl">
               Um currículo claro para{' '}
@@ -204,25 +202,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[var(--color-navy)] text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-light)]">
-              Marque na agenda
-            </p>
-            <h2 className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-extrabold sm:text-4xl">
-              A contagem para uma nova fase já começou.
-            </h2>
-            <p className="mt-4 leading-7 text-white/70">
-              Volte em 1º de novembro de 2026 para acompanhar o lançamento do HirePair.
-            </p>
-          </div>
-          <Countdown deadline={launchDate} initialNow={Date.now()} />
-        </div>
-      </section>
-
       <section className="section-shell" id="como-funciona">
-        <p className="section-kicker">O que estamos criando</p>
+        <p className="section-kicker">O que o HirePair oferece</p>
         <h2 className="section-title">Menos confusão para contar bem a sua trajetória.</h2>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           {benefits.map((benefit) => (
@@ -242,7 +223,7 @@ export default function Home() {
       <section className="bg-white">
         <div className="section-shell grid gap-12 lg:grid-cols-[0.75fr_1.25fr]">
           <div>
-            <p className="section-kicker">Como vai funcionar</p>
+            <p className="section-kicker">Como funciona</p>
             <h2 className="section-title">Da sua história ao currículo, em três momentos.</h2>
             <p className="mt-5 leading-7 text-[var(--color-text-muted)]">
               Sem telas confusas e sem exigir que você saiba escrever como um profissional de RH.
@@ -314,8 +295,8 @@ export default function Home() {
               Quer conhecer ou contribuir com o HirePair?
             </h2>
             <p className="mt-5 text-lg leading-8 text-white/80">
-              Estamos ouvindo candidatos, profissionais em transição e recrutadores enquanto
-              construímos o produto.
+              Queremos ouvir candidatos, profissionais em transição e recrutadores para continuar
+              melhorando o HirePair.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <a
