@@ -64,27 +64,32 @@ export function JobExampleStep({
   const onChallenge = useCallback((value?: GuestChallenge) => setChallenge(value), []);
   const [loading, setLoading] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
-  const hasRequiredInput = draft.hasJob
-    ? Boolean(draft.jobText.trim())
-    : Boolean(draft.targetRole.trim());
-  const analysisDisabled =
-    !draft.objective || !challenge || loading || voiceBusy || !draft.accepted || !hasRequiredInput;
-  const analysisDisabledMessage =
-    !hasRequiredInput && !draft.accepted
-      ? 'Informe os requisitos da vaga e aceite os Termos e a Política de Privacidade para analisar.'
-      : !hasRequiredInput
-        ? 'Informe os requisitos da vaga para analisar.'
-        : !draft.accepted
-          ? 'Aceite os Termos e a Política de Privacidade para analisar.'
-          : undefined;
+  const hasJob = Boolean(draft.jobText.trim());
+  const unavailable = !draft.objective || !challenge || loading || voiceBusy || !draft.accepted;
+  const guidance = !draft.accepted
+    ? 'Aceite os Termos e a Política de Privacidade para continuar.'
+    : !draft.objective
+      ? 'Escolha seu objetivo para continuar.'
+      : !challenge
+        ? 'Aguarde a verificação para continuar.'
+        : voiceBusy
+          ? 'Conclua o ditado para continuar.'
+          : '';
   const updateDraft = (next: Partial<JobDraft>) => onDraftChange({ ...draft, ...next });
 
-  const analyze = async (verifiedChallenge: GuestChallenge) => {
+  const analyze = async (verifiedChallenge: GuestChallenge, withJob: boolean) => {
+    const submittedDraft = {
+      ...draft,
+      hasJob: withJob,
+      jobText: withJob ? draft.jobText : '',
+      targetRole: '',
+    };
+    onDraftChange(submittedDraft);
     setLoading(true);
     setNotice('');
     try {
-      const result = await analyzeGuest(documents, draft, verifiedChallenge);
-      onComplete(result, await inputFingerprint(documents, draft));
+      const result = await analyzeGuest(documents, submittedDraft, verifiedChallenge);
+      onComplete(result, await inputFingerprint(documents, submittedDraft));
     } catch (caught) {
       let message = 'Verifique sua conexão e tente novamente em alguns instantes.';
       if (caught instanceof AnalysisFailure) message = caught.message;
@@ -149,50 +154,18 @@ export function JobExampleStep({
         </label>
       </fieldset>
       <TurnstileChallenge key={challengeKey} onReady={onChallenge} />
-      <div aria-label="Forma de definir o objetivo" className="job-toggle">
-        <button
-          aria-pressed={draft.hasJob}
-          onClick={() => updateDraft({ hasJob: true })}
-          type="button"
-        >
-          Tenho uma vaga
-        </button>
-        <button
-          aria-pressed={!draft.hasJob}
-          onClick={() => updateDraft({ hasJob: false })}
-          type="button"
-        >
-          Ainda não tenho
-        </button>
-      </div>
-      {draft.hasJob ? (
-        <VoiceTextField
-          key="job"
-          className="job-text-input"
-          disabled={loading}
-          id="job-text"
-          kind="textarea"
-          label="Requisitos da vaga"
-          onBusyChange={setVoiceBusy}
-          onChange={(value) => updateDraft({ jobText: value })}
-          placeholder="Escreva, cole ou fale os requisitos da vaga"
-          rows={9}
-          value={draft.jobText}
-        />
-      ) : (
-        <VoiceTextField
-          key="role"
-          className="job-text-input"
-          disabled={loading}
-          id="target-role"
-          kind="input"
-          label="Cargo que procura"
-          onBusyChange={setVoiceBusy}
-          onChange={(value) => updateDraft({ targetRole: value })}
-          placeholder="Qual cargo você quer buscar?"
-          value={draft.targetRole}
-        />
-      )}
+      <VoiceTextField
+        className="job-text-input"
+        disabled={loading}
+        id="job-text"
+        kind="textarea"
+        label="Requisitos da vaga"
+        onBusyChange={setVoiceBusy}
+        onChange={(value) => updateDraft({ jobText: value })}
+        placeholder="Escreva, cole ou fale os requisitos da vaga"
+        rows={9}
+        value={draft.jobText}
+      />
       <div className="job-terms">
         <input
           aria-describedby="job-terms-description"
@@ -211,15 +184,29 @@ export function JobExampleStep({
         </a>
         <span id="job-terms-description">. A análise usa IA para prestar este serviço.</span>
       </div>
-      <button
-        className="button button-primary"
-        disabled={analysisDisabled}
-        onClick={challenge ? () => void analyze(challenge) : undefined}
-        title={analysisDisabledMessage}
-        type="button"
-      >
-        {loading ? 'Analisando seu histórico…' : 'Analisar e sugerir'}
-      </button>
+      <p id="job-action-guidance" aria-live="polite">
+        {guidance}
+      </p>
+      <div className="job-actions">
+        <button
+          aria-describedby="job-action-guidance"
+          className="button button-primary"
+          disabled={unavailable || !hasJob}
+          onClick={challenge ? () => void analyze(challenge, true) : undefined}
+          type="button"
+        >
+          Analisar
+        </button>
+        <button
+          aria-describedby="job-action-guidance"
+          className="button button-primary"
+          disabled={unavailable || hasJob}
+          onClick={challenge ? () => void analyze(challenge, false) : undefined}
+          type="button"
+        >
+          Seguir sem vaga
+        </button>
+      </div>
       {loading ? <AnalysisTransition /> : null}
       <AnalysisErrorToast message={notice} onDismiss={() => setNotice('')} />
     </section>

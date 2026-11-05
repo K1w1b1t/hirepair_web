@@ -33,20 +33,19 @@
 .job-example-step > .voice-text-field {
   margin-top: 1.5rem;
 }
-.job-toggle {
+.job-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
-.job-toggle button {
-  border: 1px solid rgb(51 51 100 / 25%);
-  border-radius: 999px;
-  padding: 0.65rem 1rem;
-  color: var(--color-navy);
+.job-actions .button:disabled,
+.job-actions .button:disabled:hover {
+  background: #dfddd9;
+  color: #57534e;
 }
-.job-toggle button[aria-pressed='true'] {
-  background: var(--color-primary);
-  color: white;
+#job-action-guidance:empty {
+  display: none;
 }
 .job-terms {
   display: block;

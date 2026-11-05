@@ -28,7 +28,7 @@ test('prepares internal diagnostic topics without showing findings to the candid
   await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByLabel('Requisitos da vaga').fill('Atendimento ao cliente');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Analisar e sugerir' }).click();
+  await page.getByRole('button', { name: 'Analisar' }).click();
   await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
   const internal = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

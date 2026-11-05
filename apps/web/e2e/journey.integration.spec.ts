@@ -50,8 +50,8 @@ for (const withResume of [true, false]) {
     await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
     await page.getByLabel(/requisitos da vaga/i).fill('Atendimento ao público');
     await page.getByRole('checkbox').check();
-    await expect(page.getByRole('button', { name: /analisar e sugerir/i })).toBeEnabled();
-    await page.getByRole('button', { name: /analisar e sugerir/i }).click();
+    await expect(page.getByRole('button', { name: /^analisar$/i })).toBeEnabled();
+    await page.getByRole('button', { name: /^analisar$/i }).click();
     await expect(page.getByLabel('Sua resposta', { exact: true })).toBeVisible({ timeout: 30_000 });
     // Actual central reservations allow only 6,000 tokens/minute. Respect that window rather than weakening it for E2E.
     if (withResume) await page.waitForTimeout(61_000);

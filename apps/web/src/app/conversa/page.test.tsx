@@ -113,7 +113,7 @@ describe('ConversationPage', () => {
       target: { value: 'ENTER_FAST' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: /analisar e sugerir/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^analisar$/i }));
     expect(
       await screen.findByRole('progressbar', { name: 'Progresso da entrevista' }),
     ).toBeInTheDocument();
