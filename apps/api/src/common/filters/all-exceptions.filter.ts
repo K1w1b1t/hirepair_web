@@ -23,6 +23,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = http.getResponse<Response>();
     const traceId = this.context.getTraceId();
     if (exception instanceof HttpException) {
+      if (exception.getStatus() === 500) {
+        const path = requestRoute(request);
+        void this.discord.sendError500({
+          traceId,
+          method: request.method,
+          path,
+          route: path,
+          errorMessage: 'HTTP 500',
+        });
+      }
       this.handleHttpException(exception, response, traceId);
       return;
     }

@@ -42,6 +42,18 @@ describe('AllExceptionsFilter', () => {
     expect(sendError500).not.toHaveBeenCalled();
   });
 
+  it('alerts on explicit HTTP 500 without including private details', () => {
+    const target = host();
+    new AllExceptionsFilter(context, discord).catch(
+      new HttpException('private detail', 500),
+      target.value,
+    );
+    expect(target.captured.status).toBe(500);
+    expect(sendError500).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'GET', path: '/boom', route: '/boom', traceId: 'trace-1' }),
+    );
+  });
+
   it('returns a safe traceable 500 and alerts without the query string', () => {
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const target = host();
