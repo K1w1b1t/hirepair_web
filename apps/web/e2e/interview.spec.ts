@@ -164,7 +164,7 @@ async function begin(
   await page.getByLabel('Seu objetivo pessoal').selectOption('ENTER_FAST');
   await page.getByLabel(/requisitos da vaga/i).fill('Atendimento ao público');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: /analisar e sugerir/i }).click();
+  await page.getByRole('button', { name: /^analisar$/i }).click();
   await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
@@ -187,7 +187,7 @@ for (const withResume of [false, true])
       });
     }
     await begin(page, withResume);
-    await expect(page.getByRole('button', { name: 'Voltar para home' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Voltar para o início' })).toBeVisible();
     await expect(page.locator('.guided-interview').getByRole('button')).toHaveCount(2);
     await captureScreen(page, {
       path: `../../docs/backend/evidence/18-interview-${withResume ? 'desktop' : 'mobile-text'}.png`,
@@ -373,7 +373,7 @@ test('ditado envia após silêncio e pode ser corrigido antes do envio', async (
   await page.getByLabel('Sua resposta').fill('Organizei inscrições na feira escolar.');
   await page.getByText('Enviar resposta', { exact: true }).click();
   await expect(page.getByText('1 respostas recebidas')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Voltar para home' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voltar para o início' })).toBeVisible();
   await expect(page.locator('.guided-interview').getByRole('button')).toHaveCount(2);
   await page.getByText('Falar', { exact: true }).click();
   await page.getByRole('button', { name: 'Ouvir e responder' }).click();
@@ -456,7 +456,7 @@ test('uma habilidade negada permanece bloqueada depois da análise e da retomada
   await page.reload();
   await expect(page.getByRole('progressbar', { name: 'Progresso da entrevista' })).toBeVisible();
   expect((await savedState(page)).disputed).toContain('excel');
-  await expect(page.getByRole('button', { name: 'Voltar para home' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voltar para o início' })).toBeVisible();
   await expect(page.locator('.guided-interview').getByRole('button')).toHaveCount(2);
 });
 test('respostas longas são analisadas em blocos válidos sem perder os turnos restantes', async ({
@@ -483,6 +483,6 @@ test('respostas longas são analisadas em blocos válidos sem perder os turnos r
   expect(saved.turns.every((t) => t.length > 6900)).toBe(true);
   expect(saved.analyzed.length).toBeLessThan(3);
   await expect(page.getByText('Suas respostas estão salvas', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Voltar para home' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voltar para o início' })).toBeVisible();
   await expect(page.locator('.guided-interview').getByRole('button')).toHaveCount(2);
 });

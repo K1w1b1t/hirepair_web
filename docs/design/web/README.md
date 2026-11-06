@@ -70,7 +70,7 @@ vazia oferece a mesma criação em `/conversa`. Nome, contatos e arquivo de cada
 currículo são independentes das próximas jornadas.
 
 Um fluxo incompleto é retomado automaticamente ao abrir o site. Recarregar ou
-fechar a aba preserva o progresso; **Voltar para home** abre confirmação para
+fechar a aba preserva o progresso; a seta de retorno à home abre confirmação para
 descartar somente a criação atual. O modal mantém foco, aceita Escape para
 cancelar e não anuncia exclusão se o armazenamento falhar. Currículos aprovados
 permanecem na biblioteca deste navegador. DOCX e compartilhamento não fazem parte

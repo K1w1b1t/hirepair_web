@@ -230,3 +230,12 @@ Relatórios locais separam contratos, falhas operacionais, judge e revisão huma
 Credenciais e checkpoints ficam fora do Git. A ausência de configuração do Groq
 produz falha explícita, nunca aprovação semântica. O job de integração usa HTTP,
 PostgreSQL/Redis descartáveis e serviços externos controlados; não acessa Supabase.
+
+## Verificação após deploy da API
+
+Execute `node scripts/check-api-deployment.mjs https://URL-DA-API` contra o
+preview ou staging após o deploy e, depois da promoção, contra produção. A
+verificação faz HTTP real e valida o contrato de `/guest/config`, sem registrar
+valores da configuração. Também confirme a jornada com dados sintéticos; uma
+resposta válida não prova disponibilidade do Redis, Turnstile ou provedor de IA.
+As migrações continuam no workflow de migração por ambiente, fora da função.

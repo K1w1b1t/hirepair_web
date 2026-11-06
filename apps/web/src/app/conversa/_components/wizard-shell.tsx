@@ -14,7 +14,6 @@ export interface WizardShellProps {
   previewTriggerLabel?: string;
   previewOnMobile?: boolean;
   headerActions?: ReactNode;
-  onBack?: () => void;
   footer?: ReactNode;
 }
 
@@ -29,7 +28,6 @@ export function WizardShell({
   previewTriggerLabel = 'Ver currículo',
   previewOnMobile = true,
   headerActions,
-  onBack,
   footer,
 }: WizardShellProps) {
   const progress = `${(currentStep / totalSteps) * 100}%`;
@@ -38,45 +36,21 @@ export function WizardShell({
       <header className="wizard-header">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {!focused &&
-              (onBack ? (
-                <button
-                  aria-label="Voltar para a etapa anterior"
-                  className="wizard-icon-button"
-                  onClick={onBack}
-                  type="button"
-                >
-                  <svg
-                    aria-hidden="true"
-                    fill="none"
-                    height="20"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    width="20"
-                  >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </button>
-              ) : (
-                <Link aria-label="Voltar para o início" className="wizard-icon-button" href="/">
-                  <svg
-                    aria-hidden="true"
-                    fill="none"
-                    height="20"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    width="20"
-                  >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </Link>
-              ))}
+            <Link aria-label="Voltar para o início" className="wizard-icon-button" href="/">
+              <svg
+                aria-hidden="true"
+                fill="none"
+                height="20"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                width="20"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </Link>
             <Image
               alt=""
               className="h-9 w-auto"
